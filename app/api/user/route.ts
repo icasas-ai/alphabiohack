@@ -1,42 +1,39 @@
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    // FIX: await cookies() in Next.js 15
-    const cookieStore = await cookies();
+    const supabase = await createClient();
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value ?? "";
-          },
-          set() {},
-          remove() {},
-        },
-      }
-    );
-
+    // Obtener el usuario de Supabase
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
 
     if (error || !user) {
-      return Response.json(
-        { error: "Not authenticated" },
+      return NextResponse.json(
+        { user: null, prismaUser: null },
         { status: 401 }
       );
     }
 
-    return Response.json({ user });
+    // Obtener el usuario de Prisma
+    const prismaUser = await prisma.user.findUnique({
+      where: {
+        supabaseId: user.id,
+      },
+    });
+
+    return NextResponse.json({
+      user,
+      prismaUser,
+    });
   } catch (error) {
-    console.error("API /user error:", error);
-    return Response.json(
-      { error: "Internal Server Error" },
+    console.error("Error fetching user:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -23,7 +23,7 @@ interface LocationFormProps {
   onToggle: () => void;
   onCancel: () => void;
   onSave: () => void;
-  onSubmit?: (formData: { title: string; address: string; description: string; logo: string; lat: number; lon: number }) => Promise<void>;
+  onSubmit?: (formData: { title: string; address: string; description: string; logo: string; lat: number; lon: number; timezone?: string }) => Promise<void>;
   onDelete?: () => Promise<void>;
   loading?: boolean;
 }
@@ -46,6 +46,7 @@ export function LocationForm({
     logo: location?.logo || "",
     lat: location?.lat || 0,
     lon: location?.lon || 0,
+    timezone: (location as any)?.timezone || "America/Los_Angeles",
   });
 
   // Determine if the coordinates are missing.  If either latitude or

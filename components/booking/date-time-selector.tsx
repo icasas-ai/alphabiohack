@@ -2,7 +2,7 @@
 
 import { Calendar as CalendarIcon, Clock } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { PST_TZ, dateKeyInTZ, dayOfWeekInTZ } from "@/lib/utils/timezone"
+import { PST_TZ, dateKeyInTZ, dayOfWeekInTZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone"
 import { useBusinessHours, useOverrides, useServices, useTherapistBookings } from "@/hooks"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useFormatter, useNow, useTranslations } from "next-intl"
@@ -280,6 +280,14 @@ export function DateTimeSelector() {
     })
   }
 
+  // Crear una vista previa de la fecha/hora combinada en PST
+  const previewDate = useMemo(() => {
+    if (data.selectedDate && data.selectedTime) {
+      return combineDateAndTimeToUtc(data.selectedDate, data.selectedTime, PST_TZ)
+    }
+    return undefined
+  }, [data.selectedDate, data.selectedTime])
+
   // Verificar si una fecha está disponible (no es pasado y la clínica está abierta con slots activos), respetando overrides
   const isDateAvailable = (date: Date) => {
     // Comparar por clave PST para evitar variaciones por tz del dispositivo
@@ -450,7 +458,7 @@ export function DateTimeSelector() {
                           <div>
                             <p className="text-xs text-muted-foreground">{t('time')}</p>
                             <p className="text-sm font-semibold text-foreground">
-                              {data.selectedTime ? format.dateTime(new Date(`2000-01-01T${data.selectedTime}`), {
+                              {previewDate ? format.dateTime(previewDate, {
                                 hour: 'numeric',
                                 minute: 'numeric',
                                 timeZone: PST_TZ

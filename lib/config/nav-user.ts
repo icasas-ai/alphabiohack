@@ -35,17 +35,17 @@ export const getNavUserConfig = (
       {
         label: t("account"),
         icon: BadgeCheck,
-        url: "/",
+        url: "/profile",
       },
       {
         label: t("billing"),
         icon: CreditCard,
-        url: "/",
+        url: "/billing",
       },
       {
         label: t("notifications"),
         icon: Bell,
-        url: "/",
+        url: "/notifications",
       },
     ],
     logoutItem: {

@@ -904,5 +904,19 @@
         "durationMax": "Maximum duration is 8 hours"
       }
     }
+  },
+  "Profile": {
+    "myProfile": "My Profile",
+    "manageYourProfileInformation": "Update your personal information",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "enterFirstName": "Enter your first name",
+    "enterLastName": "Enter your last name",
+    "email": "Email",
+    "emailCannotBeChanged": "Email cannot be changed",
+    "avatar": "Avatar URL",
+    "enterAvatarUrl": "Enter your avatar image URL",
+    "saveChanges": "Save Changes",
+    "cancel": "Cancel"
   }
 }

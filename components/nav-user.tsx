@@ -56,10 +56,12 @@ interface NavUserConfig {
   upgradeItem: {
     icon: React.ComponentType;
     label: string;
+    url?: string;
   };
   accountItems: Array<{
     icon: React.ComponentType;
     label: string;
+    url?: string;
   }>;
   logoutItem: {
     icon: React.ComponentType;
@@ -75,7 +77,7 @@ interface NavUserPresentationalProps {
 }
 
 // Componente presentacional optimizado con useMemo
-function NavUserPresentational({ user, config, isMobile }: NavUserPresentationalProps) {
+function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPresentationalProps & { onNavigate: (url: string) => void }) {
   const fullName = useMemo(() => `${user.firstname} ${user.lastname}`, [user.firstname, user.lastname]);
   const initials = useMemo(() => `${user.firstname?.charAt(0) ?? ""}${user.lastname?.charAt(0) ?? ""}`, [user.firstname, user.lastname]);
   const avatarAlt = useMemo(() => fullName, [fullName]);
@@ -118,7 +120,7 @@ function NavUserPresentational({ user, config, isMobile }: NavUserPresentational
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => config.upgradeItem.url && onNavigate(config.upgradeItem.url)}>
             <config.upgradeItem.icon />
             {config.upgradeItem.label}
           </DropdownMenuItem>
@@ -126,7 +128,10 @@ function NavUserPresentational({ user, config, isMobile }: NavUserPresentational
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {config.accountItems.map((item, index) => (
-            <DropdownMenuItem key={index}>
+            <DropdownMenuItem 
+              key={index}
+              onClick={() => item.url && onNavigate(item.url)}
+            >
               <item.icon />
               {item.label}
             </DropdownMenuItem>
@@ -154,6 +159,10 @@ export function NavUser() {
     await supabase.auth.signOut();
     router.push("/auth/login");
   }, [supabase.auth, router]);
+
+  const handleNavigate = useCallback((url: string) => {
+    router.push(url);
+  }, [router]);
 
   // Memoizar la configuración para evitar recreaciones innecesarias
   const navConfig = useMemo(() => getNavUserConfig(t, logout), [t, logout]);
@@ -184,7 +193,8 @@ export function NavUser() {
                 action: navConfig.logoutItem.action ?? (() => {})
               }
             }} 
-            isMobile={isMobile} 
+            isMobile={isMobile}
+            onNavigate={handleNavigate}
           />
         )}
       </SidebarMenuItem>

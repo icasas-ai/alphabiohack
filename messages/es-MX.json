@@ -893,5 +893,19 @@
         "durationMax": "La duración máxima es 8 horas"
       }
     }
+  },
+  "Profile": {
+    "myProfile": "Mi Perfil",
+    "manageYourProfileInformation": "Actualiza tu información personal",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "enterFirstName": "Ingresa tu nombre",
+    "enterLastName": "Ingresa tu apellido",
+    "email": "Correo Electrónico",
+    "emailCannotBeChanged": "El correo electrónico no se puede cambiar",
+    "avatar": "URL del Avatar",
+    "enterAvatarUrl": "Ingresa la URL de tu imagen de avatar",
+    "saveChanges": "Guardar Cambios",
+    "cancel": "Cancelar"
   }
 }

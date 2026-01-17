@@ -87,6 +87,7 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     end,
     googleCalendarUrl,
     language,
+    timeZone,
   });
 
   const subject = `Nueva cita: ${patientName}`;
@@ -184,6 +185,7 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
     end,
     googleCalendarUrl,
     language,
+    timeZone,
   });
 
   const subject =

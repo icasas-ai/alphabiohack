@@ -31,7 +31,7 @@ import {
 import { BookingType } from "@prisma/client";
 import { getServerLanguage } from "@/services/i18n.service";
 import { getTimeZoneOrDefault } from "@/services/config.service";
-import { combineDateAndTimeToUtc } from "@/lib/utils/timezone";
+import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/bookings - Obtener citas
@@ -228,7 +228,8 @@ export async function POST(request: NextRequest) {
         });
         const tz = location?.timezone ?? "America/Los_Angeles";
         
-        const selectedDate = new Date(body.selectedDate);
+        // Parsear selectedDate como fecha local en la zona horaria correcta
+        const selectedDate = parseDateStringInTimeZone(body.selectedDate, tz);
         const bookingSchedule = combineDateAndTimeToUtc(selectedDate, body.selectedTime, tz);
         body.bookingSchedule = bookingSchedule;
       } catch (error) {

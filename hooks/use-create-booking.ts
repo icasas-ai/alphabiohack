@@ -1,7 +1,6 @@
 "use client";
 
 import type { CreateBookingRequest, CreateBookingResponse } from "@/types";
-import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 import { useCallback, useState } from "react";
 
 import { API_ENDPOINTS } from "@/constants";
@@ -18,13 +17,8 @@ export function useCreateBooking() {
         setLoading(true);
         setError(null);
 
-        // Crear fecha y hora combinada en PST y serializar a UTC
-        const bookingSchedule = combineDateAndTimeToUtc(
-          formData.selectedDate!,
-          formData.selectedTime,
-          PST_TZ
-        );
-
+        // El backend hará la conversión correcta usando la zona horaria de la ubicación
+        // Solo enviar fecha y hora como strings
         const requestData: CreateBookingRequest = {
           bookingType: formData.appointmentType,
           locationId: formData.locationId!,
@@ -37,7 +31,8 @@ export function useCreateBooking() {
           givenConsent: formData.basicInfo.givenConsent,
           therapistId: formData.therapistId || undefined,
           bookingNotes: formData.basicInfo.bookingNotes || undefined,
-          bookingSchedule: bookingSchedule.toISOString(),
+          selectedDate: formData.selectedDate!.toISOString().split('T')[0], // YYYY-MM-DD
+          selectedTime: formData.selectedTime, // HH:mm
           status: formData.status,
         };
 

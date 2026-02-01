@@ -111,7 +111,14 @@ export const createBooking = async (data: CreateBookingData) => {
         status: data.status || "Pending",
       },
       include: {
-        location: true,
+        location: {
+          select: {
+            id: true,
+            title: true,
+            address: true,
+            timezone: true,
+          },
+        },
         specialty: true,
         service: true,
         therapist: true,
@@ -132,7 +139,14 @@ export const getBookingById = async (id: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id },
     include: {
-      location: true,
+      location: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          timezone: true,
+        },
+      },
       specialty: true,
       service: true,
       therapist: true,
@@ -148,7 +162,14 @@ export const getBookingById = async (id: string) => {
 export const getAllBookings = async () => {
   const bookings = await prisma.booking.findMany({
     include: {
-      location: true,
+      location: {
+        select: {
+          id: true,
+          title: true,
+          address: true,
+          timezone: true,
+        },
+      },
       specialty: true,
       service: true,
       therapist: true,

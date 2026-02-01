@@ -34,18 +34,18 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     timeZone,
   } = payload;
 
-  // Google Calendar URL necesita HH:mm; derivamos desde start/end locales según PST ya calculado aguas arriba
+  // Google Calendar URL necesita HH:mm en la zona horaria correcta
   const startHHmm = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: timeZone || PST_TZ,
+    timeZone,
   }).format(start);
   const endHHmm = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: timeZone || PST_TZ,
+    timeZone,
   }).format(end);
   const googleCalendarUrl = buildGoogleCalendarUrl(
     {
@@ -56,7 +56,7 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
       startTimeHHmm: startHHmm,
       endTimeHHmm: endHHmm,
     },
-    timeZone || PST_TZ
+    timeZone
   );
 
   const icsContent = buildICS(
@@ -74,7 +74,7 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
       startTimeHHmm: startHHmm,
       endTimeHHmm: endHHmm,
     },
-    timeZone || PST_TZ
+    timeZone
   );
 
   const reactProps = AppointmentInviteEmail({
@@ -130,13 +130,13 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: timeZone || PST_TZ,
+    timeZone,
   }).format(start);
   const endHHmm = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: timeZone || PST_TZ,
+    timeZone,
   }).format(end);
 
   const googleCalendarUrl = buildGoogleCalendarUrl(
@@ -151,7 +151,7 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
       startTimeHHmm: startHHmm,
       endTimeHHmm: endHHmm,
     },
-    timeZone || PST_TZ
+    timeZone
   );
 
   const icsContent = buildICS(
@@ -172,7 +172,7 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
       startTimeHHmm: startHHmm,
       endTimeHHmm: endHHmm,
     },
-    timeZone || PST_TZ
+    timeZone
   );
 
   const reactProps = AppointmentInviteEmail({

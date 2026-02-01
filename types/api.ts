@@ -26,7 +26,11 @@ export interface CreateBookingRequest {
   therapistId?: string;
   patientId?: string;
   bookingNotes?: string;
-  bookingSchedule: string; // ISO string
+  // Opción 1: bookingSchedule como ISO string (flujo antiguo)
+  bookingSchedule?: string;
+  // Opción 2: selectedDate + selectedTime (flujo nuevo, recomendado)
+  selectedDate?: string; // YYYY-MM-DD
+  selectedTime?: string; // HH:mm
   status?: string;
 }
 

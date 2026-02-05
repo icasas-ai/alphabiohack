@@ -1,4 +1,4 @@
-import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
+import { PST_TZ, combineDateAndTimeToUtc, formatInTZ} from "@/lib/utils/timezone";
 
 export type CalendarEventInput = {
   title: string;
@@ -23,13 +23,19 @@ function toGoogleDateUTC(date: Date): string {
    return `${yyyy}${MM}${dd}T${hh}${mm}${ss}`; // removing the: Z`
 }
 
+function formatLocalForGoogle(date: Date, tz: string): string {
+  // Returns local date/time in the given tz as: yyyyMMddTHHmmss (no Z)
+  return formatInTZ(date, "yyyyMMdd'T'HHmmss", tz);
+}
+
 export function buildGoogleCalendarUrl(
   input: CalendarEventInput,
   tz: string = PST_TZ
 ): string {
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
-  const dates = `${toGoogleDateUTC(startUtc)}/${toGoogleDateUTC(endUtc)}`;
+  //const dates = `${toGoogleDateUTC(startUtc)}/${toGoogleDateUTC(endUtc)}`;
+  const dates = `${formatLocalForGoogle(startUtc, tz)}/${formatLocalForGoogle(endUtc, tz)}`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: input.title,
@@ -51,8 +57,10 @@ export function buildICS(
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
   const dtstamp = toGoogleDateUTC(new Date());
-  const dtstart = toGoogleDateUTC(startUtc);
-  const dtend = toGoogleDateUTC(endUtc);
+  //const dtstart = toGoogleDateUTC(startUtc);
+  //const dtend = toGoogleDateUTC(endUtc);
+  const dtstart = formatLocalForGoogle(startUtc, tz);
+  const dtend = formatLocalForGoogle(endUtc, tz);
   const organizer = `ORGANIZER;CN=Location:mailto:${input.organizerEmail}`;
   const attendee =
     input.attendeeEmail ?
@@ -67,7 +75,7 @@ export function buildICS(
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",
-    `DTSTAMP:${dtstamp}Z`, //added the Z removed from toGoogleDateUTC
+    `DTSTAMP:${dtstamp}`,
     `DTSTART;TZID=${tz}:${dtstart}`,
     `DTEND;TZID=${tz}:${dtend}`,
     `DTEND:${dtend}`,

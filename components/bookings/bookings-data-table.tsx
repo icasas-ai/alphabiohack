@@ -13,6 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -30,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,6 @@ interface BookingsDataTableProps {
 
 export function BookingsDataTable({ data }: BookingsDataTableProps) {
   const t = useTranslations("Bookings");
-  const format = useFormatter();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -147,7 +147,7 @@ export function BookingsDataTable({ data }: BookingsDataTableProps) {
       cell: ({ row }) => {
         const bookingSchedule = row.getValue("bookingSchedule") as string;
         const date = new Date(bookingSchedule);
-        return <div>{format.dateTime(date, { year: 'numeric', month: 'short', day: 'numeric' })}</div>;
+        return <div>{format(date, 'MMM d, yyyy')}</div>;
       },
     },
     {
@@ -156,7 +156,7 @@ export function BookingsDataTable({ data }: BookingsDataTableProps) {
       cell: ({ row }) => {
         const bookingSchedule = row.getValue("bookingSchedule") as string;
         const date = new Date(bookingSchedule);
-        return <div>{format.dateTime(date, { hour: 'numeric', minute: 'numeric' })}</div>;
+        return <div>{format(date, 'HH:mm')}</div>;
       },
     },
     {

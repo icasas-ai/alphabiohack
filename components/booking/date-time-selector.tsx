@@ -2,7 +2,7 @@
 
 import { Calendar as CalendarIcon, Clock } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { PST_TZ, dateKeyInTZ, dayOfWeekInTZ } from "@/lib/utils/timezone"
+import { PST_TZ, dateKeyInTZ } from "@/lib/utils/timezone"
 import { useBusinessHours, useOverrides, useServices, useTherapistBookings } from "@/hooks"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useFormatter, useNow, useTranslations } from "next-intl"
@@ -10,6 +10,15 @@ import { useFormatter, useNow, useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { useBookingWizard } from "@/contexts"
+
+// ⛔ NO usar timezone aquí
+const calendarDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+
+// ⛔ Día de semana PURO (sin TZ)
+const dayOfWeekFromCalendarDate = (d: Date) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    .toLocaleDateString("en-US", { weekday: "long" })
 
 export function DateTimeSelector() {
   const { data, update } = useBookingWizard()
@@ -51,7 +60,9 @@ export function DateTimeSelector() {
       // Comparar componentes en PST
       const bookingDate = new Date(booking.bookingSchedule)
       const bookingDateStr = dateKeyInTZ(bookingDate, PST_TZ)
-      const bookingTimeStr = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: PST_TZ }).format(bookingDate)
+      const bookingTimeStr =
+      `${bookingDate.getHours().toString().padStart(2, "0")}:` +
+      `${bookingDate.getMinutes().toString().padStart(2, "0")}`
       
       // Comparación simple: mismo día y misma hora
       return bookingDateStr === selectedDateStr && bookingTimeStr === timeSlot
@@ -107,10 +118,13 @@ export function DateTimeSelector() {
     }
 
     const selectedDate = data.selectedDate // data.selectedDate ya es un Date
-    const dayOfWeek = dayOfWeekInTZ(selectedDate, PST_TZ)
+    
     // Si existe un override con timeSlots para este día, usar esos en lugar de businessHours
     // Comparación por clave de fecha en PST para evitar diferencias entre dispositivos
-    const selectedKey = dateKeyInTZ(selectedDate, PST_TZ)
+   
+    const selectedKey = calendarDateKey(selectedDate);
+    const dayOfWeek = dayOfWeekFromCalendarDate(selectedDate)
+
     const overrideForDay = overrides?.find(o => {
       const startKey = dateKeyInTZ(new Date(o.startDate), PST_TZ)
       const endKey = dateKeyInTZ(new Date(o.endDate), PST_TZ)
@@ -135,23 +149,21 @@ export function DateTimeSelector() {
     }
     
     const minutesToTime = (minutes: number) => {
-      const hours = Math.floor(minutes / 60)
-      const mins = minutes % 60
-      const timeString = `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`
-      
-      // Convertir a formato AM/PM en PST para mostrar
-      const date = new Date()
-      const dateInPst = new Date(date)
-      dateInPst.setHours(hours, mins, 0, 0)
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const value = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+
+      // formatear en formato 12 horas
+      const isPM = hours >= 12;
+      const displayHour = ((hours + 11) % 12) + 1;
+      const displayMinute = mins.toString().padStart(2, '0');
+      const ampm = isPM ? 'PM' : 'AM';
+
       return {
-        value: timeString, // Valor para almacenar (formato 24h)
-        display: format.dateTime(dateInPst, { 
-          hour: 'numeric', 
-          minute: 'numeric',
-          timeZone: PST_TZ
-        }) // Valor para mostrar (formato AM/PM)
-      }
-    }
+        value,
+        display: `${displayHour}:${displayMinute} ${ampm}`,
+      };
+    };
 
     // Filtrar slots que pueden acomodar la duración total del servicio
     const validSlots = baseSlots.filter(slot => {
@@ -208,7 +220,8 @@ export function DateTimeSelector() {
         const key = dateKeyInTZ(d, PST_TZ)
         if (key.slice(0, 7) === currentMonthKey) {
           // almacenar como Date para el calendario, usando la fecha construida desde la clave (evitar tz local)
-          results.push(new Date(key + "T00:00:00Z"))
+          //results.push(new Date(key + "T00:00:00Z"))
+          results.push(new Date(key + "T12:00:00Z"))
         }
       }
     }
@@ -262,10 +275,18 @@ export function DateTimeSelector() {
   }
 
   const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      update({ selectedDate: date })
-    }
-  }
+  if (!date) return
+
+  // 🔒 Normalizar a MEDIODÍA LOCAL (anti-shift de timezone)
+  const normalized = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12, 0, 0
+  )
+
+  update({ selectedDate: normalized })
+}
 
   const handleTimeSelect = (time: string) => {
     update({ selectedTime: time })
@@ -280,11 +301,20 @@ export function DateTimeSelector() {
     })
   }
 
+  const formatTime12h = (time: string) => {
+    const [h, m] = time.split(":").map(Number)
+    const isPM = h >= 12
+    const hour = ((h + 11) % 12) + 1
+    return `${hour}:${m.toString().padStart(2, "0")} ${isPM ? "PM" : "AM"}`
+  }
   // Verificar si una fecha está disponible (no es pasado y la clínica está abierta con slots activos), respetando overrides
   const isDateAvailable = (date: Date) => {
     // Comparar por clave PST para evitar variaciones por tz del dispositivo
-    const todayKey = dateKeyInTZ(new Date(now), PST_TZ)
-    const dateKey = dateKeyInTZ(date, PST_TZ)
+    
+
+    const todayKey =  calendarDateKey(new Date())
+    const dateKey = calendarDateKey(date)
+
     if (dateKey < todayKey) return false
     
     // Overrides: si existe un override para la fecha, priorizarlo
@@ -301,7 +331,7 @@ export function DateTimeSelector() {
       }
     }
 
-    const dayOfWeek = dayOfWeekInTZ(date, PST_TZ)
+    const dayOfWeek = dayOfWeekFromCalendarDate(date)
     const businessHour = businessHours.find(bh => bh.dayOfWeek === dayOfWeek && bh.isActive)
 
     // Verificar que existe un business hour activo con slots de tiempo configurados
@@ -388,11 +418,6 @@ export function DateTimeSelector() {
                 modifiers={{ booked: bookedDates }}
                 modifiersClassNames={{ booked: "opacity-60 line-through" }}
                 className="bg-transparent p-0 w-full"
-                formatters={{
-                  formatWeekdayName: (date) => {
-                    return date.toLocaleString("en-US", { weekday: "short" })
-                  },
-                }}
               />
             </section>
 
@@ -450,11 +475,8 @@ export function DateTimeSelector() {
                           <div>
                             <p className="text-xs text-muted-foreground">{t('time')}</p>
                             <p className="text-sm font-semibold text-foreground">
-                              {data.selectedTime ? format.dateTime(new Date(`2000-01-01T${data.selectedTime}`), {
-                                hour: 'numeric',
-                                minute: 'numeric',
-                                timeZone: PST_TZ
-                              }) : ''}
+                            
+                              {data.selectedTime ? formatTime12h(data.selectedTime) : ""}
                             </p>
                           </div>
                         </div>

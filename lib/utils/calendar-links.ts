@@ -1,4 +1,4 @@
-import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
+import { PST_TZ, combineDateAndTimeToUtc, formatInTZ} from "@/lib/utils/timezone";
 
 export type CalendarEventInput = {
   title: string;
@@ -19,7 +19,13 @@ function toGoogleDateUTC(date: Date): string {
   const hh = pad(date.getUTCHours());
   const mm = pad(date.getUTCMinutes());
   const ss = pad(date.getUTCSeconds());
-  return `${yyyy}${MM}${dd}T${hh}${mm}${ss}Z`;
+  //return `${yyyy}${MM}${dd}T${hh}${mm}${ss}Z`;
+   return `${yyyy}${MM}${dd}T${hh}${mm}${ss}`; // removing the: Z`
+}
+
+function formatLocalForGoogle(date: Date, tz: string): string {
+  // Returns local date/time in the given tz as: yyyyMMddTHHmmss (no Z)
+  return formatInTZ(date, "yyyyMMdd'T'HHmmss", tz);
 }
 
 export function buildGoogleCalendarUrl(
@@ -28,7 +34,8 @@ export function buildGoogleCalendarUrl(
 ): string {
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
-  const dates = `${toGoogleDateUTC(startUtc)}/${toGoogleDateUTC(endUtc)}`;
+  //const dates = `${toGoogleDateUTC(startUtc)}/${toGoogleDateUTC(endUtc)}`;
+  const dates = `${formatLocalForGoogle(startUtc, tz)}/${formatLocalForGoogle(endUtc, tz)}`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: input.title,
@@ -36,7 +43,7 @@ export function buildGoogleCalendarUrl(
     details: input.description || "",
     location: input.location || "",
   });
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  return `https://calendar.google.com/calendar/render?${params.toString()}&ctz=${encodeURIComponent(tz)}`; //for g calendar
 }
 
 export function buildICS(
@@ -50,8 +57,10 @@ export function buildICS(
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
   const dtstamp = toGoogleDateUTC(new Date());
-  const dtstart = toGoogleDateUTC(startUtc);
-  const dtend = toGoogleDateUTC(endUtc);
+  //const dtstart = toGoogleDateUTC(startUtc);
+  //const dtend = toGoogleDateUTC(endUtc);
+  const dtstart = formatLocalForGoogle(startUtc, tz);
+  const dtend = formatLocalForGoogle(endUtc, tz);
   const organizer = `ORGANIZER;CN=Location:mailto:${input.organizerEmail}`;
   const attendee =
     input.attendeeEmail ?
@@ -66,9 +75,9 @@ export function buildICS(
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",
-    `UID:${input.uid}`,
     `DTSTAMP:${dtstamp}`,
-    `DTSTART:${dtstart}`,
+    `DTSTART;TZID=${tz}:${dtstart}`,
+    `DTEND;TZID=${tz}:${dtend}`,
     `DTEND:${dtend}`,
     organizer,
     `SUMMARY:${input.title}`,

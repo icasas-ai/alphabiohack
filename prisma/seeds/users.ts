@@ -14,7 +14,7 @@ const DEFAULT_USERS = [
     firstname: "Omar",
     lastname: "Monty",
     avatar:
-      "https://ffibrzbwkuxwuhqhnqpw.supabase.co/storage/v1/object/public/avatars/a94c7581-bebf-4f1c-8fc3-031c1aff2741/monty_profile.jpg",
+      "https://bwqlvbnkfkrchjdbbcfl.supabase.co/storage/v1/object/public/avatars/a94c7581-bebf-4f1c-8fc3-031c1aff2741/monty_profile.jpg",
     role: [UserRole.Admin, UserRole.Therapist],
   },
   {
@@ -23,7 +23,7 @@ const DEFAULT_USERS = [
     firstname: "Juan",
     lastname: "Pérez",
     avatar:
-      "https://ffibrzbwkuxwuhqhnqpw.supabase.co/storage/v1/object/public/avatars/default/464623970_122112828386562541_2139823631881943910_n.jpg",
+      "https://bwqlvbnkfkrchjdbbcfl.supabase.co/storage/v1/object/public/avatars/default/464623970_122112828386562541_2139823631881943910_n.jpg",
     role: [UserRole.Patient],
   },
 ];

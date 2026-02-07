@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, MapPin, Plus, Stethoscope, User } from "lucide-react"
 import { useFormatter, useTranslations } from "next-intl"
 import { useLocations, useServices, useSpecialties, useTherapist } from "@/hooks"
-import { PST_TZ } from "@/lib/utils/timezone"
+import { formatTime12h } from "@/lib/format-time"; 
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -54,9 +54,10 @@ export function BasicInformationForm() {
   const selectedServices = services.filter(service => 
     data.selectedServiceIds.includes(service.id)
   )
+  const selectedService = selectedServices[0]
   
   // Calcular duración total
-  const totalDuration = selectedServices.reduce((total, service) => total + service.duration, 0)
+  //const totalDuration = selectedServices.reduce((total, service) => total + service.duration, 0)
 
   // Formatear fecha seleccionada usando useFormatter
   const formatSelectedDate = () => {
@@ -65,38 +66,25 @@ export function BasicInformationForm() {
     return format.dateTime(data.selectedDate, {
       weekday: "long",
       day: "numeric",
-      month: "long",
-      timeZone: PST_TZ
+      month: "long"
     })
   }
 
   // Formatear hora seleccionada usando useFormatter
   const formatSelectedTime = () => {
-    if (!data.selectedTime) return t('selectTime')
-    
-    const [hours, minutes] = data.selectedTime.split(":")
-    const startTime = new Date()
-    startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
-    
-    const endTime = new Date()
-    endTime.setHours(parseInt(hours), parseInt(minutes) + totalDuration, 0, 0)
-    
-    const startTime12 = format.dateTime(startTime, {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: PST_TZ
-    })
-    
-    const endTime12 = format.dateTime(endTime, {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: PST_TZ
-    })
-    
-    return `${startTime12} - ${endTime12}`
-  }
+   if (!data.selectedTime || !selectedService?.duration) return ""
+
+  const [h, m] = data.selectedTime.split(":").map(Number);
+  const startLabel = formatTime12h(data.selectedTime);
+
+  const endMinutes = h * 60 + m + selectedService.duration
+  const endH = Math.floor(endMinutes / 60);
+  const endM = endMinutes % 60;
+  const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+  const endLabel = formatTime12h(endTime);
+
+  return `${startLabel} – ${endLabel}`;
+};
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -259,7 +247,7 @@ export function BasicInformationForm() {
                 <h4 className="text-sm font-semibold text-foreground">{t('dateAndTime')}</h4>
                   
                   <div className="flex-1 flex flex-col mt-2">
-                    <p className="text-sm font-medium text-foreground capitalize">{formatSelectedDate()}</p>
+                    <p className="text-sm font-medium text-foreground capitalize"> {formatSelectedDate()}</p>
                     <p className="text-xs text-muted-foreground">{formatSelectedTime()}</p>
                   </div>
               </div>

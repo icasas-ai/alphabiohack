@@ -20,9 +20,9 @@ const nextConfig: NextConfig = {
         search: "",
       },
       {
-        //https://ffibrzbwkuxwuhqhnqpw.supabase.co
+        //https://bwqlvbnkfkrchjdbbcfl.supabase.co
         protocol: "https",
-        hostname: "ffibrzbwkuxwuhqhnqpw.supabase.co",
+        hostname: "bwqlvbnkfkrchjdbbcfl.supabase.co",
         pathname: "/**",
         search: "",
       },

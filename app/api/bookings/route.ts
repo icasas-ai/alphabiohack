@@ -31,6 +31,7 @@ import {
 import { BookingType } from "@prisma/client";
 import { getServerLanguage } from "@/services/i18n.service";
 import { getTimeZoneOrDefault } from "@/services/config.service";
+import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/bookings - Obtener citas
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       // enviar invitaciones (terapeuta y paciente)
       try {
         const language = await getServerLanguage();
-        const start = new Date(booking.bookingSchedule);
+        const start = booking.bookingSchedule;
         const serviceId = (booking as { serviceId?: string }).serviceId;
         // Determinar duración del servicio de forma robusta
         let durationMin = booking.service?.duration as number | undefined;
@@ -212,8 +213,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validaciones básicas para datos directos
+    // Validaciones básicas para datos directos (flujo no-wizard)
     const language = await getServerLanguage();
+    
+    // Detectar si es flujo alterno (con selectedDate/selectedTime)
+    const isAlternateFlow = body.selectedDate && body.selectedTime;
+    
+    if (isAlternateFlow) {
+      // Convertir selectedDate + selectedTime a bookingSchedule usando zona horaria de la ubicación
+      try {
+        const location = await prisma.location.findUnique({
+          where: { id: body.locationId },
+          select: { timezone: true },
+        });
+        const tz = location?.timezone ?? "America/Los_Angeles";
+        
+        // Parsear selectedDate como fecha local en la zona horaria correcta
+        const selectedDate = parseDateStringInTimeZone(body.selectedDate, tz);
+        const bookingSchedule = combineDateAndTimeToUtc(selectedDate, body.selectedTime, tz);
+        body.bookingSchedule = bookingSchedule;
+      } catch (error) {
+        console.error("Error processing date/time:", error);
+        const { body: err, status } = errorResponse("internal_error", language, 500);
+        return NextResponse.json(err, { status });
+      }
+    }
+    
     if (
       !body.bookingType ||
       !body.locationId ||
@@ -261,7 +286,7 @@ export async function POST(request: NextRequest) {
     // envío de invitación (terapeuta y paciente)
     try {
       const language = await getServerLanguage();
-      const start = new Date(booking.bookingSchedule);
+      const start = booking.bookingSchedule;
       const serviceId = (booking as { serviceId?: string }).serviceId;
       // Determinar duración de forma robusta
       let durationMin = booking.service?.duration as number | undefined;

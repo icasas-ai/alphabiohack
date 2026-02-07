@@ -59,7 +59,7 @@ export function HeroSection() {
               <div className="absolute inset-0 bg-primary rounded-full transform scale-110 opacity-20"></div>
               <div className="relative bg-primary rounded-full p-8">
                 <Image
-                  src="https://ffibrzbwkuxwuhqhnqpw.supabase.co/storage/v1/object/public/avatars/ff21719d-ad00-4c1b-9274-c9452b556728/Imagen%20de%20WhatsApp%202025-09-09%20a%20las%2012.47.07_7afb8bfa.jpg"
+                  src="https://bwqlvbnkfkrchjdbbcfl.supabase.co/storage/v1/object/public/avatars/ff21719d-ad00-4c1b-9274-c9452b556728/Imagen%20de%20WhatsApp%202025-09-09%20a%20las%2012.47.07_7afb8bfa.jpg"
                   alt={t('doctorImageAlt')}
                   className="w-full h-auto rounded-full object-cover"
                   width={500}

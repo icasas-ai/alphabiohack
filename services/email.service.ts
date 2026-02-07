@@ -1,5 +1,5 @@
 import { getDefaultEmailConfig } from "@/services/config.service";
-import { resend } from "@/lib/resend";
+import { getResend  } from "@/lib/resend";
 
 export interface SendEmailArgs {
   from?: string;
@@ -20,6 +20,7 @@ export async function sendEmail({
   bcc,
   replyTo,
 }: SendEmailArgs) {
+  const resend = getResend();
   const defaults = getDefaultEmailConfig();
   const normalizeList = (
     v: string | string[] | ReadonlyArray<string> | undefined
@@ -30,6 +31,7 @@ export async function sendEmail({
   };
   const normalizedTo = normalizeList(to)!;
   const normalizedBcc = normalizeList(bcc);
+  
   return resend.emails.send({
     from: from || defaults.from,
     to: normalizedTo,

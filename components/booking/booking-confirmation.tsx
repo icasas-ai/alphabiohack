@@ -1,26 +1,30 @@
 "use client"
-
+import { useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Phone, QrCode } from "lucide-react"
-import { PST_TZ, dateKeyInTZ } from "@/lib/utils/timezone"
-import { useFormatter, useTranslations } from "next-intl"
+import { useTranslations } from "next-intl"
 import { useLocations, useServices, useTherapist } from "@/hooks"
-
+import { formatTime12h } from "@/lib/format-time"
 import { AddToCalendarButton } from "@/components/common/add-to-calendar-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useBookingWizard } from "@/contexts"
 import { useMemo } from "react"
+import { useFormatter } from "next-intl"
 
 export function BookingConfirmation() {
-  const t = useTranslations('Booking')
   const format = useFormatter()
+  const t = useTranslations('Booking')
+ 
   const { data } = useBookingWizard()
   const { locations } = useLocations()
   const { services } = useServices(data.specialtyId || undefined)
   const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
 
+  useEffect(() => {
+  console.log("STEP 4 selectedTime:", data.selectedTime)
+}, [data.selectedTime])
   // Generate booking number
   const bookingNumber = useMemo(() => {
     const timestamp = Date.now().toString().slice(-6)
@@ -34,27 +38,8 @@ export function BookingConfirmation() {
   // Get selected service
   const selectedService = services.find(service => service.id === data.selectedServiceIds[0])
 
-  // Format appointment date and time
-  const formatAppointmentDateTime = () => {
-    if (!data.selectedDate || !data.selectedTime) return t('noAppointmentScheduled')
-    
-    try {
-      const dateStr = dateKeyInTZ(data.selectedDate, PST_TZ)
-      const appointmentDateTime = new Date(`${dateStr}T${data.selectedTime}:00`)
-      
-      return format.dateTime(appointmentDateTime, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: PST_TZ
-      })
-    } catch {
-      return `${data.selectedDate?.toLocaleDateString()} ${data.selectedTime}`
-    }
-  }
+
+
 
   const endTimeHHmm = useMemo(() => {
     if (!data.selectedTime) return "00:00"
@@ -67,6 +52,7 @@ export function BookingConfirmation() {
     return `${eh.toString().padStart(2,'0')}:${em.toString().padStart(2,'0')}`
   }, [data.selectedTime, selectedService])
   
+  console.log("STEP 4 selectedTime:", data.selectedTime)
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header with confirmation */}
@@ -189,7 +175,17 @@ export function BookingConfirmation() {
               {/* Fecha y hora */}
               <div>
                 <h4 className="font-medium text-foreground mb-1">{t('dateTime')}</h4>
-                <p className="text-muted-foreground">{formatAppointmentDateTime()}</p>
+                <p>
+  {data.selectedDate
+    ? format.dateTime(data.selectedDate, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : ""}
+  <br />
+  {data.selectedTime ? formatTime12h(data.selectedTime) : ""}
+</p>
               </div>
 
               {/* Ubicación */}

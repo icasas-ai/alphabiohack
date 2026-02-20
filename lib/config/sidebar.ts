@@ -8,6 +8,7 @@ import {
   LifeBuoy,
   LucideIcon,
   Send,
+  User,
   Users,
 } from "lucide-react";
 
@@ -148,6 +149,11 @@ export const getSidebarConfig = (
   return {
     navMain: isTherapist ? therapistNavMain : regularUserNavMain,
     navSecondary: [
+      {
+        title: t("profile"),
+        url: "/profile",
+        icon: User,
+      },
       {
         title: t("support"),
         url: "#",

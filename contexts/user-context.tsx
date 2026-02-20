@@ -12,6 +12,7 @@ interface UserContextType {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  refreshPrismaUser: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -80,17 +81,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
+        console.log("UserContext: Fetching prisma user for supabase user:", user.id);
         const response = await fetch("/api/user");
         if (response.ok) {
           const data = await response.json();
+          console.log("UserContext: Prisma user data received:", data);
           setPrismaUser(data.prismaUser);
           fetchedUserId.current = user.id;
         } else {
+          console.error("UserContext: Failed to fetch prisma user - Status:", response.status);
           setPrismaUser(null);
           fetchedUserId.current = null;
         }
       } catch (error) {
-        console.error("Error fetching prisma user:", error);
+        console.error("UserContext: Error fetching prisma user:", error);
         setPrismaUser(null);
         fetchedUserId.current = null;
       }
@@ -99,12 +103,31 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     getPrismaUser();
   }, [user]);
 
+  const refreshPrismaUser = async () => {
+    if (!user) return;
+    
+    try {
+      console.log("UserContext: Refreshing prisma user data");
+      fetchedUserId.current = null; // Resetear para forzar recarga
+      const response = await fetch("/api/user");
+      if (response.ok) {
+        const data = await response.json();
+        console.log("UserContext: Prisma user refreshed:", data);
+        setPrismaUser(data.prismaUser);
+        fetchedUserId.current = user.id;
+      }
+    } catch (error) {
+      console.error("UserContext: Error refreshing prisma user:", error);
+    }
+  };
+
   const value: UserContextType = {
     user,
     prismaUser,
     loading,
     error,
     isAuthenticated: !!user,
+    refreshPrismaUser,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

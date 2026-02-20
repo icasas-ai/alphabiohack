@@ -13,11 +13,14 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (error || !user) {
+      console.log("GET /api/user: No authenticated user found");
       return NextResponse.json(
         { user: null, prismaUser: null },
         { status: 401 }
       );
     }
+
+    console.log("GET /api/user: Fetching prisma user for supabase id:", user.id);
 
     // Obtener el usuario de Prisma
     const prismaUser = await prisma.user.findUnique({
@@ -25,6 +28,8 @@ export async function GET() {
         supabaseId: user.id,
       },
     });
+
+    console.log("GET /api/user: Prisma user data:", prismaUser);
 
     return NextResponse.json({
       user,

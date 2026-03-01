@@ -1,5 +1,4 @@
 "use client"
-import { useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Phone, QrCode } from "lucide-react"
@@ -22,9 +21,6 @@ export function BookingConfirmation() {
   const { services } = useServices(data.specialtyId || undefined)
   const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
 
-  useEffect(() => {
-  console.log("STEP 4 selectedTime:", data.selectedTime)
-}, [data.selectedTime])
   // Generate booking number
   const bookingNumber = useMemo(() => {
     const timestamp = Date.now().toString().slice(-6)
@@ -45,14 +41,12 @@ export function BookingConfirmation() {
     if (!data.selectedTime) return "00:00"
     const svc = selectedService
     const [h, m] = data.selectedTime.split(":").map(Number)
-    const dur = (svc?.duration ?? 60)
+    const dur = data.sessionDurationMinutes ?? svc?.duration ?? 60
     const endMinutes = h * 60 + m + dur
     const eh = Math.floor(endMinutes / 60)
     const em = endMinutes % 60
     return `${eh.toString().padStart(2,'0')}:${em.toString().padStart(2,'0')}`
-  }, [data.selectedTime, selectedService])
-  
-  console.log("STEP 4 selectedTime:", data.selectedTime)
+  }, [data.selectedTime, data.sessionDurationMinutes, selectedService])
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header with confirmation */}

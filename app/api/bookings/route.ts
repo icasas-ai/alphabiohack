@@ -16,6 +16,7 @@ import {
   getBookingsByType,
   getPendingBookings,
   getRecentBookings,
+  isAvailabilitySlotBookable,
 } from "@/services";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -102,6 +103,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const selectedDateValue =
+      typeof body.selectedDate === "string"
+        ? body.selectedDate.slice(0, 10)
+        : body.selectedDate
+          ? new Date(body.selectedDate).toISOString().slice(0, 10)
+          : null;
 
     // Detectar si viene del formulario del wizard
     const isFromWizard =
@@ -111,8 +118,35 @@ export async function POST(request: NextRequest) {
       body.basicInfo;
 
     if (isFromWizard) {
+      if (
+        body.therapistId &&
+        body.locationId &&
+        selectedDateValue &&
+        body.selectedTime
+      ) {
+        const availability = await isAvailabilitySlotBookable({
+          therapistId: body.therapistId,
+          locationId: body.locationId,
+          date: selectedDateValue,
+          time: body.selectedTime,
+        });
+
+        if (!availability.isAvailable) {
+          const language = await getServerLanguage();
+          const { body: err, status } = errorResponse(
+            "conflict.slot_unavailable",
+            language,
+            409
+          );
+          return NextResponse.json(err, { status });
+        }
+      }
+
       // Usar la función específica para el wizard con tipo seguro
-      const booking = await createBookingFromForm(body as BookingFormData);
+      const booking = await createBookingFromForm({
+        ...body,
+        selectedDate: body.selectedDate ? new Date(body.selectedDate) : null,
+      } as BookingFormData);
       // enviar invitaciones (terapeuta y paciente)
       try {
         const language = await getServerLanguage();
@@ -257,7 +291,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar disponibilidad del terapeuta si se proporciona
-    if (body.therapistId) {
+    if (body.therapistId && body.locationId && selectedDateValue && body.selectedTime) {
+      const availability = await isAvailabilitySlotBookable({
+        therapistId: body.therapistId,
+        locationId: body.locationId,
+        date: selectedDateValue,
+        time: body.selectedTime,
+      });
+
+      if (!availability.isAvailable) {
+        const { body: err, status } = errorResponse(
+          "conflict.slot_unavailable",
+          language,
+          409
+        );
+        return NextResponse.json(err, { status });
+      }
+    } else if (body.therapistId) {
       // Parsear fecha: si viene sin offset, asumir PST (-08:00). Si ya trae Z u offset, usar tal cual.
       let bookingSchedulePST = new Date(body.bookingSchedule);
       if (isNaN(bookingSchedulePST.getTime())) {

@@ -18,7 +18,12 @@ export function ClinicSelector() {
   const { locations, loading, error } = useLocations()
   const t = useTranslations('Booking')
   const handleSelect = useCallback((locationId: string) => {
-    update({ locationId })
+    update({
+      locationId,
+      selectedDate: null,
+      selectedTime: "",
+      sessionDurationMinutes: null,
+    })
   }, [update])
 
   const handleRetry = useCallback(() => {

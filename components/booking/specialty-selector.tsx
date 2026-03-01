@@ -141,7 +141,7 @@ export function SpecialtySelector() {
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-sm">
-                            {service.duration} min
+                            {t('serviceDuration', { duration: service.duration })}
                           </Badge>
                         </div>
                       </div>

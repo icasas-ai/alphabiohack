@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { useBookingWizard } from "@/contexts"
 import { useTherapist, useTherapistConfig } from "@/hooks"
 
 import { Badge } from "@/components/ui/badge"
@@ -7,7 +8,8 @@ import { Fingerprint } from "lucide-react"
 
 export function DoctorInfo() {
   const { defaultTherapistId } = useTherapistConfig()
-  const { therapist, loading, error } = useTherapist(defaultTherapistId || undefined)
+  const { data } = useBookingWizard()
+  const { therapist, loading, error } = useTherapist(data.therapistId || defaultTherapistId || undefined)
 
   // Si está cargando, mostrar skeleton
   if (loading) {

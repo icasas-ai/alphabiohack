@@ -4,6 +4,7 @@ import { AppointmentTypeSelector } from "../appointment-type-selector";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { ClinicSelector } from "../clinic-selector";
+import { TherapistSelector } from "../therapist-selector";
 import { useBookingWizard } from "@/contexts";
 import { useTranslations } from "next-intl";
 
@@ -40,6 +41,7 @@ export function StepZero({ onNext, onBack, isFirst }: StepZeroProps) {
       </div>
 
       <div className="space-y-6">
+        <TherapistSelector />
         <AppointmentTypeSelector />
         <ClinicSelector />
       </div>

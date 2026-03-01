@@ -95,6 +95,14 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/api/therapists/${id}`,
   },
 
+  AVAILABILITY: {
+    PERIODS: "/api/availability/periods",
+    PERIOD_BY_ID: (id: string) => `/api/availability/periods/${id}`,
+    DAY_BY_ID: (id: string) => `/api/availability/days/${id}`,
+    CALENDAR: "/api/availability/calendar",
+    RESTORE_EXCLUDED_DATE: (periodId: string) => `/api/availability/periods/${periodId}`,
+  },
+
   // Citas/Bookings
   BOOKINGS: {
     BASE: "/api/bookings",

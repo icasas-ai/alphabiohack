@@ -108,6 +108,17 @@ export {
   updateBookingStatus,
 } from "./booking.service";
 
+export {
+  createAvailabilityPeriod,
+  deleteAvailabilityPeriod,
+  getAvailabilityDaySlots,
+  getAvailabilityMonthSummary,
+  isAvailabilitySlotBookable,
+  listAvailabilityPeriods,
+  restoreAvailabilityExcludedDate,
+  updateAvailabilityDay,
+} from "./availability.service";
+
 // Exportar tipos desde la carpeta types
 export type {
   BookingFormData,

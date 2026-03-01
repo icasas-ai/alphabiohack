@@ -1,7 +1,7 @@
 "use client";
 
 import { BookingStatus, BookingType } from "@prisma/client";
-import { ReactNode, createContext, useCallback, useContext, useMemo, useState } from "react";
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { useTherapistConfig } from "@/hooks";
 import { useTranslations } from "next-intl";
@@ -20,6 +20,7 @@ export interface BookingFormData {
   selectedDate: Date | null;
   selectedTime: string;
   therapistId: string | null;
+  sessionDurationMinutes: number | null;
   
   // Paso 4: Información básica
   basicInfo: {
@@ -58,6 +59,7 @@ const defaultFormData: BookingFormData = {
   selectedDate: null,
   selectedTime: "",
   therapistId: null, // Se establecerá automáticamente si está en modo terapeuta único
+  sessionDurationMinutes: null,
   basicInfo: {
     firstName: "",
     lastName: "",
@@ -78,6 +80,16 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<BookingFormData>(defaultFormData);
   const t = useTranslations('Booking.Validation');
   const { getTherapistIdForBooking } = useTherapistConfig();
+
+  useEffect(() => {
+    const defaultTherapistId = getTherapistIdForBooking();
+    if (defaultTherapistId && !data.therapistId) {
+      setData((prev) => ({
+        ...prev,
+        therapistId: defaultTherapistId,
+      }));
+    }
+  }, [data.therapistId, getTherapistIdForBooking]);
 
   const update = useCallback((updates: Partial<BookingFormData>) => {
     setData(prev => ({
@@ -102,7 +114,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
   const canProceedToStep = useCallback((step: number): boolean => {
     switch (step) {
       case 0: // Selección de tipo de cita y ubicación
-        return Boolean(data.appointmentType && data.locationId);
+        return Boolean(data.therapistId && data.appointmentType && data.locationId);
       case 1: // Selección de especialidad y servicios
         return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0);
       case 2: // Selección de fecha y hora
@@ -121,6 +133,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
     
     switch (step) {
       case 0:
+        if (!data.therapistId) errors.push(t('selectTherapist'));
         if (!data.appointmentType) errors.push(t('selectAppointmentType'));
         if (!data.locationId) errors.push(t('selectLocation'));
         break;

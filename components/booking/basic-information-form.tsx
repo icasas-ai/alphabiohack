@@ -72,19 +72,21 @@ export function BasicInformationForm() {
 
   // Formatear hora seleccionada usando useFormatter
   const formatSelectedTime = () => {
-   if (!data.selectedTime || !selectedService?.duration) return ""
+    const duration = data.sessionDurationMinutes ?? selectedService?.duration
 
-  const [h, m] = data.selectedTime.split(":").map(Number);
-  const startLabel = formatTime12h(data.selectedTime);
+    if (!data.selectedTime || !duration) return ""
 
-  const endMinutes = h * 60 + m + selectedService.duration
-  const endH = Math.floor(endMinutes / 60);
-  const endM = endMinutes % 60;
-  const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
-  const endLabel = formatTime12h(endTime);
+    const [h, m] = data.selectedTime.split(":").map(Number)
+    const startLabel = formatTime12h(data.selectedTime)
 
-  return `${startLabel} – ${endLabel}`;
-};
+    const endMinutes = h * 60 + m + duration
+    const endH = Math.floor(endMinutes / 60)
+    const endM = endMinutes % 60
+    const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`
+    const endLabel = formatTime12h(endTime)
+
+    return `${startLabel} – ${endLabel}`
+  }
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">

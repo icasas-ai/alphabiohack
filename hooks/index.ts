@@ -19,8 +19,10 @@ export { useTherapistConfig } from "./use-therapist-config";
 export type { DefaultTherapist } from "./use-therapist-config";
 
 export { useTherapist } from "./use-therapist";
+export { useTherapists } from "./use-therapists";
 
 export { useTherapistBookings } from "./use-therapist-bookings";
+export { useAvailabilityCalendar } from "./use-availability-calendar";
 
 export { useUserBookings } from "./use-user-bookings";
 

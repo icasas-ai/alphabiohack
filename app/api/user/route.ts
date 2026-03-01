@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // Obtener el usuario de Supabase
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-
-    if (error || !user) {
+    const { authUser, prismaUser } = await getCurrentUser();
+    if (!authUser || !prismaUser) {
       console.log("GET /api/user: No authenticated user found");
       return NextResponse.json(
         { user: null, prismaUser: null },
@@ -20,19 +12,10 @@ export async function GET() {
       );
     }
 
-    console.log("GET /api/user: Fetching prisma user for supabase id:", user.id);
-
-    // Obtener el usuario de Prisma
-    const prismaUser = await prisma.user.findUnique({
-      where: {
-        supabaseId: user.id,
-      },
-    });
-
     console.log("GET /api/user: Prisma user data:", prismaUser);
 
     return NextResponse.json({
-      user,
+      user: authUser,
       prismaUser,
     });
   } catch (error) {

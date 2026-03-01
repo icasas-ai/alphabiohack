@@ -92,9 +92,18 @@ export const featureFlags: FeatureFlags = {
   // Sistema de terapeuta único
   therapist: {
     singleTherapistMode: true, // Modo de terapeuta único deshabilitado por defecto
-    defaultTherapistId: "cmg8tqpy00002c9xg7ofsotq2", // ID del terapeuta por defecto (se configura cuando se habilita el modo)
+    defaultTherapistId: null, // Se resuelve desde variables de entorno en la app
   },
 };
+
+function getConfiguredDefaultTherapistId(): string | null {
+  const value =
+    process.env.NEXT_PUBLIC_DEFAULT_THERAPIST_ID ||
+    process.env.DEFAULT_THERAPIST_ID ||
+    featureFlags.therapist.defaultTherapistId;
+
+  return value?.trim() ? value.trim() : null;
+}
 
 /**
  * Obtiene los tipos de citas habilitados
@@ -143,7 +152,7 @@ export function isSingleTherapistModeEnabled(): boolean {
  * Obtiene el ID del terapeuta por defecto
  */
 export function getDefaultTherapistId(): string | null {
-  return featureFlags.therapist.defaultTherapistId;
+  return getConfiguredDefaultTherapistId();
 }
 
 /**
@@ -152,7 +161,7 @@ export function getDefaultTherapistId(): string | null {
 export function hasDefaultTherapist(): boolean {
   return (
     featureFlags.therapist.singleTherapistMode &&
-    featureFlags.therapist.defaultTherapistId !== null
+    getDefaultTherapistId() !== null
   );
 }
 

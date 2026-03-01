@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:docker": "sh ./scripts/docker-dev-start.sh",
     "postinstall": "prisma generate",
     "build": "npx prisma generate && next build",
     "start": "next start",
@@ -9,7 +10,12 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "db:seed": "npx tsx prisma/seeds/seed.ts",
-    "db:reset": "prisma migrate reset --force && npm run db:seed"
+    "db:reset": "prisma migrate reset --force && npm run db:seed",
+    "prisma:local": "sh ./scripts/prisma-local.sh",
+    "db:migrate:deploy": "sh ./scripts/prisma-local.sh migrate deploy",
+    "db:migrate:status": "sh ./scripts/prisma-local.sh migrate status",
+    "db:generate": "sh ./scripts/prisma-local.sh generate",
+    "db:studio": "sh ./scripts/prisma-local.sh studio"
   },
   "dependencies": {
     "@csstools/postcss-oklab-function": "^4.0.11",
@@ -52,6 +58,7 @@
     "next": "^15.5.12",
     "next-intl": "^4.3.6",
     "next-themes": "^0.4.6",
+    "nodemailer": "^6.10.1",
     "react": "^19.0.0",
     "react-day-picker": "^9.9.0",
     "react-dom": "^19.0.0",
@@ -88,6 +95,7 @@
     "tailwindcss": "^4.1.13",
     "tailwindcss-animate": "^1.0.7",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }

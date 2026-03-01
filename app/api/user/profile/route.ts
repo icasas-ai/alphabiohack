@@ -1,17 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const { prismaUser } = await getCurrentUser();
+    if (!prismaUser) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -19,7 +13,7 @@ export async function GET() {
     }
 
     const userProfile = await prisma.user.findUnique({
-      where: { supabaseId: user.id },
+      where: { id: prismaUser.id },
     });
 
     console.log("GET /api/user/profile: User data:", userProfile);
@@ -43,14 +37,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const { prismaUser } = await getCurrentUser();
+    if (!prismaUser) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -61,7 +49,7 @@ export async function PUT(request: NextRequest) {
     const { firstname, lastname, avatar, telefono, informacionPublica, especialidad, summary, weekdaysHours, saturdayHours, sundayHours, facebook, instagram, linkedin, twitter, tiktok, youtube, website } = body;
 
     const updatedUser = await prisma.user.update({
-      where: { supabaseId: user.id },
+      where: { id: prismaUser.id },
       data: {
         firstname: firstname || undefined,
         lastname: lastname || undefined,

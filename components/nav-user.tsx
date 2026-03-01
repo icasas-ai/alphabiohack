@@ -24,9 +24,9 @@ import { useCallback, useMemo } from "react";
 
 import { ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton"
-import { createClient } from "@/lib/supabase/client";
 import { getNavUserConfig } from "@/lib/config/nav-user";
 import { useRouter } from "@/i18n/navigation";
+import { logoutUser } from "@/services/auth.service";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
 
@@ -150,15 +150,16 @@ function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPr
 // Componente contenedor que maneja la lógica de negocio
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { prismaUser, isAuthenticated, loading } = useUser();
+  const { prismaUser, isAuthenticated, loading, refreshAuthState } = useUser();
   const router = useRouter();
-  const supabase = createClient();
   const t = useTranslations("NavUser");
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    await logoutUser();
+    await refreshAuthState();
+    router.refresh();
     router.push("/auth/login");
-  }, [supabase.auth, router]);
+  }, [refreshAuthState, router]);
 
   const handleNavigate = useCallback((url: string) => {
     // @ts-expect-error - Las URLs vienen de configuración validada

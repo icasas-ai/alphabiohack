@@ -19,6 +19,7 @@ model User {
   informacionPublica    String?
   especialidad          String?
   summary               String?    @db.Text
+  passwordHash          String?
   weekdaysHours         String?    @default("9:00 AM - 6:00 PM")
   saturdayHours         String?    @default("9:00 AM - 2:00 PM")
   sundayHours           String?    @default("Closed")

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { Loader2, Upload } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 interface UserProfile {
   id: string;
@@ -144,19 +143,11 @@ export function ProfileForm() {
 
     try {
       setSaving(true);
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session) {
-        toast.error("Session expired. Please login again.");
-        return;
-      }
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           firstname: formData.firstname,

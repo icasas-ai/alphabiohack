@@ -401,6 +401,27 @@ export async function deleteAvailabilityPeriod(id: string) {
   });
 }
 
+export async function getAvailabilityPeriodOwnership(id: string) {
+  return prisma.availabilityPeriod.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      therapistId: true,
+    },
+  });
+}
+
+export async function getAvailabilityExcludedDateOwnership(id: string) {
+  return prisma.availabilityExcludedDate.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      therapistId: true,
+      availabilityPeriodId: true,
+    },
+  });
+}
+
 export async function restoreAvailabilityExcludedDate(id: string) {
   return prisma.$transaction(async (tx) => {
     const excludedDate = await tx.availabilityExcludedDate.findUnique({
@@ -464,6 +485,16 @@ export async function restoreAvailabilityExcludedDate(id: string) {
         },
       },
     });
+  });
+}
+
+export async function getAvailabilityDayOwnership(id: string) {
+  return prisma.availabilityDay.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      therapistId: true,
+    },
   });
 }
 
@@ -643,6 +674,7 @@ export async function isAvailabilitySlotBookable({
     return {
       isAvailable: false,
       reason: "slot_unavailable",
+      sessionDurationMinutes: slots.sessionDurationMinutes,
     };
   }
 
@@ -662,5 +694,6 @@ export async function isAvailabilitySlotBookable({
     bookingSchedule,
     existingBooking,
     reason: existingBooking ? "booking_conflict" : null,
+    sessionDurationMinutes: slots.sessionDurationMinutes,
   };
 }

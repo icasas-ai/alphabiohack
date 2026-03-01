@@ -35,6 +35,18 @@ import { getTimeZoneOrDefault } from "@/services/config.service";
 import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
 
+function getBookingDurationMinutes(
+  booking: { bookedDurationMinutes?: number | null; service?: { duration?: number | null } | null },
+  fallbackServiceDuration?: number | null,
+) {
+  return (
+    booking.bookedDurationMinutes ??
+    booking.service?.duration ??
+    fallbackServiceDuration ??
+    60
+  );
+}
+
 // GET /api/bookings - Obtener citas
 export async function GET(request: NextRequest) {
   try {
@@ -140,6 +152,9 @@ export async function POST(request: NextRequest) {
           );
           return NextResponse.json(err, { status });
         }
+
+        body.bookedDurationMinutes =
+          availability.sessionDurationMinutes ?? body.bookedDurationMinutes;
       }
 
       // Usar la función específica para el wizard con tipo seguro
@@ -152,18 +167,19 @@ export async function POST(request: NextRequest) {
         const language = await getServerLanguage();
         const start = booking.bookingSchedule;
         const serviceId = (booking as { serviceId?: string }).serviceId;
-        // Determinar duración del servicio de forma robusta
-        let durationMin = booking.service?.duration as number | undefined;
-        if (!durationMin && serviceId) {
+        let fallbackServiceDuration = booking.service?.duration as
+          | number
+          | undefined;
+        if (!fallbackServiceDuration && serviceId) {
           const svc = await prisma.service.findUnique({
             where: { id: serviceId },
             select: { duration: true },
           });
-          durationMin = svc?.duration;
+          fallbackServiceDuration = svc?.duration;
         }
         // Fallback adicional: intentar leer del body del wizard
         if (
-          !durationMin &&
+          !fallbackServiceDuration &&
           Array.isArray(
             (body as unknown as { selectedServiceIds?: string[] })
               ?.selectedServiceIds
@@ -178,9 +194,12 @@ export async function POST(request: NextRequest) {
             },
             select: { duration: true },
           });
-          durationMin = svc?.duration;
+          fallbackServiceDuration = svc?.duration;
         }
-        durationMin = durationMin ?? 60;
+        const durationMin = getBookingDurationMinutes(
+          booking,
+          fallbackServiceDuration,
+        );
         const end = new Date(start.getTime() + durationMin * 60000);
         const locationAddress = booking.location?.address ?? "";
         const timeZone = getTimeZoneOrDefault(
@@ -307,6 +326,9 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json(err, { status });
       }
+
+      body.bookedDurationMinutes =
+        availability.sessionDurationMinutes ?? body.bookedDurationMinutes;
     } else if (body.therapistId) {
       // Parsear fecha: si viene sin offset, asumir PST (-08:00). Si ya trae Z u offset, usar tal cual.
       let bookingSchedulePST = new Date(body.bookingSchedule);
@@ -338,16 +360,20 @@ export async function POST(request: NextRequest) {
       const language = await getServerLanguage();
       const start = booking.bookingSchedule;
       const serviceId = (booking as { serviceId?: string }).serviceId;
-      // Determinar duración de forma robusta
-      let durationMin = booking.service?.duration as number | undefined;
-      if (!durationMin && serviceId) {
+      let fallbackServiceDuration = booking.service?.duration as
+        | number
+        | undefined;
+      if (!fallbackServiceDuration && serviceId) {
         const svc = await prisma.service.findUnique({
           where: { id: serviceId },
           select: { duration: true },
         });
-        durationMin = svc?.duration;
+        fallbackServiceDuration = svc?.duration;
       }
-      durationMin = durationMin ?? 60;
+      const durationMin = getBookingDurationMinutes(
+        booking,
+        fallbackServiceDuration,
+      );
       const end = new Date(start.getTime() + durationMin * 60000);
       const locationAddress = booking.location?.address ?? "";
       const timeZone = getTimeZoneOrDefault(

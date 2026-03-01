@@ -6,6 +6,7 @@ export interface CreateBookingData {
   locationId: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname: string;
   lastname: string;
   phone: string;
@@ -24,6 +25,7 @@ export interface UpdateBookingData {
   locationId?: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname?: string;
   lastname?: string;
   phone?: string;
@@ -45,6 +47,7 @@ export interface BookingFormData {
   selectedDate: Date | null;
   selectedTime: string;
   therapistId: string | null;
+  sessionDurationMinutes?: number | null;
   basicInfo: {
     firstName: string;
     lastName: string;

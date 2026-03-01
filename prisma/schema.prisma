@@ -244,6 +244,7 @@ model Booking {
   locationId      String
   specialtyId     String?
   serviceId       String?
+  bookedDurationMinutes Int?
   firstname       String
   lastname        String
   phone           String

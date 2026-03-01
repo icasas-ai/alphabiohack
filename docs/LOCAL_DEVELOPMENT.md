@@ -62,7 +62,7 @@ SMTP_PORT=1025
 SMTP_SECURE=false
 
 # Local auth cookie signing
-LOCAL_AUTH_SECRET=replace-this-in-shared-environments
+LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
 # Seed / single-therapist config
 SINGLE_THERAPIST=true
@@ -76,6 +76,7 @@ NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 
 Notes:
 
+- `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
 - `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
 - local sign-up creates `Patient`, not `Therapist`

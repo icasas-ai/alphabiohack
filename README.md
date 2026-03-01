@@ -168,10 +168,10 @@ In that mode:
 - sessions are stored in an HTTP-only cookie
 - new users can sign up and log in without Supabase
 
-Optional:
+Required when local auth is enabled:
 
 ```env
-LOCAL_AUTH_SECRET=change-this-in-shared-environments
+LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
 ```
 
 Notes:

@@ -13,9 +13,9 @@ class SpecialtiesApiClient {
   private baseUrl = API_ENDPOINTS.SPECIALTIES.BASE;
 
   // Obtener todas las especialidades
-  async getAllSpecialties(): Promise<Specialty[]> {
+  async getAllSpecialties(): Promise<SpecialtyWithServices[]> {
     const response = await fetch(this.baseUrl);
-    const result: ApiResponse<Specialty[]> = await response.json();
+    const result: ApiResponse<SpecialtyWithServices[]> = await response.json();
 
     if (!result.success) {
       throw new Error(result.error || "Error al obtener especialidades");

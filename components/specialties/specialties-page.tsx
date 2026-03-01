@@ -17,6 +17,7 @@ import { ServiceList, SpecialtyList, StatsCard } from '@/components/specialties/
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import { useSpecialties } from '@/contexts/specialties-context';
 import { useTranslations } from 'next-intl';
 
@@ -40,7 +41,7 @@ interface FormStates {
   specialtyForm: {
     open: boolean;
     mode: 'create' | 'edit';
-    data?: { name: string; description?: string };
+    data?: { id?: string; name: string; description?: string };
   };
   serviceForm: {
     open: boolean;
@@ -117,7 +118,7 @@ export function SpecialtiesPage() {
   }, [state.specialties]);
 
   // Manejar apertura de formularios
-  const openSpecialtyForm = (mode: 'create' | 'edit', data?: { name: string; description?: string }) => {
+  const openSpecialtyForm = (mode: 'create' | 'edit', data?: { id?: string; name: string; description?: string }) => {
     setFormStates(prev => ({
       ...prev,
       specialtyForm: { open: true, mode, data },
@@ -147,8 +148,26 @@ export function SpecialtiesPage() {
     });
   };
 
+  const findDuplicateSpecialty = (name: string, excludeId?: string) => {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) return undefined;
+
+    return state.specialties.find((specialty) => {
+      if (excludeId && specialty.id === excludeId) {
+        return false;
+      }
+
+      return specialty.name.trim().toLowerCase() === normalized;
+    });
+  };
+
   // Manejar creación de especialidad
   const handleCreateSpecialty = async (data: CreateSpecialtyData) => {
+    if (findDuplicateSpecialty(data.name)) {
+      toast.error('A specialty with this name already exists');
+      return;
+    }
+
     try {
       await createSpecialty(data);
     } catch {
@@ -158,13 +177,16 @@ export function SpecialtiesPage() {
 
   // Manejar actualización de especialidad
   const handleUpdateSpecialty = async (data: UpdateSpecialtyData) => {
-    if (!formStates.specialtyForm.data) return;
-    
-    const specialty = state.specialties.find(s => s.name === formStates.specialtyForm.data?.name);
-    if (!specialty) return;
+    const specialtyId = formStates.specialtyForm.data?.id;
+    if (!specialtyId) return;
+
+    if (findDuplicateSpecialty(data.name ?? "", specialtyId)) {
+      toast.error('A specialty with this name already exists');
+      return;
+    }
 
     try {
-      await updateSpecialty(specialty.id, data);
+      await updateSpecialty(specialtyId, data);
     } catch {
       // El error ya se maneja en el contexto
     }
@@ -416,6 +438,7 @@ export function SpecialtiesPage() {
         specialties={filteredSpecialties}
         loading={state.loading}
         onEdit={(specialty) => openSpecialtyForm('edit', {
+          id: specialty.id,
           name: specialty.name,
           description: specialty.description || '',
         })}

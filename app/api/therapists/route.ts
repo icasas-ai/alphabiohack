@@ -13,7 +13,6 @@ export async function GET() {
         id: therapist.id,
         firstName: therapist.firstname,
         lastName: therapist.lastname,
-        email: therapist.email,
         profileImage: therapist.avatar || "/images/smiling-doctor.png",
         specialties: therapist.especialidad ? [therapist.especialidad] : [],
         bio: therapist.summary || "Professional",

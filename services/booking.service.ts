@@ -52,6 +52,7 @@ export const mapBookingFormDataToCreateData = (
     locationId: formData.locationId,
     specialtyId: formData.specialtyId || undefined,
     serviceId: formData.selectedServiceIds?.[0] || undefined,
+    bookedDurationMinutes: formData.sessionDurationMinutes || undefined,
     firstname: formData.basicInfo.firstName,
     lastname: formData.basicInfo.lastName,
     phone: formData.basicInfo.phone,
@@ -93,12 +94,22 @@ export const createBookingFromForm = async (formData: BookingFormData) => {
 // Crear cita
 export const createBooking = async (data: CreateBookingData) => {
   try {
+    let bookedDurationMinutes = data.bookedDurationMinutes;
+    if (!bookedDurationMinutes && data.serviceId) {
+      const service = await prisma.service.findUnique({
+        where: { id: data.serviceId },
+        select: { duration: true },
+      });
+      bookedDurationMinutes = service?.duration;
+    }
+
     const booking = await prisma.booking.create({
       data: {
         bookingType: data.bookingType,
         locationId: data.locationId,
         specialtyId: data.specialtyId,
         serviceId: data.serviceId,
+        bookedDurationMinutes,
         firstname: data.firstname,
         lastname: data.lastname,
         phone: data.phone,

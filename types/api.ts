@@ -131,8 +131,8 @@ export interface Therapist {
   firstName: string;
   lastName: string;
   avatar: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   specialties: string[];
   bio: string;
   profileImage: string;

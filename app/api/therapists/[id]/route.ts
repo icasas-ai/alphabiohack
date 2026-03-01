@@ -40,7 +40,6 @@ export async function GET(
         id: user.id,
         firstName: user.firstname,
         lastName: user.lastname,
-        email: user.email,
         phone: "", // El modelo User no tiene phone, se puede agregar después
         specialties: ["Alphabiotics"], // Se puede agregar al modelo después
         bio: "Profesional con experiencia en el área.", // Se puede agregar al modelo después

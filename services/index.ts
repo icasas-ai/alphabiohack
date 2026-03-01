@@ -111,6 +111,9 @@ export {
 export {
   createAvailabilityPeriod,
   deleteAvailabilityPeriod,
+  getAvailabilityDayOwnership,
+  getAvailabilityExcludedDateOwnership,
+  getAvailabilityPeriodOwnership,
   getAvailabilityDaySlots,
   getAvailabilityMonthSummary,
   isAvailabilitySlotBookable,

@@ -16,7 +16,14 @@ type SessionPayload = {
 };
 
 function getSessionSecret() {
-  return process.env.LOCAL_AUTH_SECRET || "alphabiohack-local-dev-secret";
+  const secret = process.env.LOCAL_AUTH_SECRET;
+  if (secret) {
+    return secret;
+  }
+
+  throw new Error(
+    "LOCAL_AUTH_SECRET is required when Supabase auth is disabled.",
+  );
 }
 
 function sign(value: string) {

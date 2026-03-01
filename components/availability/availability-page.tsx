@@ -196,6 +196,8 @@ export function AvailabilityPage() {
   const [periodsError, setPeriodsError] = useState<string | null>(null);
   const [excludedDateOpen, setExcludedDateOpen] = useState(false);
   const [restoringExcludedDateId, setRestoringExcludedDateId] = useState<string | null>(null);
+  const [selectedReviewPeriodId, setSelectedReviewPeriodId] = useState<string | null>(null);
+  const [selectedReviewDayId, setSelectedReviewDayId] = useState<string | null>(null);
 
   const activeTherapistId = prismaUser?.id ?? null;
 
@@ -569,6 +571,22 @@ export function AvailabilityPage() {
         })),
     [periods, selectedMonth],
   );
+  const selectedReviewPeriod = useMemo(() => {
+    if (!reviewPeriods.length) return null;
+
+    return (
+      reviewPeriods.find((period) => period.id === selectedReviewPeriodId) ||
+      reviewPeriods[0]
+    );
+  }, [reviewPeriods, selectedReviewPeriodId]);
+  const selectedReviewDay = useMemo(() => {
+    if (!selectedReviewPeriod?.visibleDays.length) return null;
+
+    return (
+      selectedReviewPeriod.visibleDays.find((day) => day.id === selectedReviewDayId) ||
+      selectedReviewPeriod.visibleDays[0]
+    );
+  }, [selectedReviewDayId, selectedReviewPeriod]);
   const createDisabledReason = useMemo(() => {
     if (!activeTherapistId) return t("createDisabledProfessional");
     if (!selectedLocationId) return t("createDisabledLocation");
@@ -592,6 +610,40 @@ export function AvailabilityPage() {
     if (!selectedLocationId) return t("createDisabledLocation");
     return null;
   }, [activeTherapistId, selectedLocationId, t]);
+
+  useEffect(() => {
+    if (!reviewPeriods.length) {
+      setSelectedReviewPeriodId(null);
+      setSelectedReviewDayId(null);
+      return;
+    }
+
+    setSelectedReviewPeriodId((current) => {
+      if (current && reviewPeriods.some((period) => period.id === current)) {
+        return current;
+      }
+
+      return reviewPeriods[0].id;
+    });
+  }, [reviewPeriods]);
+
+  useEffect(() => {
+    if (!selectedReviewPeriod?.visibleDays.length) {
+      setSelectedReviewDayId(null);
+      return;
+    }
+
+    setSelectedReviewDayId((current) => {
+      if (
+        current &&
+        selectedReviewPeriod.visibleDays.some((day) => day.id === current)
+      ) {
+        return current;
+      }
+
+      return selectedReviewPeriod.visibleDays[0].id;
+    });
+  }, [selectedReviewPeriod]);
 
   return (
     <div className="space-y-6">
@@ -691,216 +743,381 @@ export function AvailabilityPage() {
                   ) : reviewPeriods.length === 0 ? (
                     <div className="text-sm text-muted-foreground">{t("noPeriods")}</div>
                   ) : (
-                    <details open className="rounded-lg border bg-background border-primary/30">
-                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
-                        <div>
-                          <p className="font-semibold capitalize">{formatMonthLabel(selectedMonth)}</p>
+                    <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+                      <div className="rounded-lg border bg-background">
+                        <div className="border-b px-4 py-3">
+                          <p className="font-semibold text-foreground capitalize">
+                            {formatMonthLabel(selectedMonth)}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {reviewPeriods.length} {t("availablePeriodsForMonth")}
                           </p>
                         </div>
-                        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                      </summary>
-                      <div className="space-y-3 border-t p-4">
-                        {reviewPeriods.map((period, index) => (
-                          <details key={period.id} className="rounded-lg border bg-muted/10">
-                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
-                              <div>
-                                <p className="font-medium text-foreground">
-                                  {period.title || `${t("periodTitle")} ${index + 1}`}
-                                </p>
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                  <p className="text-sm text-muted-foreground">{period.location.title}</p>
-                                  {enumerateMonthKeys(period.startDate, period.endDate).length > 1 ? (
+                        <div className="space-y-2 p-3">
+                          {reviewPeriods.map((period, index) => {
+                            const isActive = selectedReviewPeriod?.id === period.id;
+                            const openDays = period.visibleDays.filter((day) => day.isAvailable).length;
+                            const periodMonths = enumerateMonthKeys(period.startDate, period.endDate);
+
+                            return (
+                              <button
+                                key={period.id}
+                                type="button"
+                                onClick={() => setSelectedReviewPeriodId(period.id)}
+                                className={`w-full rounded-lg border px-4 py-3 text-left transition ${
+                                  isActive
+                                    ? "border-primary bg-primary/5 shadow-sm"
+                                    : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium text-foreground">
+                                      {period.title || `${t("periodTitle")} ${index + 1}`}
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      {formatDateLabel(period.startDate)} - {formatDateLabel(period.endDate)}
+                                    </p>
+                                  </div>
+                                  <ChevronDown
+                                    className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition ${
+                                      isActive ? "rotate-[-90deg]" : ""
+                                    }`}
+                                  />
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <Badge variant="outline" className="rounded-full">
+                                    {period.location.title}
+                                  </Badge>
+                                  <Badge variant="outline" className="rounded-full">
+                                    {t("openDays")}: {openDays}
+                                  </Badge>
+                                  {period.visibleExcludedDates.length ? (
+                                    <Badge variant="outline" className="rounded-full">
+                                      {t("excludedDates")}: {period.visibleExcludedDates.length}
+                                    </Badge>
+                                  ) : null}
+                                  {periodMonths.length > 1 ? (
+                                    <Badge variant="outline" className="rounded-full">
+                                      {t("spansMonths", { count: periodMonths.length })}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 rounded-lg border bg-background p-4">
+                        {selectedReviewPeriod ? (
+                          <>
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-xl font-semibold text-foreground">
+                                    {selectedReviewPeriod.title || t("availabilityPeriods")}
+                                  </p>
+                                  {enumerateMonthKeys(
+                                    selectedReviewPeriod.startDate,
+                                    selectedReviewPeriod.endDate,
+                                  ).length > 1 ? (
                                     <Badge variant="outline" className="rounded-full">
                                       {t("spansMonths", {
-                                        count: enumerateMonthKeys(period.startDate, period.endDate).length,
+                                        count: enumerateMonthKeys(
+                                          selectedReviewPeriod.startDate,
+                                          selectedReviewPeriod.endDate,
+                                        ).length,
                                       })}
                                     </Badge>
                                   ) : null}
                                 </div>
-                              </div>
-                              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-                            </summary>
-                            <div className="space-y-4 border-t p-4">
-                              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                                <div>
+                                <p className="text-sm text-muted-foreground">
+                                  {formatDateLabel(selectedReviewPeriod.startDate)} -{" "}
+                                  {formatDateLabel(selectedReviewPeriod.endDate)}
+                                </p>
+                                {selectedReviewPeriod.notes ? (
                                   <p className="text-sm text-muted-foreground">
-                                    {formatDateLabel(period.startDate)} - {formatDateLabel(period.endDate)}
+                                    {selectedReviewPeriod.notes}
                                   </p>
-                                  {period.notes ? (
-                                    <p className="mt-1 text-sm text-muted-foreground">{period.notes}</p>
-                                  ) : null}
+                                ) : null}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleDeletePeriod(selectedReviewPeriod.id)}
+                                disabled={deletingPeriodId === selectedReviewPeriod.id}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {deletingPeriodId === selectedReviewPeriod.id
+                                  ? t("loading")
+                                  : t("deletePeriod")}
+                              </Button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline" className="rounded-full">
+                                {selectedReviewPeriod.location.title}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full">
+                                {t("openDays")}:{" "}
+                                {selectedReviewPeriod.visibleDays.filter((day) => day.isAvailable).length}
+                              </Badge>
+                              <Badge variant="outline" className="rounded-full">
+                                {t("remainingSessions")}:{" "}
+                                {selectedReviewPeriod.visibleDays.reduce((sum, day) => {
+                                  const daySummary = summary?.days.find(
+                                    (summaryDay) => summaryDay.id === day.id,
+                                  );
+                                  return sum + (daySummary?.remainingSlots ?? 0);
+                                }, 0)}
+                              </Badge>
+                            </div>
+
+                            {selectedReviewPeriod.visibleExcludedDates.length ? (
+                              <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <p className="text-sm font-medium text-foreground">
+                                    {t("excludedDates")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {selectedReviewPeriod.visibleExcludedDates.length}
+                                  </p>
                                 </div>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => handleDeletePeriod(period.id)}
-                                  disabled={deletingPeriodId === period.id}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  {deletingPeriodId === period.id ? t("loading") : t("deletePeriod")}
-                                </Button>
+                                <div className="flex flex-wrap gap-2">
+                                  {selectedReviewPeriod.visibleExcludedDates.map((excludedDate) => (
+                                    <Badge
+                                      key={excludedDate.id}
+                                      variant="outline"
+                                      className="gap-2 rounded-full px-3 py-1.5"
+                                    >
+                                      <span>{formatDateLabel(excludedDate.date)}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRestoreExcludedDate(
+                                            selectedReviewPeriod.id,
+                                            excludedDate.id,
+                                          )
+                                        }
+                                        disabled={restoringExcludedDateId === excludedDate.id}
+                                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {restoringExcludedDateId === excludedDate.id
+                                          ? t("restoringExcludedDate")
+                                          : t("restoreExcludedDate")}
+                                      </button>
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-foreground">{t("timeRanges")}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {selectedReviewPeriod.visibleDays.length} {t("openDays").toLowerCase()}
+                                  </p>
+                                </div>
                               </div>
 
-                              {period.visibleExcludedDates.length ? (
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <p className="text-sm font-medium text-foreground">{t("excludedDates")}</p>
-                                    <p className="text-xs text-muted-foreground">{period.visibleExcludedDates.length}</p>
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {period.visibleExcludedDates.map((excludedDate) => (
-                                      <Badge
-                                        key={excludedDate.id}
-                                        variant="outline"
-                                        className="gap-2 rounded-full px-3 py-1.5"
-                                      >
-                                        <span>{formatDateLabel(excludedDate.date)}</span>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleRestoreExcludedDate(period.id, excludedDate.id)
-                                          }
-                                          disabled={restoringExcludedDateId === excludedDate.id}
-                                          className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                          {restoringExcludedDateId === excludedDate.id
-                                            ? t("restoringExcludedDate")
-                                            : t("restoreExcludedDate")}
-                                        </button>
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
+                              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                                {selectedReviewPeriod.visibleDays.map((day) => {
+                                  const isActive = selectedReviewDay?.id === day.id;
+                                  const daySummary = summary?.days.find(
+                                    (summaryDay) => summaryDay.id === day.id,
+                                  );
 
-                              {period.visibleDays.map((day) => {
-                                const draft = editDays[day.id] || cloneDay(day);
-                                const daySummary = summary?.days.find((summaryDay) => summaryDay.id === day.id);
-
-                                return (
-                                  <div key={day.id} className="space-y-4 rounded-lg border bg-background p-4">
-                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                      <div>
-                                        <p className="font-medium text-foreground">{formatDateLabel(day.date)}</p>
-                                        {daySummary ? (
-                                          <p className="text-sm text-muted-foreground">
-                                            {t("remainingSessions")}: {daySummary.remainingSlots}
+                                  return (
+                                    <button
+                                      key={day.id}
+                                      type="button"
+                                      onClick={() => setSelectedReviewDayId(day.id)}
+                                      className={`rounded-lg border px-3 py-3 text-left transition ${
+                                        isActive
+                                          ? "border-primary bg-primary/5 shadow-sm"
+                                          : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <p className="font-medium text-foreground">
+                                            {formatDateLabel(day.date)}
                                           </p>
-                                        ) : null}
+                                          <p className="mt-1 text-sm text-muted-foreground">
+                                            {t("remainingSessions")}: {daySummary?.remainingSlots ?? 0}
+                                          </p>
+                                        </div>
+                                        <Badge
+                                          variant={day.isAvailable ? "outline" : "secondary"}
+                                          className="rounded-full"
+                                        >
+                                          {day.isAvailable ? t("enabled") : t("disabled")}
+                                        </Badge>
                                       </div>
-                                      <div className="flex items-center gap-2">
-                                        <Checkbox
-                                          id={`closed-${day.id}`}
-                                          checked={!draft.isAvailable}
-                                          onCheckedChange={(checked) =>
-                                            setEditDays((current) => ({
-                                              ...current,
-                                              [day.id]: {
-                                                ...draft,
-                                                isAvailable: !Boolean(checked),
-                                              },
-                                            }))
-                                          }
-                                        />
-                                        <Label htmlFor={`closed-${day.id}`}>{t("markDayClosed")}</Label>
-                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {selectedReviewDay ? (() => {
+                              const draft = editDays[selectedReviewDay.id] || cloneDay(selectedReviewDay);
+                              const daySummary = summary?.days.find(
+                                (summaryDay) => summaryDay.id === selectedReviewDay.id,
+                              );
+
+                              return (
+                                <div className="space-y-4 rounded-lg border bg-muted/10 p-4">
+                                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                      <p className="text-lg font-semibold text-foreground">
+                                        {formatDateLabel(selectedReviewDay.date)}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {t("remainingSessions")}: {daySummary?.remainingSlots ?? 0}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id={`closed-${selectedReviewDay.id}`}
+                                        checked={!draft.isAvailable}
+                                        onCheckedChange={(checked) =>
+                                          setEditDays((current) => ({
+                                            ...current,
+                                            [selectedReviewDay.id]: {
+                                              ...draft,
+                                              isAvailable: !Boolean(checked),
+                                            },
+                                          }))
+                                        }
+                                      />
+                                      <Label htmlFor={`closed-${selectedReviewDay.id}`}>
+                                        {t("markDayClosed")}
+                                      </Label>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`duration-${selectedReviewDay.id}`}>
+                                        {t("sessionLength")}
+                                      </Label>
+                                      <Input
+                                        id={`duration-${selectedReviewDay.id}`}
+                                        type="number"
+                                        min="5"
+                                        step="5"
+                                        value={draft.sessionDurationMinutes}
+                                        onChange={(event) =>
+                                          setEditDays((current) => ({
+                                            ...current,
+                                            [selectedReviewDay.id]: {
+                                              ...draft,
+                                              sessionDurationMinutes: Number(
+                                                event.target.value || 0,
+                                              ),
+                                            },
+                                          }))
+                                        }
+                                      />
                                     </div>
 
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                      <div className="space-y-2">
-                                        <Label htmlFor={`duration-${day.id}`}>{t("sessionLength")}</Label>
-                                        <Input
-                                          id={`duration-${day.id}`}
-                                          type="number"
-                                          min="5"
-                                          step="5"
-                                          value={draft.sessionDurationMinutes}
-                                          onChange={(event) =>
-                                            setEditDays((current) => ({
-                                              ...current,
-                                              [day.id]: {
-                                                ...draft,
-                                                sessionDurationMinutes: Number(event.target.value || 0),
-                                              },
-                                            }))
-                                          }
-                                        />
-                                      </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`notes-${selectedReviewDay.id}`}>
+                                        {t("notes")}
+                                      </Label>
+                                      <Input
+                                        id={`notes-${selectedReviewDay.id}`}
+                                        value={draft.notes || ""}
+                                        onChange={(event) =>
+                                          setEditDays((current) => ({
+                                            ...current,
+                                            [selectedReviewDay.id]: {
+                                              ...draft,
+                                              notes: event.target.value,
+                                            },
+                                          }))
+                                        }
+                                      />
+                                    </div>
+                                  </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor={`notes-${day.id}`}>{t("notes")}</Label>
-                                        <Input
-                                          id={`notes-${day.id}`}
-                                          value={draft.notes || ""}
-                                          onChange={(event) =>
-                                            setEditDays((current) => ({
-                                              ...current,
-                                              [day.id]: {
-                                                ...draft,
-                                                notes: event.target.value,
-                                              },
-                                            }))
-                                          }
-                                        />
-                                      </div>
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <Label>{t("timeRanges")}</Label>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => addDayRange(selectedReviewDay.id)}
+                                      >
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        {t("addTimeRange")}
+                                      </Button>
                                     </div>
 
-                                    <div className="space-y-3">
-                                      <div className="flex items-center justify-between">
-                                        <Label>{t("timeRanges")}</Label>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => addDayRange(day.id)}>
-                                          <Plus className="mr-2 h-4 w-4" />
-                                          {t("addTimeRange")}
+                                    {draft.timeRanges.map((range, index) => (
+                                      <div
+                                        key={`${selectedReviewDay.id}-range-${index}`}
+                                        className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
+                                      >
+                                        <Input
+                                          type="time"
+                                          value={range.startTime}
+                                          onChange={(event) =>
+                                            updateDayRange(selectedReviewDay.id, index, {
+                                              startTime: event.target.value,
+                                            })
+                                          }
+                                        />
+                                        <Input
+                                          type="time"
+                                          value={range.endTime}
+                                          onChange={(event) =>
+                                            updateDayRange(selectedReviewDay.id, index, {
+                                              endTime: event.target.value,
+                                            })
+                                          }
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() =>
+                                            removeDayRange(selectedReviewDay.id, index)
+                                          }
+                                          disabled={draft.timeRanges.length === 1}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
                                         </Button>
                                       </div>
-
-                                      {draft.timeRanges.map((range, index) => (
-                                        <div key={`${day.id}-range-${index}`} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                                          <Input
-                                            type="time"
-                                            value={range.startTime}
-                                            onChange={(event) =>
-                                              updateDayRange(day.id, index, { startTime: event.target.value })
-                                            }
-                                          />
-                                          <Input
-                                            type="time"
-                                            value={range.endTime}
-                                            onChange={(event) =>
-                                              updateDayRange(day.id, index, { endTime: event.target.value })
-                                            }
-                                          />
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => removeDayRange(day.id, index)}
-                                            disabled={draft.timeRanges.length === 1}
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </div>
-                                      ))}
-                                    </div>
-
-                                    <Button
-                                      type="button"
-                                      onClick={() => handleSaveDay(day.id)}
-                                      disabled={savingDayId === day.id}
-                                    >
-                                      <Clock3 className="mr-2 h-4 w-4" />
-                                      {savingDayId === day.id ? t("savingDay") : t("saveDay")}
-                                    </Button>
+                                    ))}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </details>
-                        ))}
+
+                                  <Button
+                                    type="button"
+                                    onClick={() => handleSaveDay(selectedReviewDay.id)}
+                                    disabled={savingDayId === selectedReviewDay.id}
+                                  >
+                                    <Clock3 className="mr-2 h-4 w-4" />
+                                    {savingDayId === selectedReviewDay.id
+                                      ? t("savingDay")
+                                      : t("saveDay")}
+                                  </Button>
+                                </div>
+                              );
+                            })() : null}
+                          </>
+                        ) : (
+                          <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                            {t("noPeriods")}
+                          </div>
+                        )}
                       </div>
-                    </details>
+                    </div>
                   )}
                 </div>
               )}

@@ -14,10 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
 import { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { hasSupabaseAuth } from "@/lib/auth/config";
+import { useRouter } from "@/i18n/navigation";
+import { loginUser } from "@/services/auth.service";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useUser } from "@/contexts/user-context";
 
 export function LoginForm({
   className,
@@ -28,38 +30,40 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { refreshAuthState } = useUser();
   const t = useTranslations('Auth');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
     try {
-      const { data: { user }, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const result = await loginUser(email, password);
 
-      const prismaUser = await fetch(`/api/users/${user?.id}`); 
-      const prismaUserData = await prismaUser.json();
-      // create user if not exists 
-      if (!prismaUserData) {
-        await fetch(`/api/users`, {
-          method: "POST",
-          body: JSON.stringify({
-            email: user?.email,
-            supabaseId: user?.id,
-            firstname: user?.user_metadata.firstname ?? "",
-            lastname: user?.user_metadata.lastname ?? "",
-            avatar: user?.user_metadata.avatar ?? "",
-            role: [UserRole.Patient],
-          }),
-        });
+      if (hasSupabaseAuth && result?.user) {
+        const prismaUser = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+        const prismaUserData = await prismaUser.json();
+        if (!prismaUserData?.data?.length) {
+          await fetch(`/api/users`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email,
+              supabaseId: result.user.id,
+              firstname: "",
+              lastname: "",
+              avatar: "",
+              role: [UserRole.Patient],
+            }),
+          });
+        }
       }
-      if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
+
+      await refreshAuthState();
+      router.refresh();
       router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));

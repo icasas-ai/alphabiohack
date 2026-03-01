@@ -3,34 +3,40 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { User as PrismaUser } from "@prisma/client";
-import { User } from "@supabase/supabase-js";
+import { hasSupabaseAuth } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
 
+type AuthUser = {
+  id: string;
+  email: string;
+};
+
+export type User = AuthUser;
+
 interface UserContextType {
-  user: User | null;
+  user: AuthUser | null;
   prismaUser: PrismaUser | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  refreshAuthState: () => Promise<void>;
   refreshPrismaUser: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [prismaUser, setPrismaUser] = useState<PrismaUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchedUserId = useRef<string | null>(null);
 
-  useEffect(() => {
-    const supabase = createClient();
-
-    // Obtener el usuario actual
-    const getUser = async () => {
-      try {
-        setLoading(true);
+  const refreshAuthState = async () => {
+    try {
+      setLoading(true);
+      if (hasSupabaseAuth) {
+        const supabase = createClient();
         const {
           data: { user },
           error,
@@ -39,25 +45,63 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           setError(error.message);
           setUser(null);
+          setPrismaUser(null);
+        } else if (user) {
+          setUser({
+            id: user.id,
+            email: user.email ?? "",
+          });
+          setError(null);
         } else {
-          setUser(user);
+          setUser(null);
+          setPrismaUser(null);
           setError(null);
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido");
-        setUser(null);
-      } finally {
-        setLoading(false);
+      } else {
+        const response = await fetch("/api/auth/local/me", {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          setUser(null);
+          setPrismaUser(null);
+          setError(null);
+          return;
+        }
+
+        const data = await response.json();
+        setUser(data.user);
+        setPrismaUser(data.prismaUser);
+        setError(null);
       }
-    };
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      setUser(null);
+      setPrismaUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    getUser();
+  useEffect(() => {
+    refreshAuthState();
 
-    // Escuchar cambios en el estado de autenticación
+    if (!hasSupabaseAuth) {
+      return;
+    }
+
+    const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user;
+      setUser(
+        sessionUser
+          ? {
+              id: sessionUser.id,
+              email: sessionUser.email ?? "",
+            }
+          : null,
+      );
       setLoading(false);
       setError(null);
     });
@@ -127,6 +171,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     isAuthenticated: !!user,
+    refreshAuthState,
     refreshPrismaUser,
   };
 
@@ -140,5 +185,3 @@ export function useUser() {
   }
   return context;
 }
-
-export type { User };

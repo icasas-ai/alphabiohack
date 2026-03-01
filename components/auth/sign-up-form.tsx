@@ -12,11 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
+import { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { hasSupabaseAuth } from "@/lib/auth/config";
+import { useRouter } from "@/i18n/navigation";
+import { registerUser } from "@/services/auth.service";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useUser } from "@/contexts/user-context";
 
 export function SignUpForm({
   className,
@@ -28,11 +31,11 @@ export function SignUpForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { refreshAuthState } = useUser();
   const t = useTranslations('Auth');
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
@@ -43,17 +46,28 @@ export function SignUpForm({
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
-        },
-      });
+      const result = await registerUser(email, password);
 
-      
-      if (error) throw error;
-      router.push("/auth/sign-up-success");
+      if (hasSupabaseAuth && result?.user) {
+        await fetch(`/api/users`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            supabaseId: result.user.id,
+            firstname: "",
+            lastname: "",
+            avatar: "",
+            role: [UserRole.Patient],
+          }),
+        });
+      }
+
+      await refreshAuthState();
+      router.refresh();
+      router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));
     } finally {

@@ -1,5 +1,11 @@
-import { getDefaultEmailConfig } from "@/services/config.service";
-import { getResend  } from "@/lib/resend";
+import { render } from "@react-email/render";
+
+import { getResend } from "@/lib/resend";
+import {
+  getDefaultEmailConfig,
+  getEmailProvider,
+  getSmtpConfig,
+} from "@/services/config.service";
 
 export interface SendEmailArgs {
   from?: string;
@@ -11,6 +17,14 @@ export interface SendEmailArgs {
   replyTo?: string;
 }
 
+function normalizeList(
+  v: string | string[] | ReadonlyArray<string> | undefined,
+): string | string[] | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v === "string") return v;
+  return Array.from(v);
+}
+
 export async function sendEmail({
   from,
   to,
@@ -20,23 +34,49 @@ export async function sendEmail({
   bcc,
   replyTo,
 }: SendEmailArgs) {
-  const resend = getResend();
   const defaults = getDefaultEmailConfig();
-  const normalizeList = (
-    v: string | string[] | ReadonlyArray<string> | undefined
-  ): string | string[] | undefined => {
-    if (v === undefined) return undefined;
-    if (typeof v === "string") return v;
-    return Array.from(v);
-  };
   const normalizedTo = normalizeList(to)!;
   const normalizedBcc = normalizeList(bcc);
-  
+  const resolvedFrom = from || defaults.from;
+  const resolvedReplyTo = replyTo || defaults.replyTo;
+
+  if (getEmailProvider() === "smtp") {
+    const { host, port, secure, user, pass } = getSmtpConfig();
+
+    if (!host || !port) {
+      throw new Error("SMTP_HOST and SMTP_PORT are required when EMAIL_PROVIDER=smtp");
+    }
+
+    const nodemailer = await import("nodemailer");
+    const transport = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: user && pass ? { user, pass } : undefined,
+    });
+    const html = await render(react);
+
+    return transport.sendMail({
+      from: resolvedFrom,
+      to: normalizedTo,
+      bcc: normalizedBcc ?? normalizeList(defaults.bcc),
+      replyTo: resolvedReplyTo,
+      subject,
+      html,
+      attachments: attachments?.map(({ filename, content, mimeType }) => ({
+        filename,
+        content,
+        contentType: mimeType,
+      })),
+    });
+  }
+
+  const resend = getResend();
   return resend.emails.send({
-    from: from || defaults.from,
+    from: resolvedFrom,
     to: normalizedTo,
     bcc: normalizedBcc ?? normalizeList(defaults.bcc),
-    replyTo: replyTo || defaults.replyTo,
+    replyTo: resolvedReplyTo,
     subject,
     react,
     attachments,

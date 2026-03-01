@@ -9,6 +9,7 @@ import React, { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { hasSupabaseAuth } from "@/lib/auth/config";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -176,10 +177,16 @@ export function LocationForm({
               {/* Dropzone para nuevo logo */}
               {!formData.logo && (
                 <div className="space-y-2">
-                  <Dropzone {...logoUpload} className="max-w-md mx-auto sm:mx-0">
-                    <DropzoneEmptyState />
-                    <DropzoneContent />
-                  </Dropzone>
+                  {hasSupabaseAuth ? (
+                    <Dropzone {...logoUpload} className="max-w-md mx-auto sm:mx-0">
+                      <DropzoneEmptyState />
+                      <DropzoneContent />
+                    </Dropzone>
+                  ) : (
+                    <div className="max-w-md rounded-lg border border-dashed border-slate-300 dark:border-slate-700 p-6 text-sm text-slate-600 dark:text-slate-400">
+                      Logo upload is unavailable in local mode because Supabase Storage is not configured.
+                    </div>
+                  )}
                   <p className="text-xs text-slate-600 dark:text-slate-400 text-center sm:text-left">
                     {t("imageGuidelines")}
                   </p>

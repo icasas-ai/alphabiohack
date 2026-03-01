@@ -1,154 +1,129 @@
-# Sistema de Gestión de Disponibilidad
+# Availability System
 
-## ✅ **Implementación completada**
+This document describes the current availability architecture.
 
-Se ha creado un sistema completo de gestión de horarios de disponibilidad para terapeutas, siguiendo el estándar establecido en el proyecto.
+## Current Model
 
-### **🏗️ Arquitectura del sistema:**
+The platform now has two availability models in the codebase:
 
-#### **1. Tipos TypeScript (`types/availability.ts`):**
+1. legacy weekly availability
+2. dated therapist availability
 
-- ✅ **`TimeSlot`** - Horario individual con inicio y fin
-- ✅ **`DaySchedule`** - Día de la semana con múltiples horarios
-- ✅ **`LocationAvailability`** - Disponibilidad completa de una ubicación
-- ✅ **`AvailabilityFormData`** - Datos del formulario
-- ✅ **`AvailabilityOperations`** - Interfaz para operaciones CRUD
-- ✅ **Utilidades** - Funciones para formateo y validación de tiempo
+The newer booking flow is designed around the dated model.
 
-#### **2. Hook personalizado (`hooks/use-availability-operations.ts`):**
+## Primary Booking Model
 
-- ✅ **`createTimeSlot`** - Crear nuevo horario
-- ✅ **`updateTimeSlot`** - Actualizar horario existente
-- ✅ **`deleteTimeSlot`** - Eliminar horario
-- ✅ **`toggleDayEnabled`** - Habilitar/deshabilitar día completo
-- ✅ **`updateLocationAvailability`** - Actualizar disponibilidad completa
-- ✅ **Estados de carga y error** - Manejo de estados
+The active dated model is based on:
 
-#### **3. Componentes modulares:**
+- `therapist + location + date`
+- one or more time ranges for each day
+- per-day session duration
+- real booking collision checks
 
-##### **`AvailabilityForm`** (`components/availability/availability-form.tsx`):
+Core tables:
 
-- ✅ **Selector de ubicación** - Dropdown con todas las ubicaciones
-- ✅ **Gestión por días** - Switch para habilitar/deshabilitar cada día
-- ✅ **Múltiples horarios** - Agregar/eliminar horarios por día
-- ✅ **Validación de tiempo** - Horario de fin debe ser posterior al inicio
-- ✅ **Cálculo de duración** - Muestra duración de cada horario
-- ✅ **Estados de carga** - Skeletons y indicadores de progreso
-- ✅ **Manejo de errores** - Mensajes de error contextuales
+- `availability_periods`
+- `availability_days`
+- `availability_time_ranges`
+- `availability_excluded_dates`
+- `availability_excluded_time_ranges`
 
-##### **`AvailabilityPage`** (`components/availability/availability-page.tsx`):
+Core service:
 
-- ✅ **Vista principal** - Interfaz completa de gestión
-- ✅ **Selección de ubicación** - Dropdown con ubicaciones disponibles
-- ✅ **Integración de formulario** - Renderiza AvailabilityForm
-- ✅ **Estados de carga** - Skeletons durante carga inicial
-- ✅ **Manejo de errores** - Mensajes de error de ubicaciones
+- [services/availability.service.ts](../services/availability.service.ts)
 
-#### **4. Página de ruta (`app/[locale]/(protected)/availability/page.tsx`):**
+Primary APIs:
 
-- ✅ **Estructura estándar** - Sigue el patrón de otras páginas
-- ✅ **Internacionalización** - Usa `useTranslations`
-- ✅ **Layout consistente** - Header, descripción y contenido
-- ✅ **Componente cliente** - Marcado con `"use client"`
+- [app/api/availability/periods/route.ts](../app/api/availability/periods/route.ts)
+- [app/api/availability/periods/[id]/route.ts](../app/api/availability/periods/[id]/route.ts)
+- [app/api/availability/days/[id]/route.ts](../app/api/availability/days/[id]/route.ts)
+- [app/api/availability/calendar/route.ts](../app/api/availability/calendar/route.ts)
 
-#### **5. Internacionalización (i18n):**
+Primary admin UI:
 
-- ✅ **Namespace `Availability`** - 30+ claves de traducción
-- ✅ **Español (es-MX)** - Traducciones completas
-- ✅ **Inglés (en-US)** - Traducciones completas
-- ✅ **Mensajes contextuales** - Estados, acciones, validaciones
+- [components/availability/availability-page.tsx](../components/availability/availability-page.tsx)
 
-#### **6. Storybook:**
+## Admin Workflow
 
-- ✅ **`AvailabilityForm.stories.tsx`** - Stories para el formulario
-- ✅ **`AvailabilityPage.stories.tsx`** - Stories para la página
-- ✅ **Casos de uso** - Default, Loading, WithLongLocationName
-- ✅ **Documentación** - Args y parámetros documentados
+The `/availability` page is used to manage real booking inventory.
 
-### **🎯 Características implementadas:**
+Current workflow:
 
-#### **✅ Gestión de ubicaciones:**
+1. select location
+2. create an availability period
+3. choose a start and end date
+4. optionally exclude dates inside the range
+5. define one or more time ranges
+6. set the day session duration
+7. optionally customize individual days
+8. review availability by month
 
-- Selección de ubicación desde dropdown
-- Integración con hook `useLocations`
-- Manejo de estados de carga y error
+Important behavior:
 
-#### **✅ Gestión de días de la semana:**
+- the page derives the active therapist from the authenticated user
+- the therapist is not selected manually in the current admin flow
+- excluded dates are persisted and can be added back later
+- overlapping periods can span multiple months
 
-- Switch para habilitar/deshabilitar cada día
-- Soporte para todos los 7 días de la semana
-- Estados visuales (habilitado/deshabilitado)
+## Booking Relationship
 
-#### **✅ Gestión de horarios múltiples:**
+The booking wizard reads dated availability for:
 
-- Múltiples horarios por día
-- Agregar/eliminar horarios dinámicamente
-- Validación de horarios válidos
-- Cálculo automático de duración
+- therapist
+- location
+- month
+- selected date
 
-#### **✅ Interfaz de usuario:**
+Flow:
 
-- Diseño con Shadcn UI components
-- Iconos de Lucide React
-- Estados de carga con skeletons
-- Mensajes de error contextuales
-- Responsive design
+1. booking selects or resolves the active therapist
+2. customer chooses location and service
+3. the app loads available days from dated availability
+4. the app loads available time slots for the selected day
+5. the server re-validates the selected slot before saving the booking
 
-#### **✅ Integración con API:**
+The effective slot duration comes from the availability day and is persisted to the booking as `bookedDurationMinutes`.
 
-- Usa endpoints existentes de `business-hours`
-- Operaciones CRUD completas
-- Manejo de errores de API
-- Estados de carga durante operaciones
+## Excluded Dates vs Closed Days
 
-### **🔧 Componentes Shadcn UI utilizados:**
+These are different concepts.
 
-- ✅ **`Button`** - Botones de acción
-- ✅ **`Card`** - Contenedores principales
-- ✅ **`Input`** - Campos de tiempo
-- ✅ **`Label`** - Etiquetas de campos
-- ✅ **`Switch`** - Toggle para días (creado)
-- ✅ **`Select`** - Selector de ubicación
-- ✅ **`Badge`** - Estados y duración
-- ✅ **`Separator`** - Divisores visuales
-- ✅ **`Skeleton`** - Estados de carga
+### Excluded date
 
-### **📱 Flujo de usuario:**
+- date is intentionally omitted from the period
+- stored in `availability_excluded_dates`
+- can be restored later
 
-1. **Acceso a `/availability`** - Página principal
-2. **Selección de ubicación** - Dropdown con ubicaciones
-3. **Gestión de días** - Switch para habilitar/deshabilitar
-4. **Configuración de horarios** - Agregar/editar/eliminar horarios
-5. **Validación** - Horarios válidos y duración calculada
-6. **Guardado** - Persistencia en base de datos
+### Closed day
 
-### **🎨 Diseño y UX:**
+- the day still exists in the period
+- `isAvailable` is set to `false`
+- it remains part of the saved day list but is not bookable
 
-- ✅ **Consistencia visual** - Sigue el design system establecido
-- ✅ **Estados claros** - Habilitado/deshabilitado visualmente
-- ✅ **Feedback inmediato** - Validación en tiempo real
-- ✅ **Carga progresiva** - Skeletons durante carga
-- ✅ **Manejo de errores** - Mensajes claros y accionables
+## Legacy Weekly Model
 
-### **🚀 Funcionalidades avanzadas:**
+Legacy tables still exist:
 
-- ✅ **Múltiples horarios por día** - Flexibilidad total
-- ✅ **Deshabilitación completa de días** - Sin horarios
-- ✅ **Validación de tiempo** - Horarios lógicos
-- ✅ **Cálculo de duración** - Automático en minutos/horas
-- ✅ **Persistencia automática** - Cambios guardados inmediatamente
-- ✅ **Estados de carga** - UX fluida durante operaciones
+- `business_hours`
+- `time_slots`
+- `date_overrides`
+- `override_time_slots`
 
-### **📚 Documentación:**
+These are older location-first scheduling primitives.
 
-- ✅ **Tipos bien definidos** - TypeScript completo
-- ✅ **Hooks documentados** - Funciones claras
-- ✅ **Componentes modulares** - Reutilizables
-- ✅ **Stories de Storybook** - Casos de uso documentados
-- ✅ **Internacionalización** - Soporte multiidioma
+They are still part of the schema and some older code paths, but they are not the preferred model for the newer therapist/location/date-based booking flow.
 
-### **✨ Resultado:**
+## Authorization
 
-El sistema de disponibilidad está completamente implementado y listo para uso, proporcionando una interfaz intuitiva y robusta para que los terapeutas gestionen sus horarios de disponibilidad por ubicación, con soporte completo para múltiples horarios por día y deshabilitación de días completos.
+Availability APIs are protected so only:
 
-¡El sistema sigue todos los estándares establecidos y está completamente integrado con el resto de la aplicación! 🎉
+- the owning therapist
+- or an admin
+
+can list or mutate therapist availability records.
+
+## Open Architectural Gap
+
+The app still lacks a true tenant/public profile model. Public booking resolves therapist identity from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`, while other public pages still need to be unified under the same source of truth.
+
+That is the main next architectural step if the product is moving toward one subdomain per therapist or office.

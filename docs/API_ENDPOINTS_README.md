@@ -79,6 +79,16 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `/api/therapists/${id}`,
   },
 
+  // Disponibilidad fechada
+  AVAILABILITY: {
+    PERIODS: "/api/availability/periods",
+    PERIOD_BY_ID: (id: string) => `/api/availability/periods/${id}`,
+    DAY_BY_ID: (id: string) => `/api/availability/days/${id}`,
+    CALENDAR: "/api/availability/calendar",
+    RESTORE_EXCLUDED_DATE: (periodId: string) =>
+      `/api/availability/periods/${periodId}`,
+  },
+
   // Citas/Bookings
   BOOKINGS: {
     BASE: "/api/bookings",
@@ -125,6 +135,8 @@ Los siguientes hooks han sido actualizados para usar las constantes:
 - `useUserBookings` - Citas del usuario/terapeuta
 - `useCreateBooking` - Crear nuevas citas
 - `useSpecialtiesServices` - Especialidades y servicios
+- `useAvailabilityCalendar` - Calendario de disponibilidad fechada
+- `useTherapists` - Carga de terapeutas públicos
 
 ## Agregar nuevos endpoints
 

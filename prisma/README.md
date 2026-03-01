@@ -1,95 +1,65 @@
-# 🌱 Database Seed
+# Prisma and Seed Notes
 
-Este archivo contiene datos de ejemplo para poblar la base de datos de tu sistema de reservas.
+This folder contains the Prisma schema, migrations, and seed scripts.
 
-## 📊 Datos incluidos
+## Current Layout
 
-### 👥 Usuarios (8)
+- `schema.prisma` - source of truth for the database schema
+- `migrations/` - committed SQL migrations
+- `seeds/` - local seed helpers
 
-- **1 Administrador**: María González
-- **3 Terapeutas**: Dr. Carlos Martínez, Dra. Ana López, Dr. Miguel Rodríguez
-- **3 Pacientes**: Juan Pérez, María García, Carlos Silva
-- **1 Usuario multi-rol**: Dr. Roberto Fernández (Admin + Therapist)
+## Seed Behavior
 
-### 🏥 Ubicaciones (3)
+Entry point:
 
-- **Clínica Central**: Av. Principal 123, Ciudad Central
-- **Sucursal Norte**: Calle Norte 456, Zona Norte
-- **Centro de Salud Sur**: Plaza Sur 789, Distrito Sur
+- [seeds/seed.ts](./seeds/seed.ts)
 
-### 🕒 Horarios de Atención (18)
+The seed currently runs these steps:
 
-- **Lunes a Viernes**: 08:00 - 18:00
-- **Sábados**: 09:00 - 13:00
-- **Domingos**: Cerrado
+1. users
+2. locations
+3. legacy business hours
+4. specialties
+5. services
+6. bookings
 
-### 🎯 Especialidades (5)
+## Important Characteristics
 
-- Psicología Clínica
-- Fisioterapia
-- Terapia Ocupacional
-- Logopedia
-- Psicología Infantil
+- the seed is intended for local development
+- it is not a destructive full reset by itself
+- each seed section checks for existing records and skips creation when data already exists
+- `npm run db:reset` is the destructive command, not `npm run db:seed`
 
-### 🛠️ Servicios (12)
+## Single-Therapist Seed Mode
 
-- **Psicología Clínica**: Consulta inicial, terapia individual, terapia de pareja
-- **Fisioterapia**: Evaluación, rehabilitación, terapia manual
-- **Terapia Ocupacional**: Evaluación, sesión de terapia
-- **Logopedia**: Evaluación del habla, terapia del habla
-- **Psicología Infantil**: Evaluación infantil, terapia infantil
+The user seed reads these env vars:
 
-### 📅 Citas (7)
+- `SINGLE_THERAPIST`
+- `SINGLE_THERAPIST_EMAIL`
+- `SINGLE_THERAPIST_SUPABASE_ID`
+- `SINGLE_THERAPIST_FIRSTNAME`
+- `SINGLE_THERAPIST_LASTNAME`
+- `SINGLE_THERAPIST_AVATAR`
 
-- **3 Citas completadas** (pasadas)
-- **2 Citas confirmadas** (futuras con terapeuta asignado)
-- **2 Citas pendientes** (futuras sin terapeuta asignado)
+When `SINGLE_THERAPIST=true`, the seed creates an additional therapist user.
 
-## 🚀 Comandos disponibles
+Important:
+
+- local self-signup still creates `Patient` users
+- the seeded therapist is the practical source for `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` in local development
+
+## Common Commands
 
 ```bash
-# Ejecutar solo el seed
+npm run db:generate
+npm run db:migrate:deploy
 npm run db:seed
-
-# Resetear la base de datos y ejecutar el seed
 npm run db:reset
+npm run db:studio
 ```
 
-## 🔧 Configuración
+## Notes
 
-El seed utiliza:
-
-- **Prisma Client** para las operaciones de base de datos
-- **TypeScript** con tsx para ejecución
-- **PostgreSQL** como base de datos
-
-## 📝 Notas importantes
-
-- El seed **elimina todos los datos existentes** antes de crear los nuevos
-- Las fechas de las citas se generan dinámicamente basadas en la fecha actual
-- Los usuarios incluyen `supabaseId` de ejemplo para integración con Supabase
-- Las ubicaciones incluyen coordenadas GPS de ejemplo (Ciudad de México)
-
-## 🎨 Datos de ejemplo
-
-### Credenciales de prueba:
-
-- **Admin**: admin@booking-saas.com
-- **Terapeuta**: dr.martinez@booking-saas.com
-- **Paciente**: juan.perez@email.com
-
-### Tipos de citas disponibles:
-
-- DirectVisit (Visita directa)
-- VideoCall (Videollamada)
-- PhoneCall (Llamada telefónica)
-- HomeVisit (Visita domiciliaria)
-
-### Estados de citas:
-
-- Pending (Pendiente)
-- Confirmed (Confirmada)
-- InProgress (En progreso)
-- Completed (Completada)
-- Cancelled (Cancelada)
-- NoShow (No se presentó)
+- if you add schema changes, create a migration and regenerate Prisma client
+- if you add seed assumptions, keep them aligned with `.env.example` and `docs/LOCAL_DEVELOPMENT.md`
+- dated availability data is not currently seeded by default; availability periods are expected to be created from the admin UI

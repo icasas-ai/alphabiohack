@@ -40,11 +40,11 @@ export function parseDateStringInTimeZone(
   dateStr: string, // YYYY-MM-DD
   tz: string = PST_TZ
 ): Date {
-  // Crear un objeto temporal en UTC para obtener el offset de la zona
+  // Use noon instead of midnight so date-only values stay on the same
+  // calendar day even when the viewer's browser is in a different timezone.
   const tempDate = new Date(`${dateStr}T12:00:00Z`);
   const offset = formatInTimeZone(tempDate, tz, "XXX");
-  // Construir la fecha tratando el string como hora local
-  return new Date(`${dateStr}T00:00:00${offset}`);
+  return new Date(`${dateStr}T12:00:00${offset}`);
 }
 
 /**
@@ -59,4 +59,31 @@ export function formatBookingToLocalStrings(
     dateString: formatInTimeZone(date, tz, "yyyy-MM-dd"),
     timeString: formatInTimeZone(date, tz, "HH:mm"),
   };
+}
+
+export function getTimeZoneDisplayName(
+  tz: string = PST_TZ,
+  locale: string = "en-US"
+): string {
+  try {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      timeZone: tz,
+      timeZoneName: "longGeneric",
+    });
+    const zonePart = formatter
+      .formatToParts(new Date())
+      .find((part) => part.type === "timeZoneName")?.value;
+
+    return zonePart || tz;
+  } catch {
+    return tz;
+  }
+}
+
+export function formatTimeZoneLabel(
+  tz: string = PST_TZ,
+  locale: string = "en-US"
+): string {
+  const displayName = getTimeZoneDisplayName(tz, locale);
+  return displayName === tz ? tz : `${displayName} (${tz})`;
 }

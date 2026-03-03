@@ -78,7 +78,7 @@ export function AppointmentTypeSelector() {
   // Si no hay tipos habilitados, mostrar mensaje
   if (enabledAppointmentTypes.length === 0) {
     return (
-      <Card>
+      <Card className="surface-panel">
         <CardContent className="pt-6">
           <div className="text-center text-muted-foreground">
             <p>{t('noAppointmentTypesAvailable')}</p>
@@ -101,10 +101,10 @@ export function AppointmentTypeSelector() {
                 <Label
                   htmlFor={type.id}
                   className={cn(
-                    "flex h-20 flex-col items-center justify-center gap-2 rounded-md border-2 cursor-pointer transition-all hover:bg-accent hover:text-accent-foreground",
+                    "flex h-20 flex-col items-center justify-center gap-2 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:border-primary/25 hover:bg-primary/6 hover:text-foreground",
                     selectedTypeId === type.id
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : "border-border text-foreground hover:border-border/80",
+                      ? "interactive-selected text-primary shadow-md"
+                      : "border-border/80 bg-card/70 text-foreground",
                   )}
                 >
                   <IconComponent className="h-6 w-6" />

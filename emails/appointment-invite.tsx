@@ -1,7 +1,7 @@
 import * as React from 'react'
 
 // Importamos solo formatInTZ; PST_TZ ya no se usa aquí
-import { formatInTZ } from '@/lib/utils/timezone'
+import { formatInTZ, formatTimeZoneLabel } from '@/lib/utils/timezone'
 
 interface AppointmentInviteEmailProps {
   patientName: string
@@ -31,6 +31,7 @@ export function AppointmentInviteEmail({
   timeZone,
 }: AppointmentInviteEmailProps) {
   const isSpanish = language === 'es'
+  const locale = isSpanish ? 'es-MX' : 'en-US'
 
   const t = {
     title: isSpanish ? 'Solicitud de Cita' : 'Appointment Request',
@@ -42,6 +43,7 @@ export function AppointmentInviteEmail({
     email: isSpanish ? 'Correo' : 'Email',
     therapist: isSpanish ? 'Profesional' : 'Professional',
     when: isSpanish ? 'Cuándo' : 'When',
+    timeZone: isSpanish ? 'Zona horaria' : 'Time zone',
     where: isSpanish ? 'Dónde' : 'Where',
     notesLabel: isSpanish ? 'Notas' : 'Notes',
     addToCalendar: isSpanish ? 'Añadir a Calendario' : 'Add to Calendar',
@@ -53,6 +55,7 @@ export function AppointmentInviteEmail({
   // Formatear fecha y hora usando la zona horaria proporcionada
   const dateLine = `${formatInTZ(start, 'EEEE dd MMMM yyyy', timeZone)}`
   const timeLine = `${formatInTZ(start, 'hh:mm a', timeZone)} – ${formatInTZ(end, 'hh:mm a', timeZone)}`
+  const timeZoneLine = formatTimeZoneLabel(timeZone, locale)
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff' }}>
@@ -87,6 +90,10 @@ export function AppointmentInviteEmail({
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: '#374151' }}>{t.when}:</strong>
             <span style={{ color: '#374151', marginLeft: 8 }}>{dateLine} · {timeLine}</span>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <strong style={{ color: '#374151' }}>{t.timeZone}:</strong>
+            <span style={{ color: '#374151', marginLeft: 8 }}>{timeZoneLine}</span>
           </div>
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: '#374151' }}>{t.where}:</strong>

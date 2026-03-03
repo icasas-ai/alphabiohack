@@ -2,6 +2,7 @@ import { BookingStatus, BookingType } from "@prisma/client";
 
 // Interfaz para crear una nueva cita
 export interface CreateBookingData {
+  companyId?: string;
   bookingType: BookingType;
   locationId: string;
   specialtyId?: string;

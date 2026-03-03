@@ -92,7 +92,17 @@ Those remain in the schema, but the newer booking flow is designed around explic
 
 ### 2. The App Is Multi-User, But Not Yet Truly Multi-Tenant
 
-The app uses one `users` table for:
+The app now has a foundational `Company` + `CompanyMembership` model, but the full app is still mid-transition toward tenant-aware production behavior.
+
+Current tenant-owned records include:
+
+- locations
+- specialties
+- services
+- bookings
+- availability periods / days
+
+The app still also uses one `users` table for:
 
 - patients
 - therapists
@@ -102,8 +112,9 @@ A therapist is a `users` row whose `role` includes `Therapist`.
 
 Current public identity behavior:
 
-- public booking resolves therapist identity from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-- some other public pages still need to be unified under the same source of truth
+- public site can resolve the company from `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
+- public booking therapist can still fall back to `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- some internal flows still need deeper tenant-aware authorization refactoring
 
 For more detail, see [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md).
 
@@ -138,7 +149,7 @@ npm run dev
 
 Then open:
 
-- app: `http://localhost:3000`
+- app: `http://localhost:9001`
 - Mailpit inbox: `http://localhost:8025`
 
 ### Minimum `.env.local` For Host-Run Local Dev
@@ -190,9 +201,15 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 ## Supporting Docs
 
 - [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) - local setup, Docker, Prisma commands, Mailpit
+- [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) - Windows downloads, PowerShell commands, Prisma setup, and startup flow
 - [docs/AVAILABILITY_SYSTEM.md](docs/AVAILABILITY_SYSTEM.md) - current availability architecture
+- [docs/TIMEZONE_HANDLING.md](docs/TIMEZONE_HANDLING.md) - how office timezone affects booking, availability, and invites
 - [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - schema overview and ER diagram
 - [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md) - user roles and therapist identity resolution
+- [docs/ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md) - current roles, protected pages, and role-guarded API access
+- [docs/COMPANY_MODEL.md](docs/COMPANY_MODEL.md) - current company / tenant foundation, memberships, seed behavior, and public-site resolution
+- [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) - production architecture gaps, tenant model, staff auth, and rollout plan
+- [docs/HANDOFF_CONTEXT.md](docs/HANDOFF_CONTEXT.md) - concise current-state handoff for continuing work in a new chat
 - [docs/API_ENDPOINTS_README.md](docs/API_ENDPOINTS_README.md) - API endpoint constants overview
 - [docs/SUPABASE_STORAGE_SETUP.md](docs/SUPABASE_STORAGE_SETUP.md) - Supabase Storage setup for upload flows
 

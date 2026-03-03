@@ -9,11 +9,13 @@ import { AddToCalendarButton } from "@/components/common/add-to-calendar-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useBookingWizard } from "@/contexts"
+import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 import { useMemo } from "react"
-import { useFormatter } from "next-intl"
+import { useFormatter, useLocale } from "next-intl"
 
 export function BookingConfirmation() {
   const format = useFormatter()
+  const locale = useLocale()
   const t = useTranslations('Booking')
  
   const { data } = useBookingWizard()
@@ -30,6 +32,9 @@ export function BookingConfirmation() {
 
   // Get selected location
   const selectedLocation = locations.find(loc => loc.id === data.locationId)
+  const officeTimeZoneLabel = selectedLocation?.timezone
+    ? formatTimeZoneLabel(selectedLocation.timezone, locale)
+    : null
   
   // Get selected service
   const selectedService = services.find(service => service.id === data.selectedServiceIds[0])
@@ -48,7 +53,7 @@ export function BookingConfirmation() {
     return `${eh.toString().padStart(2,'0')}:${em.toString().padStart(2,'0')}`
   }, [data.selectedTime, data.sessionDurationMinutes, selectedService])
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="w-full space-y-8">
       {/* Header with confirmation */}
       <div className="flex items-center gap-3">
         <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -56,9 +61,9 @@ export function BookingConfirmation() {
       </div>
 
       {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-8">
         {/* Left side - Booking details */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
           {/* Doctor info and confirmation message */}
           <Card className="flex items-start gap-4 p-6">
             {therapistLoading ? (
@@ -180,6 +185,14 @@ export function BookingConfirmation() {
   <br />
   {data.selectedTime ? formatTime12h(data.selectedTime) : ""}
 </p>
+                {officeTimeZoneLabel ? (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t("officeTimeZoneNotice", {
+                      location: selectedLocation?.title || t("location"),
+                      timezone: officeTimeZoneLabel,
+                    })}
+                  </p>
+                ) : null}
               </div>
 
               {/* Ubicación */}
@@ -224,7 +237,7 @@ export function BookingConfirmation() {
         </div>
 
         {/* Right side - Booking number and QR code */}
-        <Card className="space-y-6 p-4">
+        <Card className="h-fit space-y-6 p-4 xl:sticky xl:top-6">
           <div className="text-center">
             <h2 className="font-medium text-foreground mb-2">{t('bookingNumber')}</h2>
             <Badge variant="outline" className="border-green-500/60 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 px-4 py-2 text-base break-normal w-full">

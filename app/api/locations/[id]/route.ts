@@ -82,6 +82,12 @@ export async function PUT(
     );
   } catch (error) {
     console.error("Error updating location:", error);
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
+    }
     const { body, status } = errorResponse("internal_error", null, 500);
     return NextResponse.json(body, { status });
   }

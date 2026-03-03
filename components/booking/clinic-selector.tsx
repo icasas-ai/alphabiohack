@@ -46,7 +46,7 @@ export function ClinicSelector() {
         variant: "card"
       }}
     >
-      <Card>
+      <Card className="surface-panel">
         <CardContent className="pt-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">{t('selectClinic')}</h3>
           <RadioGroup
@@ -60,8 +60,10 @@ export function ClinicSelector() {
                 <Label
                   htmlFor={location.id}
                   className={cn(
-                    "flex items-center gap-3 w-full p-4 rounded-lg border-2 cursor-pointer transition-all hover:bg-primary",
-                    data.locationId === location.id ? "border-primary bg-primary/5" : "border-border hover:border-border/80",
+                    "flex items-center gap-3 w-full rounded-xl border-2 p-4 cursor-pointer transition-all duration-200 hover:border-primary/25 hover:bg-primary/6",
+                    data.locationId === location.id
+                      ? "interactive-selected"
+                      : "border-border/80 bg-card/70",
                   )}
                 >
                   <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary/10 text-primary">

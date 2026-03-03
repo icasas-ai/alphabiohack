@@ -4,8 +4,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useServices, useSpecialties } from "@/hooks"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useAppointmentFlags } from "@/hooks"
 import { useBookingWizard } from "@/contexts"
 import { useTranslations } from "next-intl"
@@ -41,30 +43,30 @@ export function SpecialtySelector() {
 
   if (specialtiesError || servicesError) {
     return (
-      <div className="space-y-6 bg-card rounded-lg shadow-sm border p-6">
-        <div className="text-center py-8">
-          <p className="text-sm text-red-600 dark:text-red-300">
-            {t('error')}: {specialtiesError || servicesError}
-          </p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-2 text-sm text-primary hover:underline"
-          >
-            {t('retry')}
-          </button>
-        </div>
-      </div>
+      <Alert variant="destructive" className="p-6">
+        <AlertDescription>
+          <div className="text-center py-2">
+            <p className="text-sm">{t('error')}: {specialtiesError || servicesError}</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-2 text-sm text-primary hover:underline"
+            >
+              {t('retry')}
+            </button>
+          </div>
+        </AlertDescription>
+      </Alert>
     )
   }
 
   return (
-    <div className="space-y-6 bg-card rounded-lg shadow-sm border p-6">
+    <div className="surface-panel space-y-6 p-6">
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-4">{t('selectSpecialty')}</h3>
         {specialtiesLoading ? (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-            <p className="text-sm text-muted-foreground mt-2">{t('loading')}</p>
+          <div className="space-y-3 py-2">
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
           </div>
         ) : (
           <Select 
@@ -107,21 +109,24 @@ export function SpecialtySelector() {
         <div>
           <h3 className="text-lg font-semibold text-foreground mb-4">{t('selectService')}</h3>
           {servicesLoading ? (
-            <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-              <p className="text-sm text-muted-foreground mt-2">{t('loading')}</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-32 rounded-2xl" />
+              ))}
             </div>
           ) : services.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">{t('noServicesAvailable')}</p>
-            </div>
+            <Alert variant="info">
+              <AlertDescription>{t('noServicesAvailable')}</AlertDescription>
+            </Alert>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {services.map((service) => (
                 <Card
                   key={service.id}
-                  className={`cursor-pointer transition-all hover:shadow-md ${
-                    data.selectedServiceIds.includes(service.id) ? "ring-2 ring-primary border-primary" : "border-border"
+                  className={`cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                    data.selectedServiceIds.includes(service.id)
+                      ? "interactive-selected ring-1 ring-primary/10"
+                      : "border-border/80 bg-card/70"
                   }`}
                   onClick={(e) => {
                     // Solo manejar el click si no se hizo click en el checkbox
@@ -136,7 +141,7 @@ export function SpecialtySelector() {
                         <h4 className="font-medium text-foreground mb-1">{service.description}</h4>
                         <div className="flex gap-2">
                           {shouldShowPrices() && (
-                          <Badge variant="secondary" className="text-sm">
+                          <Badge variant="info" className="text-sm">
                               ${service.cost}
                             </Badge>
                           )}

@@ -1,3 +1,5 @@
+"use client"
+
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from "lucide-react"
 
 import { CONTACT_INFO } from "@/constants"
@@ -5,9 +7,50 @@ import Image from "next/image"
 import Link from "next/link"
 import { Link as LocalizedLink } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
+import { useEffect, useState } from "react"
+
+interface PublicContactData {
+  email?: string | null
+  telefono?: string | null
+  informacionPublica?: string | null
+  facebook?: string | null
+  instagram?: string | null
+  linkedin?: string | null
+  twitter?: string | null
+}
 
 export function MedicalFooter() {
   const t = useTranslations('Footer')
+  const [publicContact, setPublicContact] = useState<PublicContactData | null>(null)
+
+  useEffect(() => {
+    const fetchPublicContact = async () => {
+      try {
+        const response = await fetch("/api/public/contact")
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as PublicContactData
+        setPublicContact(data)
+      } catch (error) {
+        console.error("Error fetching public footer contact data:", error)
+      }
+    }
+
+    fetchPublicContact()
+  }, [])
+
+  const publicAddress = publicContact?.informacionPublica || CONTACT_INFO.ADDRESS
+  const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
+  const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
+  const facebookLink =
+    publicContact?.facebook || "https://www.facebook.com/profile.php?id=61575723443538&locale=es_LA"
+  const instagramLink =
+    publicContact?.instagram || "https://www.instagram.com/tenma_control/"
+  const linkedinLink = publicContact?.linkedin || "#"
+  const twitterLink = publicContact?.twitter || "#"
+
   return (
     <footer className="bg-secondary text-secondary-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -29,16 +72,16 @@ export function MedicalFooter() {
               {t('description')}
             </p>
             <div className="flex space-x-4">
-              <Link href="https://www.facebook.com/profile.php?id=61575723443538&locale=es_LA" className="text-secondary-foreground/80 hover:text-primary transition-colors">
+              <Link href={facebookLink} className="text-secondary-foreground/80 hover:text-primary transition-colors">
                 <Facebook className="h-5 w-5" />
               </Link>
-              <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
+              <Link href={twitterLink} className="text-secondary-foreground/80 hover:text-primary transition-colors">
                 <Twitter className="h-5 w-5" />
               </Link>
-              <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
+              <Link href={linkedinLink} className="text-secondary-foreground/80 hover:text-primary transition-colors">
                 <Linkedin className="h-5 w-5" />
               </Link>
-              <Link href="https://www.instagram.com/tenma_control/" className="text-secondary-foreground/80 hover:text-primary transition-colors">
+              <Link href={instagramLink} className="text-secondary-foreground/80 hover:text-primary transition-colors">
                 <Instagram className="h-5 w-5" />
               </Link>
             </div>
@@ -51,24 +94,14 @@ export function MedicalFooter() {
             <h4 className="text-lg font-semibold">{t('forDoctors')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('appointments')}
-                </Link>
+                <p className="text-secondary-foreground/60">
+                  {t('therapistAccessDescription')}
+                </p>
               </li>
               <li>
-                <LocalizedLink href="/auth/login" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('login')}
+                <LocalizedLink href="/auth/login" className="inline-flex items-center text-primary hover:text-primary/80 transition-colors">
+                  {t('therapistSignIn')}
                 </LocalizedLink>
-              </li>
-              <li>
-                <LocalizedLink href="/auth/sign-up" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('register')}
-                </LocalizedLink>
-              </li>
-              <li>
-                <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('doctorDashboard')}
-                </Link>
               </li>
             </ul>
           </div>
@@ -80,16 +113,16 @@ export function MedicalFooter() {
               <div className="flex items-start space-x-3">
                 <MapPin className="h-4 w-4 mt-1 shrink-0" />
                 <span className="text-secondary-foreground/80">
-                  {t('address')}
+                  {publicAddress}
                 </span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-4 w-4 shrink-0" />
-                <span className="text-secondary-foreground/80">{CONTACT_INFO.PHONE}</span>
+                <span className="text-secondary-foreground/80">{publicPhone}</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 shrink-0" />
-                <span className="text-secondary-foreground/80">{CONTACT_INFO.EMAIL}</span>
+                <span className="text-secondary-foreground/80">{publicEmail}</span>
               </div>
             </div>
           </div>

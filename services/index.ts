@@ -1,5 +1,14 @@
 // Exportar todas las funciones de servicios CRUD
 export {
+  getCompanyContextForUser,
+  getPrimaryCompanyForUser,
+  getPrimaryCompanyIdForUser,
+  getPublicCompany,
+  getPublicTherapistForCompany,
+  resolveScopedCompanyId,
+} from "./company.service";
+
+export {
   createUser,
   deleteUser,
   getAllUsers,

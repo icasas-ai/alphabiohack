@@ -3,13 +3,17 @@
 import { KpiCard, NextAppointmentsList, QuickActions, TherapistDashboard } from "@/components/dashboard";
 
 import React from 'react'
+import { useEffect } from "react";
 import { useTherapistDashboard } from "@/hooks/use-therapist-dashboard";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
+import { useRouter } from "@/i18n/navigation";
+import { UserRole } from "@prisma/client";
 
 export default function DashboardHome() {
   const { prismaUser, loading } = useUser();
   const t = useTranslations('Dashboard');
+  const router = useRouter();
   const [range, setRange] = React.useState<"last7" | "today" | "thisWeek" | "last30" | "all">("last7");
   const { data: therapistData } = useTherapistDashboard({ range });
 
@@ -17,8 +21,19 @@ export default function DashboardHome() {
     return <div className="p-6 text-muted-foreground">{t('loading', { default: 'Cargando…' })}</div>;
   }
 
-  const userRoles = (prismaUser?.role ?? []) as string[];
-  const isTherapist = Array.isArray(userRoles) && userRoles.includes('Therapist');
+  const userRoles = prismaUser?.role ?? [];
+  const isTherapist = userRoles.includes(UserRole.Therapist);
+  const isFrontDesk = userRoles.includes(UserRole.FrontDesk);
+
+  useEffect(() => {
+    if (!loading && isFrontDesk) {
+      router.push("/appointments");
+    }
+  }, [isFrontDesk, loading, router]);
+
+  if (isFrontDesk) {
+    return null;
+  }
 
   if (isTherapist) {
     return (
@@ -86,7 +101,6 @@ export default function DashboardHome() {
     </div>
   );
 }
-
 
 
 

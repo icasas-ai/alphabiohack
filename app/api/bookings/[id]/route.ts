@@ -5,6 +5,35 @@ import {
   getBookingById,
   updateBooking,
 } from "@/services";
+import { UserRole } from "@prisma/client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { canManageBookingAsOperator } from "@/lib/auth/authorization";
+
+async function canAccessBooking(bookingId: string) {
+  const { prismaUser } = await getCurrentUser();
+  if (!prismaUser) {
+    return { prismaUser: null, booking: null, allowed: false, status: 401 };
+  }
+
+  const booking = await getBookingById(bookingId);
+  if (!booking) {
+    return { prismaUser, booking: null, allowed: false, status: 404 as const };
+  }
+
+  const isAdmin = prismaUser.role.includes(UserRole.Admin);
+  const isOperatorOwner = canManageBookingAsOperator(
+    prismaUser,
+    booking.therapistId
+  );
+  const isPatientOwner = prismaUser.email.toLowerCase() === booking.email.toLowerCase();
+
+  return {
+    prismaUser,
+    booking,
+    allowed: isAdmin || isOperatorOwner || isPatientOwner,
+    status: isAdmin || isOperatorOwner || isPatientOwner ? 200 : 403,
+  };
+}
 
 // GET /api/bookings/[id] - Obtener cita por ID
 export async function GET(
@@ -13,17 +42,24 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const access = await canAccessBooking(id);
 
-    const booking = await getBookingById(id);
-
-    if (!booking) {
+    if (!access.allowed) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
     }
 
-    return NextResponse.json({ success: true, data: booking });
+    return NextResponse.json({ success: true, data: access.booking });
   } catch (error) {
     console.error("Error getting booking:", error);
     return NextResponse.json(
@@ -41,15 +77,23 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-
-    // Verificar que la cita existe
-    const existingBooking = await getBookingById(id);
-    if (!existingBooking) {
+    const access = await canAccessBooking(id);
+    if (!access.allowed || !access.booking) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
     }
+
+    const existingBooking = access.booking;
 
     // Si se está cambiando el terapeuta o el horario, verificar disponibilidad
     if (body.therapistId || body.bookingSchedule) {
@@ -93,13 +137,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
-    // Verificar que la cita existe
-    const existingBooking = await getBookingById(id);
-    if (!existingBooking) {
+    const access = await canAccessBooking(id);
+    if (!access.allowed) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
     }
 

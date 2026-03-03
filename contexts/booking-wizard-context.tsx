@@ -1,7 +1,8 @@
 "use client";
 
 import { BookingStatus, BookingType } from "@prisma/client";
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { useTherapistConfig } from "@/hooks";
 import { useTranslations } from "next-intl";
@@ -80,6 +81,8 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<BookingFormData>(defaultFormData);
   const t = useTranslations('Booking.Validation');
   const { getTherapistIdForBooking } = useTherapistConfig();
+  const searchParams = useSearchParams();
+  const initializedLocationFromQuery = useRef(false);
 
   useEffect(() => {
     const defaultTherapistId = getTherapistIdForBooking();
@@ -90,6 +93,28 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       }));
     }
   }, [data.therapistId, getTherapistIdForBooking]);
+
+  useEffect(() => {
+    if (initializedLocationFromQuery.current) {
+      return;
+    }
+
+    const locationId = searchParams.get("locationId");
+
+    initializedLocationFromQuery.current = true;
+
+    if (!locationId || data.locationId === locationId) {
+      return;
+    }
+
+    setData((prev) => ({
+      ...prev,
+      locationId,
+      selectedDate: null,
+      selectedTime: "",
+      sessionDurationMinutes: null,
+    }));
+  }, [data.locationId, searchParams]);
 
   const update = useCallback((updates: Partial<BookingFormData>) => {
     setData(prev => ({
@@ -120,9 +145,31 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       case 2: // Selección de fecha y hora
         return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0 && data.selectedDate && data.selectedTime);
       case 3: // Información básica
-        return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0 && data.selectedDate && data.selectedTime && data.basicInfo.firstName && data.basicInfo.lastName && data.basicInfo.phone && data.basicInfo.email);
+        return Boolean(
+          data.locationId &&
+            data.specialtyId &&
+            data.selectedServiceIds.length > 0 &&
+            data.selectedDate &&
+            data.selectedTime &&
+            data.basicInfo.firstName &&
+            data.basicInfo.lastName &&
+            data.basicInfo.phone &&
+            data.basicInfo.email &&
+            data.basicInfo.givenConsent,
+        );
       case 4: // Confirmación
-        return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0 && data.selectedDate && data.selectedTime && data.basicInfo.firstName && data.basicInfo.lastName && data.basicInfo.phone && data.basicInfo.email);
+        return Boolean(
+          data.locationId &&
+            data.specialtyId &&
+            data.selectedServiceIds.length > 0 &&
+            data.selectedDate &&
+            data.selectedTime &&
+            data.basicInfo.firstName &&
+            data.basicInfo.lastName &&
+            data.basicInfo.phone &&
+            data.basicInfo.email &&
+            data.basicInfo.givenConsent,
+        );
       default:
         return false;
     }
@@ -159,6 +206,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
         if (!data.basicInfo.lastName) errors.push(t('enterLastName'));
         if (!data.basicInfo.phone) errors.push(t('enterPhone'));
         if (!data.basicInfo.email) errors.push(t('enterEmail'));
+        if (!data.basicInfo.givenConsent) errors.push(t('acceptSmsConsent'));
         break;
       case 4:
         if (!data.locationId) errors.push(t('selectLocation'));
@@ -170,6 +218,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
         if (!data.basicInfo.lastName) errors.push(t('enterLastName'));
         if (!data.basicInfo.phone) errors.push(t('enterPhone'));
         if (!data.basicInfo.email) errors.push(t('enterEmail'));
+        if (!data.basicInfo.givenConsent) errors.push(t('acceptSmsConsent'));
         break;
     }
     

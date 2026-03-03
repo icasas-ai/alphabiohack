@@ -92,13 +92,29 @@ export const getAllUsers = async () => {
 };
 
 // Obtener usuarios por rol
-export const getUsersByRole = async (role: UserRole) => {
+export const getUsersByRole = async (
+  role: UserRole,
+  companyId?: string
+) => {
   try {
     const users = await prisma.user.findMany({
       where: {
-        role: {
-          has: role,
-        },
+        AND: [
+          {
+            role: {
+              has: role,
+            },
+          },
+          companyId
+            ? {
+                companyMemberships: {
+                  some: {
+                    companyId,
+                  },
+                },
+              }
+            : {},
+        ],
       },
       include: {
         therapistBookings: true,

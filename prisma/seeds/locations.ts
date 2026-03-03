@@ -34,9 +34,11 @@ const DEFAULT_LOCATIONS = [
 ];
 
 export async function seedDefaultLocations(
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  companyId: string,
 ): Promise<Partial<PrismaLocation>[]> {
   const existing = await prisma.location.findMany({
+    where: { companyId },
     select: { id: true, title: true, timezone: true },
   });
   console.log(`Found ${existing.length} locations`);
@@ -49,10 +51,14 @@ export async function seedDefaultLocations(
   console.log("Seeding default locations...");
 
   await prisma.location.createMany({
-    data: DEFAULT_LOCATIONS,
+    data: DEFAULT_LOCATIONS.map((location) => ({
+      ...location,
+      companyId,
+    })),
   });
 
   const created = await prisma.location.findMany({
+    where: { companyId },
     select: { id: true, title: true, timezone: true },
   });
 

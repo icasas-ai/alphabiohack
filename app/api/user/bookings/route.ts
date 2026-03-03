@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { PST_TZ, formatBookingToLocalStrings } from "@/lib/utils/timezone";
 
 export async function GET() {
   try {
@@ -21,7 +22,10 @@ export async function GET() {
       include: {
         location: {
           select: {
+            id: true,
             title: true,
+            address: true,
+            timezone: true,
           },
         },
         specialty: {
@@ -53,7 +57,18 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      bookings,
+      bookings: bookings.map((booking) => {
+        const { dateString, timeString } = formatBookingToLocalStrings(
+          booking.bookingSchedule,
+          booking.location.timezone || PST_TZ
+        );
+
+        return {
+          ...booking,
+          bookingLocalDate: dateString,
+          bookingLocalTime: timeString,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error fetching user bookings:", error);

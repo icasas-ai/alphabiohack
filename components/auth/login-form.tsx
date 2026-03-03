@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
+import { Loader2 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { hasSupabaseAuth } from "@/lib/auth/config";
@@ -64,6 +65,11 @@ export function LoginForm({
 
       await refreshAuthState();
       router.refresh();
+      if (!hasSupabaseAuth && result?.mustChangePassword) {
+        router.push("/auth/update-password");
+        return;
+      }
+
       router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));
@@ -91,6 +97,7 @@ export function LoginForm({
                   type="email"
                   placeholder={t('emailPlaceholder')}
                   required
+                  disabled={isLoading}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -110,23 +117,31 @@ export function LoginForm({
                   type="password"
                   placeholder={t('passwordPlaceholder')}
                   required
+                  disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
+              {isLoading ? (
+                <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                  <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">{t('signingInTitle')}</p>
+                    <p className="text-muted-foreground">{t('signingInDescription')}</p>
+                  </div>
+                </div>
+              ) : null}
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full text-accent-foreground" disabled={isLoading}>
-                {isLoading ? t('loading') : t('signInButton')}
+                {isLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('signingInButton')}
+                  </span>
+                ) : (
+                  t('signInButton')
+                )}
               </Button>
-            </div>
-            <div className="mt-4 text-center text-sm">
-              {t('noAccount')}{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4 text-foreground"
-              >
-                {t('signUp')}
-              </Link>
             </div>
           </form>
         </CardContent>

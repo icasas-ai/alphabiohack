@@ -11,7 +11,9 @@ export interface BookingData {
   bookingSchedule: string;
   status: string;
   location: {
+    id?: string;
     title: string;
+    timezone?: string;
   };
   specialty?: {
     id: string;
@@ -24,14 +26,19 @@ export interface BookingData {
     duration: number;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
 }
 
 export interface CalendarEvent {
   id: string;
   title: string;
   time: string;
+  displayTime?: string;
+  dateKey?: string;
+  locationId?: string;
   type: "appointment" | "task" | "event";
-  status?: "confirmed" | "pending" | "cancelled";
+  status?: "pending" | "confirmed" | "inprogress" | "completed" | "cancelled" | "noshow";
   color?: string;
   // Datos adicionales para appointments
   patientName?: string;
@@ -44,18 +51,39 @@ export interface CalendarEvent {
   notes?: string;
 }
 
+export function normalizeBookingStatus(status?: string): CalendarEvent["status"] {
+  switch ((status || "").toLowerCase()) {
+    case "pending":
+      return "pending";
+    case "confirmed":
+      return "confirmed";
+    case "inprogress":
+      return "inprogress";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "noshow":
+      return "noshow";
+    default:
+      return undefined;
+  }
+}
+
 export function convertBookingsToEvents(
   bookings: BookingData[]
 ): CalendarEvent[] {
   return bookings.map((booking) => {
     const patientName = `${booking.firstname} ${booking.lastname}`;
     const eventTime = new Date(booking.bookingSchedule);
-    const timeString = eventTime.toLocaleTimeString("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: PST_TZ,
-    });
+    const timeString =
+      booking.bookingLocalTime ||
+      eventTime.toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: PST_TZ,
+      });
 
     // Usar el nombre completo del paciente + hora como título
     const eventTitle = `${patientName} - ${timeString}`;
@@ -64,8 +92,11 @@ export function convertBookingsToEvents(
       id: booking.id,
       title: eventTitle,
       time: booking.bookingSchedule,
+      displayTime: timeString,
+      dateKey: booking.bookingLocalDate,
+      locationId: booking.location?.id,
       type: "appointment" as const,
-      status: booking.status as "confirmed" | "pending" | "cancelled",
+      status: normalizeBookingStatus(booking.status),
       patientName,
       patientEmail: booking.email,
       patientPhone: booking.phone,
@@ -84,7 +115,7 @@ export function getEventsForDate(
 ): CalendarEvent[] {
   const dateKey = dateKeyInTZ(date);
   return events.filter((event) => {
-    const eventDate = dateKeyInTZ(new Date(event.time));
+    const eventDate = event.dateKey || dateKeyInTZ(new Date(event.time));
     return eventDate === dateKey;
   });
 }

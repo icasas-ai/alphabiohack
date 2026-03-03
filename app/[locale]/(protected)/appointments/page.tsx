@@ -4,36 +4,138 @@ import { CalendarView, ViewToggle } from "@/components/calendar";
 import React, { useMemo, useState } from 'react';
 
 import { BookingsDataTable } from "@/components/bookings/bookings-data-table";
+import { Button } from "@/components/ui/button";
+import { CreateBookingDialog } from "@/components/bookings/create-booking-dialog";
+import { EditBookingDialog } from "@/components/bookings/edit-booking-dialog";
 import type { CalendarEvent } from "@/lib/utils/calendar";
+import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertBookingsToEvents } from "@/lib/utils/calendar";
+import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserBookings } from "@/hooks/use-user-bookings";
+import type { BookingRow } from "@/components/bookings/bookings-data-table";
 
 export default function AppointmentsPage() {
-  const { bookings, loading, error, isTherapist } = useUserBookings();
+  const {
+    bookings,
+    loading,
+    error,
+    canManageAppointments,
+    refetch,
+    updateBookingInState,
+  } = useUserBookings();
   const t = useTranslations("Bookings");
   const [currentView, setCurrentView] = useState<'list' | 'calendar'>('list');
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
+  const [editingBooking, setEditingBooking] = useState<BookingRow | null>(null);
+  const [createBookingOpen, setCreateBookingOpen] = useState(false);
+  const [createBookingDate, setCreateBookingDate] = useState<Date | null>(null);
 
-  // Convertir bookings a eventos del calendario
+  const eventStatusToBookingStatus = (status?: CalendarEvent["status"]) => {
+    switch (status) {
+      case "confirmed":
+        return "Confirmed";
+      case "inprogress":
+        return "InProgress";
+      case "completed":
+        return "Completed";
+      case "cancelled":
+        return "Cancelled";
+      case "noshow":
+        return "NoShow";
+      case "pending":
+      default:
+        return "Pending";
+    }
+  };
+
   const calendarEvents = useMemo(() => {
     return convertBookingsToEvents(bookings);
   }, [bookings]);
 
-  const handleEventClick = (event: CalendarEvent) => {
-    console.log('Event clicked:', event);
+  const bookingById = useMemo(() => {
+    const map = new Map<string, BookingRow>();
+    bookings.forEach((booking) => {
+      map.set(booking.id, booking as BookingRow);
+    });
+    return map;
+  }, [bookings]);
+
+  const handleStatusChange = async (bookingId: string, status: string) => {
+    try {
+      setUpdatingBookingId(bookingId);
+      const response = await fetch(`/api/bookings/${bookingId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || t("statusUpdateError"));
+      }
+
+      updateBookingInState(bookingId, status);
+      toast.success(
+        t("statusUpdated", {
+          status: t(`statusOptions.${status}`),
+        })
+      );
+      await refetch();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("statusUpdateError"));
+    } finally {
+      setUpdatingBookingId(null);
+    }
+  };
+
+  const handleEventClick = (_event: CalendarEvent) => {};
+
+  const handleEditBooking = (booking: BookingRow) => {
+    setEditingBooking(booking);
   };
 
   const handleEventEdit = (event: CalendarEvent) => {
-    console.log('Edit event:', event);
+    const booking = bookingById.get(event.id);
+    if (booking) {
+      setEditingBooking(booking);
+    }
   };
 
-  const handleEventCancel = (event: CalendarEvent) => {
-    console.log('Cancel event:', event);
+  const handleEventCancel = async (event: CalendarEvent) => {
+    if (!canManageAppointments || event.status === "cancelled") return;
+    const confirmed = window.confirm(
+      t("confirmStatusChangeDescription", {
+        current: t(`statusOptions.${eventStatusToBookingStatus(event.status)}`),
+        next: t("statusOptions.Cancelled"),
+      })
+    );
+    if (!confirmed) return;
+    await handleStatusChange(event.id, "Cancelled");
+  };
+
+  const handleEventStatusChange = async (
+    event: CalendarEvent,
+    status: string
+  ) => {
+    const current = eventStatusToBookingStatus(event.status);
+    const confirmed = window.confirm(
+      t("confirmStatusChangeDescription", {
+        current: t(`statusOptions.${current}`),
+        next: t(`statusOptions.${status}`),
+      })
+    );
+    if (!confirmed) return;
+    await handleStatusChange(event.id, status);
   };
 
   const handleAddEvent = (date: Date) => {
-    console.log('Add event for date:', date);
+    if (!canManageAppointments) return;
+    setCreateBookingDate(date);
+    setCreateBookingOpen(true);
   };
 
   if (loading) {
@@ -66,30 +168,74 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            {isTherapist ? t("appointments") : t("myAppointments")}
+            {canManageAppointments ? t("appointments") : t("myAppointments")}
           </h1>
           <p className="text-muted-foreground">
-            {isTherapist ? t("manageAppointments") : t("viewMyAppointments")}
+            {canManageAppointments ? t("manageAppointments") : t("viewMyAppointments")}
           </p>
         </div>
-        
-        <ViewToggle
-          currentView={currentView}
-          onViewChange={setCurrentView}
-        />
+
+        <div className="flex items-center gap-2">
+          {canManageAppointments ? (
+            <Button
+              onClick={() => {
+                setCreateBookingDate(null);
+                setCreateBookingOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("newAppointment")}
+            </Button>
+          ) : null}
+          <ViewToggle
+            currentView={currentView}
+            onViewChange={setCurrentView}
+          />
+        </div>
       </div>
       
       {currentView === 'list' ? (
-        <BookingsDataTable data={bookings} />
+        <BookingsDataTable
+          data={bookings}
+          canManageStatus={canManageAppointments}
+          updatingBookingId={updatingBookingId}
+          onStatusChange={handleStatusChange}
+          onEditBooking={handleEditBooking}
+        />
       ) : (
         <CalendarView
           events={calendarEvents}
           onEventClick={handleEventClick}
           onEventEdit={handleEventEdit}
           onEventCancel={handleEventCancel}
+          onEventStatusChange={handleEventStatusChange}
+          updatingStatus={Boolean(updatingBookingId)}
           onAddEvent={handleAddEvent}
         />
       )}
+
+      <EditBookingDialog
+        booking={editingBooking}
+        open={Boolean(editingBooking)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingBooking(null);
+          }
+        }}
+        onSaved={refetch}
+      />
+
+      <CreateBookingDialog
+        open={createBookingOpen}
+        initialDate={createBookingDate}
+        onOpenChange={(open) => {
+          setCreateBookingOpen(open);
+          if (!open) {
+            setCreateBookingDate(null);
+          }
+        }}
+        onCreated={refetch}
+      />
     </div>
   );
 }

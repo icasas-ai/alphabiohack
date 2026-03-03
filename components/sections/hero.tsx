@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
-import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from 'next-intl';
 import { useUser } from "@/contexts/user-context";
 import { useState, useEffect } from "react";
@@ -19,15 +19,25 @@ interface HeroData {
   avatar?: string | null;
 }
 
-export function HeroSection() {
+interface HeroSectionProps {
+  readonly initialPublicData: HeroData | null;
+  readonly initialLocations: Array<{
+    id: string;
+    title: string;
+  }>;
+}
+
+export function HeroSection({ initialPublicData, initialLocations }: HeroSectionProps) {
   const t = useTranslations('Hero');
   const { prismaUser, loading: authLoading, isAuthenticated } = useUser();
-  const [publicData, setPublicData] = useState<HeroData | null>(null);
-  const [publicLoading, setPublicLoading] = useState(true);
+  const router = useRouter();
+  const [publicData, setPublicData] = useState<HeroData | null>(initialPublicData);
+  const [publicLoading, setPublicLoading] = useState(!initialPublicData);
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
 
   // Cuando no estamos autenticados, traer datos públicos
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !initialPublicData) {
       const fetchPublicHero = async () => {
         try {
           const response = await fetch("/api/public/hero");
@@ -43,17 +53,30 @@ export function HeroSection() {
       };
       fetchPublicHero();
     }
-  }, [isAuthenticated]);
-
-  // Determinar si estamos cargando
-  const loading = isAuthenticated ? authLoading : publicLoading;
+  }, [initialPublicData, isAuthenticated]);
 
   // Usar datos autenticados si existen, sino usar públicos
-  const heroData = isAuthenticated ? prismaUser : publicData;
+  const heroData = prismaUser || publicData;
+  const loading = authLoading && !heroData && publicLoading;
   const imageSource = heroData?.avatar || "";
   const fullName = heroData ? `${heroData.firstname} ${heroData.lastname}` : "";
   const especialidad = heroData?.especialidad || "";
   const summary = heroData?.summary || "";
+
+  const handleBookNow = () => {
+    if (selectedLocationId) {
+      router.push({
+        pathname: "/booking",
+        query: {
+          locationId: selectedLocationId,
+          step: "1",
+        },
+      });
+      return;
+    }
+
+    router.push("/booking");
+  };
   
   return (
     <section className="bg-linear-to-br from-background to-muted py-20 lg:py-32" suppressHydrationWarning>
@@ -80,24 +103,24 @@ export function HeroSection() {
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   
-                  <Select >
+                  <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
                     <SelectTrigger className="w-full pl-10">
                       <SelectValue placeholder={t('locationPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="albuquerque">{t('locations.albuquerque')}</SelectItem>
-                      <SelectItem value="dallas">{t('locations.dallas')}</SelectItem>
-                      <SelectItem value="phoenix">{t('locations.phoenix')}</SelectItem>
+                      {initialLocations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.title}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 
-                <Link href="/booking" className="w-full cursor-pointer">
-                  <Button className="w-full cursor-pointer">
+                <Button className="w-full cursor-pointer" onClick={handleBookNow}>
                   <CalendarDays className="h-4 w-4 mr-2" />
                   {t('bookNow')}
                 </Button>
-                </Link>
               </div>
             </div>
           </div>

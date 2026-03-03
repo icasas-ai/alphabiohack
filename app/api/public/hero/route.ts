@@ -1,18 +1,9 @@
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { getPublicProfile } from "@/services/public-profile.service";
 
 export async function GET() {
   try {
-    // Obtener el primer usuario (datos públicos del negocio)
-    const user = await prisma.user.findFirst({
-      select: {
-        firstname: true,
-        lastname: true,
-        especialidad: true,
-        summary: true,
-        avatar: true,
-      },
-    });
+    const user = await getPublicProfile();
 
     if (!user) {
       return NextResponse.json(
@@ -21,7 +12,13 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(user);
+    return NextResponse.json({
+      firstname: user.firstname,
+      lastname: user.lastname,
+      especialidad: user.especialidad,
+      summary: user.summary,
+      avatar: user.avatar,
+    });
   } catch (error) {
     console.error("Error fetching hero info:", error);
     return NextResponse.json(

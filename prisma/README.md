@@ -30,23 +30,19 @@ The seed currently runs these steps:
 - each seed section checks for existing records and skips creation when data already exists
 - `npm run db:reset` is the destructive command, not `npm run db:seed`
 
-## Single-Therapist Seed Mode
+## Seed User Defaults
 
-The user seed reads these env vars:
+Default seed users now live in:
 
-- `SINGLE_THERAPIST`
-- `SINGLE_THERAPIST_EMAIL`
-- `SINGLE_THERAPIST_SUPABASE_ID`
-- `SINGLE_THERAPIST_FIRSTNAME`
-- `SINGLE_THERAPIST_LASTNAME`
-- `SINGLE_THERAPIST_AVATAR`
+- [seeds/config/default-users.ts](./seeds/config/default-users.ts)
 
-When `SINGLE_THERAPIST=true`, the seed creates an additional therapist user.
+This file is the source of truth for the local seed profiles, including the default therapist user.
 
 Important:
 
 - local self-signup still creates `Patient` users
 - the seeded therapist is the practical source for `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` in local development
+- if you want different local default users, edit the seed config file instead of `.env.local`
 
 ## Common Commands
 
@@ -61,5 +57,5 @@ npm run db:studio
 ## Notes
 
 - if you add schema changes, create a migration and regenerate Prisma client
-- if you add seed assumptions, keep them aligned with `.env.example` and `docs/LOCAL_DEVELOPMENT.md`
+- if you add seed assumptions, keep them aligned with `seeds/config/default-users.ts` and the local setup docs
 - dated availability data is not currently seeded by default; availability periods are expected to be created from the admin UI

@@ -39,27 +39,28 @@ export function KpiCard({ title, value, delta, icon, variant = "default", footer
 
   return (
     <Card className={sectionClasses} data-slot="card">
-      <CardHeader className="relative">
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {value}
-        </CardTitle>
-        {delta && (
-          <div className="absolute right-4 top-4">
-            <Badge variant="outline" className={`flex gap-1 rounded-lg text-xs ${colorClasses}`}>
+      <CardHeader className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <CardDescription>{title}</CardDescription>
+          {delta ? (
+            <Badge variant="outline" className={`flex shrink-0 gap-1 rounded-lg text-xs ${colorClasses}`}>
               {TrendIcon ? <TrendIcon className="size-3" /> : null}
               {delta.value}
             </Badge>
-          </div>
-        )}
-      </CardHeader>
-      {icon ? (
-        <div className="absolute left-6 top-[72px] text-muted-foreground/70">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background/80 shadow-sm">
-            {icon}
-          </div>
+          ) : null}
         </div>
-      ) : null}
+
+        <div className="flex items-end gap-3">
+          {icon ? (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-background/90 text-muted-foreground/80 shadow-sm">
+              {icon}
+            </div>
+          ) : null}
+          <CardTitle className="text-2xl font-semibold tabular-nums leading-none @[250px]/card:text-3xl">
+            {value}
+          </CardTitle>
+        </div>
+      </CardHeader>
       {(delta?.label || footerTitle || footerDescription) && (
         <CardFooter className="flex-col items-start gap-1 text-sm">
           {(delta?.label || footerTitle) && (
@@ -76,5 +77,4 @@ export function KpiCard({ title, value, delta, icon, variant = "default", footer
     </Card>
   );
 }
-
 

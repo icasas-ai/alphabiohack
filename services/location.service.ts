@@ -2,6 +2,94 @@ import type { CreateLocationData, UpdateLocationData } from "@/types";
 import tzlookup from '@photostructure/tz-lookup';
 
 import { prisma } from "@/lib/prisma";
+import {
+  createLocationRecord,
+  deleteLocationRecord,
+  findLocationByIdWithInclude,
+  findLocationByIdWithSelect,
+  findLocations,
+  updateLocationRecord,
+} from "@/repositories";
+
+interface GeocodedAddress {
+  lat: number;
+  lon: number;
+}
+
+async function geocodeAddress(address: string): Promise<GeocodedAddress | null> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey || !address.trim()) {
+    return null;
+  }
+
+  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+  url.searchParams.set("address", address);
+  url.searchParams.set("key", apiKey);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to geocode the office address.");
+  }
+
+  const result = await response.json();
+
+  if (result.status !== "OK" || !result.results?.length) {
+    return null;
+  }
+
+  const location = result.results[0]?.geometry?.location;
+
+  if (typeof location?.lat !== "number" || typeof location?.lng !== "number") {
+    return null;
+  }
+
+  return {
+    lat: location.lat,
+    lon: location.lng,
+  };
+}
+
+async function resolveLocationTimezoneAndCoordinates(data: {
+  address?: string;
+  timezone?: string;
+  lat?: number;
+  lon?: number;
+}) {
+  let lat = data.lat;
+  let lon = data.lon;
+  let timezone = data.timezone?.trim();
+
+  if (!timezone && lat !== undefined && lon !== undefined) {
+    timezone = tzlookup(lat, lon);
+  }
+
+  if (!timezone && data.address) {
+    const geocoded = await geocodeAddress(data.address);
+
+    if (geocoded) {
+      lat = geocoded.lat;
+      lon = geocoded.lon;
+      timezone = tzlookup(geocoded.lat, geocoded.lon);
+    }
+  }
+
+  if (!timezone) {
+    throw new Error(
+      "Unable to determine the office timezone. Select a timezone manually or verify the full address."
+    );
+  }
+
+  return {
+    lat,
+    lon,
+    timezone,
+  };
+}
 
 // Función auxiliar para calcular distancia entre dos puntos
 const calculateDistance = (
@@ -24,27 +112,25 @@ const calculateDistance = (
 };
 
 // Crear ubicación
-export const createLocation = async (data: CreateLocationData) => {
+export const createLocation = async (data: CreateLocationData, companyId: string) => {
   try {
-    let timezone: string | undefined;
-    if (data.lat !== undefined && data.lon !== undefined) {
-      timezone = tzlookup(data.lat, data.lon);
-    }
-    const location = await prisma.location.create({
-      data: {
+    const { lat, lon, timezone } = await resolveLocationTimezoneAndCoordinates(data);
+    const location = await createLocationRecord(
+      {
+        companyId,
         address: data.address,
         logo: data.logo,
         title: data.title,
         description: data.description,
-        lat: data.lat,
-        lon: data.lon,
-        ...(timezone ? { timezone } : {}),
+        lat,
+        lon,
+        timezone,
       },
-      include: {
+      {
         businessHours: true,
         bookings: true,
       },
-    });
+    );
     return location;
   } catch (error) {
     console.error("Error creating location:", error);
@@ -55,9 +141,7 @@ export const createLocation = async (data: CreateLocationData) => {
 // Obtener ubicación por ID
 export const getLocationById = async (id: string) => {
   try {
-    const location = await prisma.location.findUnique({
-      where: { id },
-      include: {
+    const location = await findLocationByIdWithInclude(id, {
         businessHours: true,
         bookings: {
           include: {
@@ -65,7 +149,6 @@ export const getLocationById = async (id: string) => {
             patient: true,
           },
         },
-      },
     });
     return location;
   } catch (error) {
@@ -75,10 +158,11 @@ export const getLocationById = async (id: string) => {
 };
 
 // Obtener todas las ubicaciones
-export const getAllLocations = async () => {
+export const getAllLocations = async (companyId?: string) => {
   try {
-    const locations = await prisma.location.findMany({
-      include: {
+    const locations = await findLocations(
+      companyId ? { companyId } : undefined,
+      {
         businessHours: true,
         bookings: {
           include: {
@@ -87,8 +171,8 @@ export const getAllLocations = async () => {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+      { createdAt: "desc" },
+    );
     return locations;
   } catch (error) {
     console.error("Error getting all locations:", error);
@@ -97,21 +181,26 @@ export const getAllLocations = async () => {
 };
 
 // Buscar ubicaciones por título
-export const searchLocationsByTitle = async (title: string) => {
+export const searchLocationsByTitle = async (title: string, companyId?: string) => {
   try {
-    const locations = await prisma.location.findMany({
-      where: {
-        title: {
-          contains: title,
-          mode: "insensitive",
-        },
+    const locations = await findLocations(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            title: {
+              contains: title,
+              mode: "insensitive",
+            },
+          },
+        ],
       },
-      include: {
+      {
         businessHours: true,
         bookings: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
+      { createdAt: "desc" },
+    );
     return locations;
   } catch (error) {
     console.error("Error searching locations by title:", error);
@@ -120,21 +209,26 @@ export const searchLocationsByTitle = async (title: string) => {
 };
 
 // Buscar ubicaciones por dirección
-export const searchLocationsByAddress = async (address: string) => {
+export const searchLocationsByAddress = async (address: string, companyId?: string) => {
   try {
-    const locations = await prisma.location.findMany({
-      where: {
-        address: {
-          contains: address,
-          mode: "insensitive",
-        },
+    const locations = await findLocations(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            address: {
+              contains: address,
+              mode: "insensitive",
+            },
+          },
+        ],
       },
-      include: {
+      {
         businessHours: true,
         bookings: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
+      { createdAt: "desc" },
+    );
     return locations;
   } catch (error) {
     console.error("Error searching locations by address:", error);
@@ -146,13 +240,18 @@ export const searchLocationsByAddress = async (address: string) => {
 export const findNearbyLocations = async (
   lat: number,
   lon: number,
-  radiusKm: number = 10
+  radiusKm: number = 10,
+  companyId?: string,
 ) => {
   try {
     // Esta es una implementación básica. Para producción, considera usar PostGIS
     const locations = await prisma.location.findMany({
       where: {
-        AND: [{ lat: { not: null } }, { lon: { not: null } }],
+        AND: [
+          companyId ? { companyId } : {},
+          { lat: { not: null } },
+          { lon: { not: null } },
+        ],
       },
       include: {
         businessHours: true,
@@ -178,25 +277,41 @@ export const findNearbyLocations = async (
 // Actualizar ubicación
 export const updateLocation = async (id: string, data: UpdateLocationData) => {
   try {
-    let timezone: string | undefined;
-    if (data.lat !== undefined && data.lon !== undefined) {
-      timezone = tzlookup(data.lat, data.lon);
+    const payload: Record<string, unknown> = {
+      address: data.address,
+      logo: data.logo,
+      title: data.title,
+      description: data.description,
+    };
+
+    if (
+      data.timezone !== undefined ||
+      data.lat !== undefined ||
+      data.lon !== undefined ||
+      data.address !== undefined
+    ) {
+      const existingLocation = await findLocationByIdWithSelect(id, {
+        address: true,
+        timezone: true,
+        lat: true,
+        lon: true,
+      });
+
+      const { lat, lon, timezone } = await resolveLocationTimezoneAndCoordinates({
+        address: data.address ?? existingLocation?.address,
+        timezone: data.timezone ?? existingLocation?.timezone,
+        lat: data.lat ?? existingLocation?.lat ?? undefined,
+        lon: data.lon ?? existingLocation?.lon ?? undefined,
+      });
+
+      payload.lat = lat;
+      payload.lon = lon;
+      payload.timezone = timezone;
     }
-    const location = await prisma.location.update({
-      where: { id },
-      data: {
-        address: data.address,
-        logo: data.logo,
-        title: data.title,
-        description: data.description,
-        lat: data.lat,
-        lon: data.lon,
-        ...(timezone ? { timezone } : {}),
-      },
-      include: {
+
+    const location = await updateLocationRecord(id, payload, {
         businessHours: true,
         bookings: true,
-      },
     });
     return location;
   } catch (error) {

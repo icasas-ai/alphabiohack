@@ -250,7 +250,7 @@ export function TherapistDashboard({
         />
 
         <ChartAreaInteractive
-          title={t('charts.appointments', { default: 'Appointments' })}
+          title={t('charts.appointmentsTrend', { default: 'Appointments Trend' })}
           subtitle={(() => {
             const from = (apiRange)?.from;
             const to = (apiRange)?.to;
@@ -323,7 +323,7 @@ export function TherapistDashboard({
         <Card className="bg-card text-card-foreground">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-3">
-              <CardTitle className="font-medium">{t('appointments.title', { default: 'Appointment' })}</CardTitle>
+              <CardTitle className="font-medium">{t('appointments.recentTitle', { default: 'Recent Appointments' })}</CardTitle>
               <Select value={range} onValueChange={(v) => onRangeChange?.(v as NonNullable<TherapistDashboardProps["range"]>)}>
                 <SelectTrigger className="h-8 w-[200px]" aria-label={t('ranges.label', { default: 'Filter range' })} title={t('ranges.tooltip', { default: 'Select a date range to filter the dashboard' })}>
                   <SelectValue placeholder={t('ranges.label', { default: 'Filter range' })} />
@@ -396,5 +396,4 @@ export function TherapistDashboard({
     </div>
   );
 }
-
 

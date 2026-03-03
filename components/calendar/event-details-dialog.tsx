@@ -3,15 +3,24 @@
 import {
   Calendar,
   Clock,
+  X,
   FileText,
   Mail,
   MapPin,
   Phone,
   Stethoscope,
   User,
-  X
 } from 'lucide-react';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  DialogClose,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -20,11 +29,17 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { CalendarEvent } from '@/lib/utils/calendar';
+import {
+  BOOKING_STATUS_TRANSITIONS,
+  type BookingStatusValue,
+  canCancelBookingStatus,
+} from '@/lib/utils/booking-status';
+import { normalizeBookingStatus, type CalendarEvent } from '@/lib/utils/calendar';
 import React from 'react';
 import { Separator } from '@/components/ui/separator';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
+import { Loader2, MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 interface EventDetailsDialogProps {
@@ -33,6 +48,8 @@ interface EventDetailsDialogProps {
   onClose: () => void;
   onEdit?: (event: CalendarEvent) => void;
   onCancel?: (event: CalendarEvent) => void;
+  onStatusChange?: (event: CalendarEvent, status: BookingStatusValue) => Promise<void> | void;
+  updatingStatus?: boolean;
 }
 
 export function EventDetailsDialog({
@@ -40,17 +57,49 @@ export function EventDetailsDialog({
   isOpen,
   onClose,
   onEdit,
-  onCancel
+  onCancel,
+  onStatusChange,
+  updatingStatus = false,
 }: EventDetailsDialogProps) {
   const t = useTranslations('Calendar');
   if (!event) return null;
+  const showEdit = Boolean(onEdit);
+  const showCancel = Boolean(onCancel && canCancelBookingStatus(event.status));
+  const normalizedStatus = normalizeBookingStatus(event.status);
+  const currentStatus = (() => {
+    switch (normalizedStatus) {
+      case 'confirmed':
+        return 'Confirmed';
+      case 'pending':
+        return 'Pending';
+      case 'inprogress':
+        return 'InProgress';
+      case 'completed':
+        return 'Completed';
+      case 'noshow':
+        return 'NoShow';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return null;
+    }
+  })() as BookingStatusValue | null;
+  const statusTransitions = currentStatus
+    ? BOOKING_STATUS_TRANSITIONS[currentStatus] ?? []
+    : [];
 
   const getStatusColor = (status?: string) => {
-    switch (status) {
+    switch (normalizeBookingStatus(status)) {
       case 'confirmed':
         return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/40';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/40';
+      case 'inprogress':
+        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40';
+      case 'completed':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40';
+      case 'noshow':
+        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-900/40';
       case 'cancelled':
         return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/40';
       default:
@@ -72,11 +121,17 @@ export function EventDetailsDialog({
   };
 
   const getStatusText = (status?: string) => {
-    switch (status) {
+    switch (normalizeBookingStatus(status)) {
       case 'confirmed':
         return t('confirmed');
       case 'pending':
         return t('pending');
+      case 'inprogress':
+        return t('inProgress');
+      case 'completed':
+        return t('completed');
+      case 'noshow':
+        return t('noShow');
       case 'cancelled':
         return t('cancelled');
       default:
@@ -86,22 +141,47 @@ export function EventDetailsDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" showCloseButton={false}>
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-start justify-between gap-3">
+            <span className="flex items-center gap-2 pr-4">
               {getTypeIcon(event.type)}
               <span>{event.title}</span>
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+            </span>
+            <div className="flex items-center gap-1">
+              {currentStatus && statusTransitions.length ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                      {updatingStatus ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MoreHorizontal className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>{t('updateStatus')}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {statusTransitions.map((status) => (
+                      <DropdownMenuItem
+                        key={status}
+                        disabled={updatingStatus}
+                        onClick={() => void onStatusChange?.(event, status)}
+                      >
+                        {t(`statusOptions.${status}`)}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+              <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogClose>
+            </div>
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
@@ -124,7 +204,7 @@ export function EventDetailsDialog({
                   {format(new Date(event.time), 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(event.time), 'HH:mm')}
+                  {event.displayTime || format(new Date(event.time), 'HH:mm')}
                   {event.duration && ` (${event.duration} ${t('minutes')})`}
                 </p>
               </div>
@@ -211,28 +291,28 @@ export function EventDetailsDialog({
           )}
           
           {/* Acciones */}
-          <Separator />
+          {showEdit || showCancel ? <Separator /> : null}
           <div className="flex gap-2">
-            {onEdit && (
+            {showEdit ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onEdit(event)}
+                onClick={() => onEdit?.(event)}
                 className="flex-1"
               >
                 {t('editEvent')}
               </Button>
-            )}
-            {onCancel && event.status !== 'cancelled' && (
+            ) : null}
+            {showCancel ? (
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => onCancel(event)}
+                onClick={() => onCancel?.(event)}
                 className="flex-1"
               >
                 {t('cancelEvent')}
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </DialogContent>

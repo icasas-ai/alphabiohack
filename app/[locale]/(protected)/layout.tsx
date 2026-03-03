@@ -6,16 +6,24 @@ import {
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { getCurrentUser } from "@/lib/auth/session"
 import { LanguageSelector } from "@/components/common/language-selector"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/common/theme-toggle"
+import { redirect } from "next/navigation"
 
-export default function Layout({
+export default async function Layout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { prismaUser } = await getCurrentUser();
+
+  if (prismaUser?.mustChangePassword) {
+    redirect("/auth/update-password");
+  }
+
   return (
     <ProtectedRoute>
       <SidebarProvider>

@@ -1,10 +1,12 @@
 "use client";
 
+import { RoleRestricted } from "@/components/auth/role-restricted";
 import LocationsPage from "@/components/pages/LocationsPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocations } from "@/hooks";
+import { UserRole } from "@prisma/client";
 
-export default function Page() {
+function LocationsContent() {
   const { loading, error } = useLocations();
 
   if (loading) {
@@ -38,5 +40,13 @@ export default function Page() {
         <LocationsPage />
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <RoleRestricted allowedRoles={[UserRole.Therapist, UserRole.Admin]}>
+      <LocationsContent />
+    </RoleRestricted>
   );
 }

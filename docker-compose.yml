@@ -45,7 +45,7 @@ services:
       SMTP_PORT: 1025
       HOSTNAME: 0.0.0.0
     ports:
-      - "3000:3000"
+      - "9001:9001"
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules

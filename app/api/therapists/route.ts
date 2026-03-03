@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 
-import { getUsersByRole } from "@/services";
+import { getPublicCompany, getUsersByRole } from "@/services";
 
 export async function GET() {
   try {
-    const therapists = await getUsersByRole(UserRole.Therapist);
+    const company = await getPublicCompany();
+    const therapists = await getUsersByRole(UserRole.Therapist, company?.id);
 
     return NextResponse.json({
       success: true,

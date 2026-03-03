@@ -64,24 +64,26 @@ SMTP_SECURE=false
 # Local auth cookie signing
 LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
-# Seed / single-therapist config
-SINGLE_THERAPIST=true
-SINGLE_THERAPIST_EMAIL=therapist@example.com
-SINGLE_THERAPIST_SUPABASE_ID=local-seed-therapist
-SINGLE_THERAPIST_FIRSTNAME=John
-SINGLE_THERAPIST_LASTNAME=Doe
-SINGLE_THERAPIST_AVATAR=https://example.com/avatar.jpg
+# Optional: derive location coordinates/timezone from full address
+GOOGLE_MAPS_API_KEY=
+
+NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
+
 NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 ```
 
 Notes:
 
 - `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
+- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
 - `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
 - local sign-up creates `Patient`, not `Therapist`
-- `SINGLE_THERAPIST_SUPABASE_ID` is still required by the current seed shape
 - `RESEND_API_KEY` is not needed for local Mailpit testing
+- `GOOGLE_MAPS_API_KEY` is optional; if set, location save can try to derive coordinates and timezone from the full office address
+- default local seed users now live in [prisma/seeds/config/default-users.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-users.ts)
+- the default local company profile lives in [prisma/seeds/config/default-company.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-company.ts)
+- if you want a different seeded therapist profile, edit that file instead of setting env vars
 
 ## 2. Start local services in Docker
 
@@ -137,7 +139,7 @@ npm run dev
 
 The app will run at:
 
-- `http://localhost:3000`
+- `http://localhost:9001`
 
 ## Day-to-day workflow
 

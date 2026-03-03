@@ -12,6 +12,7 @@ model User {
   id                    String     @id @default(cuid())
   email                 String     @unique
   supabaseId            String     @unique
+  managedByTherapistId  String?
   firstname             String
   lastname              String
   avatar                String?    @db.Text
@@ -20,6 +21,7 @@ model User {
   especialidad          String?
   summary               String?    @db.Text
   passwordHash          String?
+  mustChangePassword    Boolean    @default(false)
   weekdaysHours         String?    @default("9:00 AM - 6:00 PM")
   saturdayHours         String?    @default("9:00 AM - 2:00 PM")
   sundayHours           String?    @default("Closed")
@@ -35,15 +37,74 @@ model User {
   updatedAt             DateTime   @updatedAt
   patientBookings       Booking[]  @relation("PatientBookings")
   therapistBookings     Booking[]  @relation("TherapistBookings")
+  managedByTherapist    User?      @relation("TherapistPersonnel", fields: [managedByTherapistId], references: [id], onDelete: SetNull)
+  managedPersonnel      User[]     @relation("TherapistPersonnel")
+  publicCompanies       Company[]  @relation("CompanyPublicTherapist")
+  companyMemberships    CompanyMembership[]
   availabilityPeriods   AvailabilityPeriod[]
   availabilityDays      AvailabilityDay[]
   availabilityExcludedDates AvailabilityExcludedDate[]
 
+  @@index([managedByTherapistId])
   @@map("users")
+}
+
+model Company {
+  id                   String              @id @default(cuid())
+  name                 String
+  slug                 String              @unique
+  logo                 String?             @db.Text
+  publicEmail          String?
+  publicPhone          String?
+  publicDescription    String?             @db.Text
+  publicSummary        String?             @db.Text
+  publicSpecialty      String?
+  defaultTimezone      String              @default("America/Los_Angeles")
+  publicTherapistId    String?
+  weekdaysHours        String?             @default("9:00 AM - 6:00 PM")
+  saturdayHours        String?             @default("9:00 AM - 2:00 PM")
+  sundayHours          String?             @default("Closed")
+  facebook             String?
+  instagram            String?
+  linkedin             String?
+  twitter              String?
+  tiktok               String?
+  youtube              String?
+  website              String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  publicTherapist      User?               @relation("CompanyPublicTherapist", fields: [publicTherapistId], references: [id], onDelete: SetNull)
+  memberships          CompanyMembership[]
+  locations            Location[]
+  specialties          Specialty[]
+  services             Service[]
+  bookings             Booking[]
+  availabilityPeriods  AvailabilityPeriod[]
+  availabilityDays     AvailabilityDay[]
+  availabilityExcludedDates AvailabilityExcludedDate[]
+
+  @@map("companies")
+}
+
+model CompanyMembership {
+  id         String                @id @default(cuid())
+  companyId  String
+  userId     String
+  role       CompanyMembershipRole
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([companyId, role])
+  @@index([userId, role])
+  @@map("company_memberships")
 }
 
 model Location {
   id            String          @id @default(cuid())
+  companyId      String
   address       String
   logo          String?
   title         String
@@ -53,6 +114,7 @@ model Location {
   timezone      String          @default("America/Los_Angeles")
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings      Booking[]
   businessHours BusinessHours[]
   overrides     DateOverride[]
@@ -60,11 +122,13 @@ model Location {
   availabilityDays    AvailabilityDay[]
   availabilityExcludedDates AvailabilityExcludedDate[]
 
+  @@index([companyId, createdAt])
   @@map("locations")
 }
 
 model AvailabilityPeriod {
   id         String            @id @default(cuid())
+  companyId   String
   therapistId String
   locationId String
   title      String?
@@ -74,18 +138,20 @@ model AvailabilityPeriod {
   isActive   Boolean           @default(true)
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   therapist  User              @relation(fields: [therapistId], references: [id], onDelete: Cascade)
   location   Location          @relation(fields: [locationId], references: [id], onDelete: Cascade)
   days       AvailabilityDay[]
   excludedDates AvailabilityExcludedDate[]
 
-  @@index([therapistId, locationId, startDate, endDate])
+  @@index([companyId, therapistId, locationId, startDate, endDate])
   @@map("availability_periods")
 }
 
 model AvailabilityDay {
   id                     String                  @id @default(cuid())
   availabilityPeriodId   String
+  companyId              String
   therapistId            String
   locationId             String
   date                   DateTime                @db.Date
@@ -94,12 +160,14 @@ model AvailabilityDay {
   notes                  String?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   period                 AvailabilityPeriod      @relation(fields: [availabilityPeriodId], references: [id], onDelete: Cascade)
   therapist              User                    @relation(fields: [therapistId], references: [id], onDelete: Cascade)
   location               Location                @relation(fields: [locationId], references: [id], onDelete: Cascade)
   timeRanges             AvailabilityTimeRange[]
 
   @@unique([therapistId, locationId, date])
+  @@index([companyId, date])
   @@index([locationId, date])
   @@index([therapistId, date])
   @@map("availability_days")
@@ -108,6 +176,7 @@ model AvailabilityDay {
 model AvailabilityExcludedDate {
   id                     String                        @id @default(cuid())
   availabilityPeriodId   String
+  companyId              String
   therapistId            String
   locationId             String
   date                   DateTime                      @db.Date
@@ -115,12 +184,14 @@ model AvailabilityExcludedDate {
   notes                  String?
   createdAt              DateTime                      @default(now())
   updatedAt              DateTime                      @updatedAt
+  company                Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   period                 AvailabilityPeriod            @relation(fields: [availabilityPeriodId], references: [id], onDelete: Cascade)
   therapist              User                          @relation(fields: [therapistId], references: [id], onDelete: Cascade)
   location               Location                      @relation(fields: [locationId], references: [id], onDelete: Cascade)
   timeRanges             AvailabilityExcludedTimeRange[]
 
   @@unique([availabilityPeriodId, date])
+  @@index([companyId, date])
   @@index([locationId, date])
   @@index([therapistId, date])
   @@map("availability_excluded_dates")
@@ -214,32 +285,39 @@ model OverrideTimeSlot {
 
 model Specialty {
   id          String    @id @default(cuid())
+  companyId    String
   name        String
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings    Booking[]
   services    Service[]
 
+  @@index([companyId, name])
   @@map("specialties")
 }
 
 model Service {
   id          String    @id @default(cuid())
+  companyId    String
   description String
   cost        Float
   duration    Int
   specialtyId String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   bookings    Booking[]
   specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
 
+  @@index([companyId, createdAt])
   @@map("services")
 }
 
 model Booking {
   id              String        @id @default(cuid())
+  companyId        String
   bookingType     BookingType
   locationId      String
   specialtyId     String?
@@ -257,12 +335,14 @@ model Booking {
   status          BookingStatus @default(Pending)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   location        Location      @relation(fields: [locationId], references: [id])
   patient         User?         @relation("PatientBookings", fields: [patientId], references: [id])
   service         Service?      @relation(fields: [serviceId], references: [id])
   specialty       Specialty?    @relation(fields: [specialtyId], references: [id])
   therapist       User?         @relation("TherapistBookings", fields: [therapistId], references: [id])
 
+  @@index([companyId, bookingSchedule])
   @@index([therapistId, bookingSchedule])
   @@index([patientId, bookingSchedule])
   @@index([status, bookingSchedule])
@@ -289,6 +369,14 @@ enum DaysOfWeek {
 enum UserRole {
   Therapist
   Admin
+  FrontDesk
+  Patient
+}
+
+enum CompanyMembershipRole {
+  Owner
+  Therapist
+  FrontDesk
   Patient
 }
 

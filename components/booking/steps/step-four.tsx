@@ -25,13 +25,6 @@ export function StepFour({ onBack }: StepFourProps) {
 
   return (
     <CardContent className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-2">{t('step5Title')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          {t('bookingSuccessMessage')}
-        </p>
-      </div>
-
       <BookingConfirmation />
 
       <div className="flex justify-between items-center space-x-2 pt-4">

@@ -1,12 +1,29 @@
 import { NextResponse } from "next/server";
 import { getBookingsByTherapist } from "@/services/booking.service";
-import { getDefaultTherapistId } from "@/lib/config/features";
+import { getCurrentUser } from "@/lib/auth/session";
+import {
+  canOperateAppointments,
+  getManagedTherapistId,
+} from "@/lib/auth/authorization";
 
 export async function GET() {
   try {
+    const { prismaUser } = await getCurrentUser();
+    if (!prismaUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // Usar el defaultTherapistId en lugar del ID del usuario
-    const therapistId = getDefaultTherapistId() || "";
+    if (!canOperateAppointments(prismaUser)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const therapistId = getManagedTherapistId(prismaUser);
+    if (!therapistId) {
+      return NextResponse.json(
+        { error: "No therapist is configured for this operator" },
+        { status: 409 }
+      );
+    }
 
     const bookings = await getBookingsByTherapist(therapistId);
 

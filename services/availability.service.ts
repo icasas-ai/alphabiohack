@@ -2,6 +2,18 @@ import { BookingStatus, Prisma } from "@prisma/client";
 
 import { combineDateAndTimeToUtc, formatBookingToLocalStrings } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
+import {
+  createAvailabilityDayRecord,
+  createAvailabilityExcludedDateRecord,
+  createAvailabilityExcludedTimeRanges,
+  createAvailabilityPeriodRecord,
+  createAvailabilityTimeRanges,
+  deleteAvailabilityPeriodRecord,
+  findAvailabilityDayOwnership,
+  findAvailabilityExcludedDateOwnership,
+  findAvailabilityPeriodOwnership,
+  findLocationByIdWithSelect,
+} from "@/repositories";
 
 export interface AvailabilityTimeRangeInput {
   startTime: string;
@@ -233,13 +245,17 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
   }
 
   return prisma.$transaction(async (tx) => {
-    const location = await tx.location.findUnique({
-      where: { id: input.locationId },
-      select: { title: true },
+    const location = await findLocationByIdWithSelect(input.locationId, {
+      title: true,
+      companyId: true,
     });
 
-    const period = await tx.availabilityPeriod.create({
-      data: {
+    if (!location?.companyId) {
+      throw new Error("Location is missing a company assignment.");
+    }
+
+    const period = await createAvailabilityPeriodRecord(tx, {
+        companyId: location.companyId,
         therapistId: input.therapistId,
         locationId: input.locationId,
         title:
@@ -252,33 +268,32 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
         notes: input.notes,
         startDate: parseDateOnly(input.startDate),
         endDate: parseDateOnly(input.endDate),
-      },
     });
 
     for (const date of candidateDates) {
       const template = mapDayTemplate(date, input, overridesByDate);
 
-      const day = await tx.availabilityDay.create({
-        data: {
+      const day = await createAvailabilityDayRecord(tx, {
           availabilityPeriodId: period.id,
+          companyId: location.companyId,
           therapistId: input.therapistId,
           locationId: input.locationId,
           date: parseDateOnly(date),
           isAvailable: template.isAvailable,
           sessionDurationMinutes: template.sessionDurationMinutes,
           notes: template.notes,
-        },
       });
 
       if (template.isAvailable) {
-        await tx.availabilityTimeRange.createMany({
-          data: template.timeRanges.map((range) => ({
+        await createAvailabilityTimeRanges(
+          tx,
+          template.timeRanges.map((range) => ({
             availabilityDayId: day.id,
             startTime: range.startTime,
             endTime: range.endTime,
             isActive: range.isActive ?? true,
           })),
-        });
+        );
       }
     }
 
@@ -286,26 +301,26 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
       if (!allDates.includes(date)) continue;
 
       const template = mapDayTemplate(date, input, overridesByDate);
-      const excludedDate = await tx.availabilityExcludedDate.create({
-        data: {
+      const excludedDate = await createAvailabilityExcludedDateRecord(tx, {
           availabilityPeriodId: period.id,
+          companyId: location.companyId,
           therapistId: input.therapistId,
           locationId: input.locationId,
           date: parseDateOnly(date),
           sessionDurationMinutes: template.sessionDurationMinutes,
           notes: template.notes,
-        },
       });
 
       if (template.timeRanges.length) {
-        await tx.availabilityExcludedTimeRange.createMany({
-          data: template.timeRanges.map((range) => ({
+        await createAvailabilityExcludedTimeRanges(
+          tx,
+          template.timeRanges.map((range) => ({
             availabilityExcludedDateId: excludedDate.id,
             startTime: range.startTime,
             endTime: range.endTime,
             isActive: range.isActive ?? true,
           })),
-        });
+        );
       }
     }
 
@@ -396,30 +411,15 @@ export async function listAvailabilityPeriods({
 }
 
 export async function deleteAvailabilityPeriod(id: string) {
-  return prisma.availabilityPeriod.delete({
-    where: { id },
-  });
+  return deleteAvailabilityPeriodRecord(id);
 }
 
 export async function getAvailabilityPeriodOwnership(id: string) {
-  return prisma.availabilityPeriod.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-    },
-  });
+  return findAvailabilityPeriodOwnership(id);
 }
 
 export async function getAvailabilityExcludedDateOwnership(id: string) {
-  return prisma.availabilityExcludedDate.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-      availabilityPeriodId: true,
-    },
-  });
+  return findAvailabilityExcludedDateOwnership(id);
 }
 
 export async function restoreAvailabilityExcludedDate(id: string) {
@@ -450,27 +450,27 @@ export async function restoreAvailabilityExcludedDate(id: string) {
       throw new Error("Availability already exists for this date");
     }
 
-    const day = await tx.availabilityDay.create({
-      data: {
+    const day = await createAvailabilityDayRecord(tx, {
         availabilityPeriodId: excludedDate.availabilityPeriodId,
+        companyId: excludedDate.companyId,
         therapistId: excludedDate.therapistId,
         locationId: excludedDate.locationId,
         date: excludedDate.date,
         isAvailable: true,
         sessionDurationMinutes: excludedDate.sessionDurationMinutes,
         notes: excludedDate.notes,
-      },
     });
 
     if (excludedDate.timeRanges.length) {
-      await tx.availabilityTimeRange.createMany({
-        data: excludedDate.timeRanges.map((range) => ({
+      await createAvailabilityTimeRanges(
+        tx,
+        excludedDate.timeRanges.map((range) => ({
           availabilityDayId: day.id,
           startTime: range.startTime,
           endTime: range.endTime,
           isActive: range.isActive,
         })),
-      });
+      );
     }
 
     await tx.availabilityExcludedDate.delete({
@@ -489,13 +489,7 @@ export async function restoreAvailabilityExcludedDate(id: string) {
 }
 
 export async function getAvailabilityDayOwnership(id: string) {
-  return prisma.availabilityDay.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-    },
-  });
+  return findAvailabilityDayOwnership(id);
 }
 
 export async function updateAvailabilityDay(

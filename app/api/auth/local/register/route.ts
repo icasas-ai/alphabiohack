@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { CompanyMembershipRole, UserRole } from "@prisma/client";
 
 import { createLocalSession, hashPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { getPublicCompany } from "@/services";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const publicCompany = await getPublicCompany();
     const user = await prisma.user.create({
       data: {
         email,
@@ -35,6 +37,14 @@ export async function POST(request: NextRequest) {
         lastname,
         role: [UserRole.Patient],
         passwordHash: hashPassword(password),
+        companyMemberships: publicCompany
+          ? {
+              create: {
+                companyId: publicCompany.id,
+                role: CompanyMembershipRole.Patient,
+              },
+            }
+          : undefined,
       },
     });
 

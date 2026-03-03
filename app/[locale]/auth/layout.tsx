@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+  : "http://localhost:9001";
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),

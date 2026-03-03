@@ -8,6 +8,22 @@ import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
 
 import { prisma } from "@/lib/prisma";
+import { createBookingRecord, findLocationByIdWithSelect } from "@/repositories";
+
+const bookingCreateInclude = {
+  location: {
+    select: {
+      id: true,
+      title: true,
+      address: true,
+      timezone: true,
+    },
+  },
+  specialty: true,
+  service: true,
+  therapist: true,
+  patient: true,
+} as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapBookingWithLocalTime = (booking: any ) => {
@@ -71,19 +87,24 @@ export const createBookingFromForm = async (formData: BookingFormData) => {
   try {
     // Obtener la zona horaria de la ubicación seleccionada. Si no existe, se usará PST_TZ por defecto.
     let timezone = PST_TZ;
+    let companyId: string | undefined;
     try {
       if (formData.locationId) {
-        const location = await prisma.location.findUnique({
-          where: { id: formData.locationId },
-          select: { timezone: true },
+        const location = await findLocationByIdWithSelect(formData.locationId, {
+          timezone: true,
+          companyId: true,
         });
         timezone = location?.timezone ?? PST_TZ;
+        companyId = location?.companyId;
       }
     } catch (tzError) {
       // En caso de error al obtener la ubicación, mantener la zona horaria por defecto.
       console.error("Error fetching location timezone:", tzError);
     }
     const createData = mapBookingFormDataToCreateData(formData, timezone);
+    if (companyId) {
+      createData.companyId = companyId;
+    }
     return await createBooking(createData);
   } catch (error) {
     console.error("Error creating booking from form:", error);
@@ -95,6 +116,19 @@ export const createBookingFromForm = async (formData: BookingFormData) => {
 export const createBooking = async (data: CreateBookingData) => {
   try {
     let bookedDurationMinutes = data.bookedDurationMinutes;
+    let companyId = data.companyId;
+
+    if (!companyId) {
+      const location = await findLocationByIdWithSelect(data.locationId, {
+        companyId: true,
+      });
+      companyId = location?.companyId;
+    }
+
+    if (!companyId) {
+      throw new Error("A company context is required to create a booking.");
+    }
+
     if (!bookedDurationMinutes && data.serviceId) {
       const service = await prisma.service.findUnique({
         where: { id: data.serviceId },
@@ -103,8 +137,8 @@ export const createBooking = async (data: CreateBookingData) => {
       bookedDurationMinutes = service?.duration;
     }
 
-    const booking = await prisma.booking.create({
-      data: {
+    const booking = await createBookingRecord({
+        companyId,
         bookingType: data.bookingType,
         locationId: data.locationId,
         specialtyId: data.specialtyId,
@@ -120,25 +154,19 @@ export const createBooking = async (data: CreateBookingData) => {
         bookingNotes: data.bookingNotes,
         bookingSchedule: data.bookingSchedule,
         status: data.status || "Pending",
-      },
-      include: {
-        location: {
-          select: {
-            id: true,
-            title: true,
-            address: true,
-            timezone: true,
-          },
-        },
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
     });
     // Email/invitación se envía desde /api/bookings tras crear la cita
 
-    return booking;
+    const fullBooking = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      include: bookingCreateInclude,
+    });
+
+    if (!fullBooking) {
+      throw new Error("Booking was created but could not be reloaded.");
+    }
+
+    return fullBooking;
   } catch (error) {
     console.error("Error creating booking:", error);
     throw error;

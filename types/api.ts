@@ -67,6 +67,7 @@ export interface Location {
   logo?: string;
   lat?: number;
   lon?: number;
+  timezone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -167,6 +168,7 @@ export interface TherapistBooking {
     id: string;
     title: string;
     address: string;
+    timezone?: string;
   };
   patient: {
     id: string;
@@ -181,6 +183,8 @@ export interface TherapistBooking {
     email: string;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -195,7 +199,10 @@ export interface UserBooking {
   bookingSchedule: string;
   status: string;
   location: {
+    id?: string;
     title: string;
+    address?: string;
+    timezone?: string;
   };
   specialty?: {
     id: string;
@@ -214,6 +221,8 @@ export interface UserBooking {
     email: string;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
   createdAt: string;
   updatedAt: string;
 }

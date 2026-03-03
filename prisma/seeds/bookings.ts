@@ -19,12 +19,14 @@ const futureDate2 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 export async function seedDefaultBookings(
   prisma: PrismaClient,
   deps?: {
+    companyId?: string;
     users?: Partial<PrismaUser>[];
     locations?: Partial<PrismaLocation>[];
     services?: Partial<PrismaService>[];
   }
 ): Promise<Partial<PrismaBooking>[]> {
   const existing = await prisma.booking.findMany({
+    where: deps?.companyId ? { companyId: deps.companyId } : undefined,
     select: { id: true },
   });
   console.log(`Found ${existing.length} bookings`);
@@ -37,6 +39,7 @@ export async function seedDefaultBookings(
   let users = deps?.users;
   let locations = deps?.locations;
   let services = deps?.services;
+  const companyId = deps?.companyId;
 
   if (!users || users.length === 0) {
     users = await prisma.user.findMany({ select: { id: true, role: true } });
@@ -80,6 +83,7 @@ export async function seedDefaultBookings(
   const toCreate = [
     {
       bookingType: BookingType.DirectVisit,
+      companyId: companyId as string,
       locationId: location1 as string,
       firstname: "Carlos",
       lastname: "Silva",
@@ -99,6 +103,7 @@ export async function seedDefaultBookings(
     },
     {
       bookingType: BookingType.VideoCall,
+      companyId: companyId as string,
       locationId: location0 as string,
       firstname: "María",
       lastname: "García",
@@ -118,6 +123,7 @@ export async function seedDefaultBookings(
     },
     {
       bookingType: BookingType.HomeVisit,
+      companyId: companyId as string,
       locationId: location2 as string,
       firstname: "Roberto",
       lastname: "Fernández",

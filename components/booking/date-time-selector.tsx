@@ -1,14 +1,17 @@
 "use client"
 
-import { Calendar as CalendarIcon, Clock } from "lucide-react"
+import { AlertCircle, Calendar as CalendarIcon, Clock } from "lucide-react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { useAvailabilityCalendar, useServices } from "@/hooks"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useAvailabilityCalendar, useLocations, useServices } from "@/hooks"
 import { useEffect, useMemo, useState } from "react"
-import { useFormatter, useNow, useTranslations } from "next-intl"
+import { useFormatter, useLocale, useNow, useTranslations } from "next-intl"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { useBookingWizard } from "@/contexts"
+import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 
 const calendarDateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
@@ -17,9 +20,11 @@ export function DateTimeSelector() {
   const { data, update } = useBookingWizard()
   const t = useTranslations('Booking')
   const format = useFormatter()
+  const locale = useLocale()
   const now = useNow()
   const [month, setMonth] = useState<Date>((data.selectedDate as Date) || (now as Date))
   const { services } = useServices(data.specialtyId || undefined)
+  const { locations } = useLocations()
 
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`
   const selectedDateKey = data.selectedDate ? calendarDateKey(data.selectedDate) : undefined
@@ -27,6 +32,8 @@ export function DateTimeSelector() {
     monthSummary,
     daySlots,
     loading,
+    monthLoading,
+    dayLoading,
     error,
   } = useAvailabilityCalendar(data.therapistId, data.locationId, monthKey, selectedDateKey)
 
@@ -36,6 +43,14 @@ export function DateTimeSelector() {
   )
 
   const effectiveDurationMinutes = data.sessionDurationMinutes ?? selectedService?.duration ?? null
+  const selectedLocation = useMemo(
+    () => locations.find((location) => location.id === data.locationId),
+    [data.locationId, locations],
+  )
+  const officeTimeZone = selectedLocation?.timezone || null
+  const officeTimeZoneLabel = officeTimeZone
+    ? formatTimeZoneLabel(officeTimeZone, locale)
+    : null
 
   const availableDateKeys = useMemo(
     () => new Set((monthSummary?.days || []).filter((day) => day.hasAvailability).map((day) => day.date)),
@@ -106,47 +121,77 @@ export function DateTimeSelector() {
   return (
     <main className="w-full max-w-7xl mx-auto" role="main">
       <div className="space-y-6">
-        <header className="text-center space-y-2" aria-labelledby="booking-date-time-heading">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 mb-4">
-            <CalendarIcon className="h-8 w-8 text-primary" />
-          </div>
-          <h2 id="booking-date-time-heading" className="text-2xl sm:text-3xl font-bold text-foreground">
-            {t('selectDateTime')}
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-            {t('chooseAppointmentTime')}
-          </p>
-        </header>
-
-        <Card className="overflow-hidden shadow-2xl border-0">
+        <Card className="overflow-hidden border">
           <CardContent className="relative p-0 md:pr-48">
             {!data.therapistId || !data.locationId ? (
               <section className="p-6">
-                <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                  {t("selectTherapistAndLocationFirst")}
-                </div>
+                <Alert variant="warning">
+                  <AlertDescription>{t("selectTherapistAndLocationFirst")}</AlertDescription>
+                </Alert>
               </section>
             ) : (
               <>
+                {officeTimeZoneLabel ? (
+                  <section className="px-6 pt-6">
+                    <Alert variant="info">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <AlertDescription>
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">
+                          {t("timesShownInOfficeTime")}
+                          </p>
+                          <p className="text-muted-foreground">
+                          {t("officeTimeZoneNotice", {
+                            location: selectedLocation?.title || t("location"),
+                            timezone: officeTimeZoneLabel,
+                          })}
+                          </p>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  </section>
+                ) : null}
+
                 <section className="p-6" aria-label={t('selectDate')}>
-                  <Calendar
-                    key={month.toISOString()}
-                    mode="single"
-                    selected={data.selectedDate || undefined}
-                    onSelect={handleDateSelect}
-                    month={month}
-                    onMonthChange={setMonth}
-                    disabled={(date) => !isDateAvailable(date)}
-                    showOutsideDays={false}
-                    className="bg-transparent p-0 w-full"
-                  />
+                  {monthLoading ? (
+                    <div className="surface-panel min-h-[360px] space-y-4 px-6 py-8">
+                      <div className="space-y-2 text-center">
+                        <p className="text-sm font-medium text-foreground">{t("loading")}</p>
+                        <p className="text-xs text-muted-foreground">{t("loadingAvailability")}</p>
+                      </div>
+                      <div className="grid gap-4">
+                        <Skeleton className="h-5 w-40 mx-auto" />
+                        <div className="grid grid-cols-7 gap-2">
+                          {Array.from({ length: 35 }).map((_, index) => (
+                            <Skeleton key={index} className="h-10 rounded-xl" />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <Calendar
+                      key={month.toISOString()}
+                      mode="single"
+                      selected={data.selectedDate || undefined}
+                      onSelect={handleDateSelect}
+                      month={month}
+                      onMonthChange={setMonth}
+                      disabled={(date) => !isDateAvailable(date)}
+                      showOutsideDays={false}
+                      className="bg-transparent p-0 w-full"
+                    />
+                  )}
                 </section>
 
                 <aside className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l" aria-label={t('availableTimeSlots')}>
                   <div className="grid gap-2">
                     {data.selectedDate ? (
-                      loading ? (
-                        <div className="text-center py-6 text-xs text-muted-foreground">{t('loading')}</div>
+                      dayLoading ? (
+                        <div className="space-y-2 py-2">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <Skeleton key={index} className="h-10 w-full rounded-lg sm:h-12" />
+                          ))}
+                        </div>
                       ) : daySlots?.slots?.length ? (
                         daySlots.slots.map((timeSlot) => (
                           <Button
@@ -166,7 +211,9 @@ export function DateTimeSelector() {
                         </div>
                       )
                     ) : (
-                      <div className="text-center py-6 text-xs text-muted-foreground">{t('selectDateFirst')}</div>
+                      <Alert variant="info" className="px-3 py-3 text-xs">
+                        <AlertDescription>{t('selectDateFirst')}</AlertDescription>
+                      </Alert>
                     )}
                   </div>
                 </aside>
@@ -212,6 +259,19 @@ export function DateTimeSelector() {
                               <p className="text-xs text-muted-foreground">{t('duration')}</p>
                               <p className="text-sm font-semibold text-foreground">
                                 {t('serviceDuration', { duration: effectiveDurationMinutes })}
+                              </p>
+                            </div>
+                          </div>
+                        ) : null}
+                        {officeTimeZoneLabel ? (
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-md bg-muted/50">
+                              <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">{t('timeZone')}</p>
+                              <p className="text-sm font-semibold text-foreground">
+                                {officeTimeZoneLabel}
                               </p>
                             </div>
                           </div>

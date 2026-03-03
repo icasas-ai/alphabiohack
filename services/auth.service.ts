@@ -56,7 +56,11 @@ export const loginUser = async (email: string, password: string) => {
       throw new Error(data.error || "Login failed");
     }
 
-    return response.json();
+    return response.json() as Promise<{
+      user: { id: string; email: string } | null;
+      role?: string[];
+      mustChangePassword?: boolean;
+    }>;
   }
 
   try {

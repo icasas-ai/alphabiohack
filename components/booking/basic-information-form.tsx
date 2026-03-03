@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, MapPin, Plus, Stethoscope, User } from "lucide-react"
-import { useFormatter, useTranslations } from "next-intl"
+import { useFormatter, useLocale, useTranslations } from "next-intl"
 import { useLocations, useServices, useSpecialties, useTherapist } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"; 
 
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
 import { useBookingWizard } from "@/contexts"
+import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 import { useState } from "react"
 
 export function BasicInformationForm() {
@@ -23,6 +24,7 @@ export function BasicInformationForm() {
   const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
   const t = useTranslations('Booking')
   const format = useFormatter()
+  const locale = useLocale()
   
   const [showNoteField, setShowNoteField] = useState(false)
 
@@ -46,6 +48,9 @@ export function BasicInformationForm() {
 
   // Obtener información de la ubicación seleccionada
   const selectedLocation = locations.find(loc => loc.id === data.locationId)
+  const officeTimeZoneLabel = selectedLocation?.timezone
+    ? formatTimeZoneLabel(selectedLocation.timezone, locale)
+    : null
   
   // Obtener información de la especialidad seleccionada
   const selectedSpecialty = specialties.find(spec => spec.id === data.specialtyId)
@@ -93,15 +98,23 @@ export function BasicInformationForm() {
       {/* Contact Information Form */}
       <div className="flex-1 lg:flex-[2] space-y-6 bg-card p-6 rounded-lg">
         <div>
-          <h2 className="text-xl font-semibold text-foreground mb-6">{t('enterPersonalInfo')}</h2>
+          <div className="mb-6 space-y-1">
+            <h2 className="text-xl font-semibold text-foreground">{t('enterPersonalInfo')}</h2>
+            <p className="text-sm text-muted-foreground">{t('requiredFieldsHint')}</p>
+          </div>
 
           {/* Phone Number */}
           <div className="space-y-2 mb-6">
+            <Label htmlFor="booking-phone" className="text-sm font-medium">
+              {t('phone')} <span className="text-destructive">*</span>
+            </Label>
             <PhoneInput
+              id="booking-phone"
               value={data.basicInfo.phone}
               onChange={handlePhoneChange}
               placeholder={t('phone')}
               defaultCountry="US"
+              aria-required="true"
             />
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t('phoneConsentText')}
@@ -110,25 +123,44 @@ export function BasicInformationForm() {
 
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Input
-              placeholder={t('firstName')}
-              value={data.basicInfo.firstName}
-              onChange={(e) => handleInputChange("firstName", e.target.value)}
-            />
-            <Input
-              placeholder={t('lastName')}
-              value={data.basicInfo.lastName}
-              onChange={(e) => handleInputChange("lastName", e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="booking-first-name" className="text-sm font-medium">
+                {t('firstName')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="booking-first-name"
+                placeholder={t('firstName')}
+                value={data.basicInfo.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                aria-required="true"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="booking-last-name" className="text-sm font-medium">
+                {t('lastName')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="booking-last-name"
+                placeholder={t('lastName')}
+                value={data.basicInfo.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                aria-required="true"
+              />
+            </div>
           </div>
 
           {/* Email */}
-          <div className="mb-6">
+          <div className="mb-6 space-y-2">
+            <Label htmlFor="booking-email" className="text-sm font-medium">
+              {t('email')} <span className="text-destructive">*</span>
+            </Label>
             <Input
+              id="booking-email"
               type="email"
               placeholder={t('email')}
               value={data.basicInfo.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
+              aria-required="true"
             />
           </div>
 
@@ -139,11 +171,15 @@ export function BasicInformationForm() {
               checked={data.basicInfo.givenConsent}
               onCheckedChange={(checked) => handleInputChange("givenConsent", checked as boolean)}
               className="mt-1"
+              aria-required="true"
             />
             <div className="space-y-2">
               <Label htmlFor="marketing" className="text-sm font-medium leading-relaxed cursor-pointer">
-                {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })}
+                {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })} <span className="text-destructive">*</span>
               </Label>
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('consentRequiredHint')}
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {t('marketingConsentText', { clinicName: selectedLocation?.title || t('clinic') })}
               </p>
@@ -251,6 +287,14 @@ export function BasicInformationForm() {
                   <div className="flex-1 flex flex-col mt-2">
                     <p className="text-sm font-medium text-foreground capitalize"> {formatSelectedDate()}</p>
                     <p className="text-xs text-muted-foreground">{formatSelectedTime()}</p>
+                    {officeTimeZoneLabel ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t("officeTimeZoneNotice", {
+                          location: selectedLocation?.title || t("location"),
+                          timezone: officeTimeZoneLabel,
+                        })}
+                      </p>
+                    ) : null}
                   </div>
               </div>
             </div>

@@ -1,20 +1,45 @@
 "use client"
 
 import { Mail, Menu, Phone, X } from "lucide-react"
-
-import { AuthButton } from "@/components/auth/header-auth-buttons";
 import { Button } from "@/components/ui/button"
 import { CONTACT_INFO } from "@/constants"
 import Image from "next/image"
 import { LanguageSelector } from "@/components/common/language-selector"
 import { Link as LocalizedLink } from "@/i18n/navigation"
 import { ThemeToggle } from "@/components/common/theme-toggle"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
+
+interface PublicContactData {
+  email?: string | null
+  telefono?: string | null
+}
 
 export function MedicalHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [publicContact, setPublicContact] = useState<PublicContactData | null>(null)
   const t = useTranslations('Navigation')
+
+  useEffect(() => {
+    const fetchPublicContact = async () => {
+      try {
+        const response = await fetch("/api/public/contact")
+        if (!response.ok) {
+          return
+        }
+
+        const data = (await response.json()) as PublicContactData
+        setPublicContact(data)
+      } catch (error) {
+        console.error("Error fetching public header contact data:", error)
+      }
+    }
+
+    fetchPublicContact()
+  }, [])
+
+  const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
+  const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
 
   const navigation = [
     { name: t('home'), href: "/" as const },
@@ -31,11 +56,11 @@ export function MedicalHeader() {
             <div className="hidden md:flex items-center space-x-6 text-muted-foreground">
               <div className="flex items-center">
                 <Mail className="h-3 w-3 mr-1" />
-                <span>{CONTACT_INFO.EMAIL}</span>
+                <span>{publicEmail}</span>
               </div>
               <div className="flex items-center">
                 <Phone className="h-3 w-3 mr-1" />
-                <span>{CONTACT_INFO.PHONE}</span>
+                <span>{publicPhone}</span>
               </div>
             </div>
 
@@ -78,10 +103,6 @@ export function MedicalHeader() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center space-x-3 ml-2">
-            <AuthButton />
-          </div>
-
           {/* Mobile menu button */}
           <div className="md:hidden">
             <Button variant="ghost" size="sm" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -114,15 +135,11 @@ export function MedicalHeader() {
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground mb-2">
                   <Mail className="h-4 w-4 mr-2" />
-                  <span>{CONTACT_INFO.EMAIL}</span>
+                  <span>{publicEmail}</span>
                 </div>
                 <div className="flex items-center text-sm text-muted-foreground mb-3">
                   <Phone className="h-4 w-4 mr-2" />
-                  <span>{CONTACT_INFO.PHONE}</span>
-                </div>
-                <div className="flex space-x-2">
-                  
-                  <AuthButton />
+                  <span>{publicPhone}</span>
                 </div>
               </div>
             </div>

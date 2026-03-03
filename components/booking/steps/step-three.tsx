@@ -58,22 +58,28 @@ export function StepThree({ onNext, onBack }: StepThreeProps) {
             </p>
           </div>
         )}
-        
-        {!validation.isValid && validation.errors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p className="text-sm font-medium text-red-800 dark:text-red-300">{t('completeFields')}</p>
-            <ul className="mt-1 text-sm text-red-700 dark:text-red-300/90">
-              {validation.errors.map((error, index) => (
-                <li key={index}>• {error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
 
       <BasicInformationForm />
 
-      <div className="flex justify-between items-center space-x-2 pt-4">
+      <div className="space-y-3 pt-4">
+        {isDisabled && !creatingBooking && validation.errors.length > 0 ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-medium text-amber-900">{t('confirmDisabledHint')}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {validation.errors.map((error) => (
+                <span
+                  key={error}
+                  className="inline-flex rounded-full border border-amber-200 bg-background px-2.5 py-1 text-xs text-amber-900"
+                >
+                  {error}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex justify-between items-center space-x-2">
         <Button onClick={onBack} variant="outline" className="cursor-pointer">
           {t('back')}
         </Button>
@@ -84,6 +90,7 @@ export function StepThree({ onNext, onBack }: StepThreeProps) {
         >
           {creatingBooking ? t('loading') : t('confirmBooking')}
         </Button>
+        </div>
       </div>
     </CardContent>
   );

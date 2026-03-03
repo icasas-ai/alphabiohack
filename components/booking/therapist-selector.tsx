@@ -54,7 +54,7 @@ export function TherapistSelector() {
         variant: "card",
       }}
     >
-      <Card>
+      <Card className="surface-panel">
         <CardContent className="pt-6">
           <h3 className="mb-4 text-lg font-semibold text-foreground">{t("selectDoctor")}</h3>
           <RadioGroup
@@ -71,10 +71,10 @@ export function TherapistSelector() {
                   <Label
                     htmlFor={therapist.id}
                     className={cn(
-                      "flex w-full cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-all hover:bg-accent/30",
+                      "flex w-full cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all duration-200 hover:border-primary/25 hover:bg-primary/6",
                       data.therapistId === therapist.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-border/80",
+                        ? "interactive-selected"
+                        : "border-border/80 bg-card/70",
                     )}
                   >
                     <Avatar className="h-12 w-12 border">

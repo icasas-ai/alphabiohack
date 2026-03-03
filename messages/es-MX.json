@@ -555,6 +555,7 @@
     "checkEmail": "Revisa tu Correo",
     "passwordResetInstructions": "Instrucciones de restablecimiento enviadas",
     "passwordResetEmailSent": "Si te registraste usando tu correo electrónico y contraseña, recibirás un correo de restablecimiento de contraseña.",
+    "passwordResetUnavailableLocal": "El restablecimiento por correo no está disponible en el modo de autenticación local. Usa una contraseña local conocida o pide a un administrador que restablezca la cuenta.",
     "sendResetEmail": "Enviar correo de restablecimiento",
     "sending": "Enviando...",
     "signingInTitle": "Iniciando sesión",

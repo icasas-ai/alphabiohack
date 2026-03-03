@@ -1,6 +1,7 @@
 import { PrismaClient, User as PrismaUser } from "@prisma/client";
 
 import { DEFAULT_SEED_USERS } from "@/prisma/seeds/config/default-users";
+import { hashPassword } from "@/lib/auth/session";
 
 export async function seedDefaultUsers(
   prisma: PrismaClient
@@ -19,7 +20,10 @@ export async function seedDefaultUsers(
   console.log("Seeding default users...");
 
   await prisma.user.createMany({
-    data: DEFAULT_SEED_USERS,
+    data: DEFAULT_SEED_USERS.map(({ password, ...user }) => ({
+      ...user,
+      passwordHash: hashPassword(password),
+    })),
   });
 
   const created = await prisma.user.findMany({

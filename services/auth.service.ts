@@ -1,6 +1,23 @@
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
 
+export type AuthMode = "local" | "supabase";
+
+export function getAuthMode(): AuthMode {
+  return hasSupabaseAuth ? "supabase" : "local";
+}
+
+export function getAuthCapabilities() {
+  const mode = getAuthMode();
+
+  return {
+    mode,
+    supportsPasswordResetByEmail: mode === "supabase",
+    supportsSelfRegistration: mode === "supabase",
+    usesLocalPasswords: mode === "local",
+  };
+}
+
 export const getUserStore = async () => {
   if (!hasSupabaseAuth) {
     const response = await fetch("/api/auth/local/me", {
@@ -126,4 +143,57 @@ export const registerUser = async (email: string, password: string) => {
   } catch (error) {
     throw error;
   }
+};
+
+export const requestPasswordReset = async (email: string) => {
+  if (!hasSupabaseAuth) {
+    return {
+      supported: false as const,
+      reason: "local_auth_no_email_reset",
+    };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/update-password`,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    supported: true as const,
+  };
+};
+
+export const updateUserPassword = async (password: string) => {
+  if (!hasSupabaseAuth) {
+    const response = await fetch("/api/auth/local/update-password", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to update password");
+    }
+
+    return data as {
+      user?: { id: string; email: string; role?: string[] } | null;
+    };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    throw error;
+  }
+
+  return { user: null };
 };

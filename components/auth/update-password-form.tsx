@@ -13,13 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { hasSupabaseAuth } from "@/lib/auth/config";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "@/i18n/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
 import { UserRole } from "@prisma/client";
+import { updateUserPassword } from "@/services/auth.service";
 
 export function UpdatePasswordForm({
   className,
@@ -38,21 +37,8 @@ export function UpdatePasswordForm({
     setError(null);
 
     try {
-      if (!hasSupabaseAuth) {
-        const response = await fetch("/api/auth/local/update-password", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ password }),
-        });
-
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data.error || t('errorOccurred'));
-        }
-
+      const data = await updateUserPassword(password);
+      if (data.user) {
         await refreshAuthState();
         const roles = Array.isArray(data.user?.role) ? data.user.role : [];
         if (roles.includes(UserRole.FrontDesk)) {
@@ -63,10 +49,6 @@ export function UpdatePasswordForm({
         router.push("/dashboard");
         return;
       }
-
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
       router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));

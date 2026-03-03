@@ -466,6 +466,7 @@
     "checkEmail": "Check Your Email",
     "passwordResetInstructions": "Password reset instructions sent",
     "passwordResetEmailSent": "If you registered using your email and password, you will receive a password reset email.",
+    "passwordResetUnavailableLocal": "Password reset by email is not available in local auth mode. Use a known local password or ask an administrator to reset the account.",
     "sendResetEmail": "Send reset email",
     "sending": "Sending...",
     "signingInTitle": "Signing you in",

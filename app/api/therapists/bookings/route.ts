@@ -3,8 +3,8 @@ import { getBookingsByTherapist } from "@/services/booking.service";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   canOperateAppointments,
-  getManagedTherapistId,
 } from "@/lib/auth/authorization";
+import { resolveManagedTherapistIdForUser } from "@/services";
 
 export async function GET() {
   try {
@@ -17,7 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const therapistId = getManagedTherapistId(prismaUser);
+    const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
     if (!therapistId) {
       return NextResponse.json(
         { error: "No therapist is configured for this operator" },

@@ -87,3 +87,35 @@ export function formatTimeZoneLabel(
   const displayName = getTimeZoneDisplayName(tz, locale);
   return displayName === tz ? tz : `${displayName} (${tz})`;
 }
+
+function parseOffsetToMinutes(offset: string): number {
+  if (offset === "Z") return 0;
+
+  const match = offset.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!match) {
+    throw new Error(`Invalid timezone offset: ${offset}`);
+  }
+
+  const [, sign, hours, minutes] = match;
+  const total = Number(hours) * 60 + Number(minutes);
+  return sign === "-" ? -total : total;
+}
+
+export function getTimeZoneOffsetMinutes(
+  date: Date,
+  tz: string = PST_TZ,
+): number {
+  return parseOffsetToMinutes(formatInTimeZone(date, tz, "XXX"));
+}
+
+export function getTimeZoneDifferenceHours(
+  targetTimeZone: string,
+  referenceTimeZone: string,
+  date: Date = new Date(),
+): number {
+  const diffMinutes =
+    getTimeZoneOffsetMinutes(date, targetTimeZone) -
+    getTimeZoneOffsetMinutes(date, referenceTimeZone);
+
+  return diffMinutes / 60;
+}

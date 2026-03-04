@@ -27,7 +27,7 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (!loading && isFrontDesk) {
-      router.push("/appointments");
+      router.push("/bookings");
     }
   }, [isFrontDesk, loading, router]);
 
@@ -101,6 +101,5 @@ export default function DashboardHome() {
     </div>
   );
 }
-
 
 

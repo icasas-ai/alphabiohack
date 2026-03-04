@@ -4,17 +4,18 @@ import { errorResponse, successResponse } from "@/services/api-errors.service";
 import type { UpdateBusinessHoursData } from "@/types";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/business-hours/[id] - Obtener un horario de atención específico
+// GET /api/locations/[id]/business-hours/[businessHoursId] - Obtener un horario específico de la ubicación
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string; businessHoursId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: locationId, businessHoursId } = await params;
 
-    const businessHours = await prisma.businessHours.findUnique({
+    const businessHours = await prisma.businessHours.findFirst({
       where: {
-        id,
+        id: businessHoursId,
+        locationId,
       },
       include: {
         location: true,
@@ -42,31 +43,33 @@ export async function GET(
   }
 }
 
-// PUT /api/business-hours/[id] - Actualizar un horario de atención
+// PUT /api/locations/[id]/business-hours/[businessHoursId] - Actualizar un horario específico de la ubicación
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string; businessHoursId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: locationId, businessHoursId } = await params;
     const body: UpdateBusinessHoursData = await request.json();
 
-    // Obtener el business hours actual para comparar
-    const currentBusinessHours = await prisma.businessHours.findUnique({
-      where: { id },
-      include: {
-        timeSlots: true,
+    const currentBusinessHours = await prisma.businessHours.findFirst({
+      where: {
+        id: businessHoursId,
+        locationId,
+      },
+      select: {
+        id: true,
       },
     });
 
     if (!currentBusinessHours) {
-      const { body, status } = errorResponse("not_found", null, 404);
-      return NextResponse.json(body, { status });
+      const { body: errorBody, status } = errorResponse("not_found", null, 404);
+      return NextResponse.json(errorBody, { status });
     }
 
     const businessHours = await prisma.businessHours.update({
       where: {
-        id,
+        id: businessHoursId,
       },
       data: {
         dayOfWeek: body.dayOfWeek,
@@ -95,22 +98,37 @@ export async function PUT(
   }
 }
 
-// DELETE /api/business-hours/[id] - Eliminar un horario de atención
+// DELETE /api/locations/[id]/business-hours/[businessHoursId] - Eliminar un horario específico de la ubicación
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string; businessHoursId: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: locationId, businessHoursId } = await params;
+
+    const currentBusinessHours = await prisma.businessHours.findFirst({
+      where: {
+        id: businessHoursId,
+        locationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!currentBusinessHours) {
+      const { body, status } = errorResponse("not_found", null, 404);
+      return NextResponse.json(body, { status });
+    }
 
     await prisma.businessHours.delete({
       where: {
-        id,
+        id: businessHoursId,
       },
     });
 
     return NextResponse.json(
-      successResponse({ id }, "businessHours.delete.success")
+      successResponse({ id: businessHoursId }, "businessHours.delete.success")
     );
   } catch (error) {
     console.error("Error deleting business hours:", error);

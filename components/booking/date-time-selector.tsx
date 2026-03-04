@@ -10,6 +10,7 @@ import { useFormatter, useLocale, useNow, useTranslations } from "next-intl"
 
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 
@@ -273,6 +274,13 @@ export function DateTimeSelector() {
                               <p className="text-sm font-semibold text-foreground">
                                 {officeTimeZoneLabel}
                               </p>
+                              {officeTimeZone ? (
+                                <TimeZoneDifferenceNote
+                                  officeTimeZone={officeTimeZone}
+                                  date={data.selectedDate}
+                                  namespace="Booking"
+                                />
+                              ) : null}
                             </div>
                           </div>
                         ) : null}

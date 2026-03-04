@@ -113,7 +113,7 @@ A therapist is a `users` row whose `role` includes `Therapist`.
 Current public identity behavior:
 
 - public site can resolve the company from `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
-- public booking therapist can still fall back to `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- public booking therapist resolves from the active company's public therapist, with a server-side fallback to `DEFAULT_THERAPIST_ID`
 - some internal flows still need deeper tenant-aware authorization refactoring
 
 For more detail, see [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md).
@@ -125,7 +125,7 @@ Local self-signup creates `Patient` users.
 If you want public booking to work in local development:
 
 - create or seed a therapist user
-- set `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` to that therapist's `users.id`
+- assign that user as the company's `publicTherapistId` or set `DEFAULT_THERAPIST_ID`
 
 ## Recommended Local Development Workflow
 
@@ -167,13 +167,13 @@ SMTP_PORT=1025
 SMTP_SECURE=false
 
 LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
-NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 ```
 
 Important:
 
 - `LOCAL_AUTH_SECRET` is required when Supabase auth is disabled
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
+- `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
 
 For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).

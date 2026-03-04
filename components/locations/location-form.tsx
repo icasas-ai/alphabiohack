@@ -33,6 +33,7 @@ import { hasSupabaseAuth } from "@/lib/auth/config";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SUPPORTED_COMPANY_TIMEZONES } from "@/lib/constants/supported-timezones";
 import { Location } from "@/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -182,28 +183,7 @@ export function LocationForm({
     });
   };
 
-  const timeZoneOptions = useMemo(() => {
-    const fallback = [
-      "America/Los_Angeles",
-      "America/Denver",
-      "America/Chicago",
-      "America/New_York",
-      "America/Phoenix",
-      "America/Tijuana",
-      "America/Hermosillo",
-      "America/Mexico_City",
-      "America/Monterrey",
-      "America/Merida",
-      "America/Cancun",
-      "Europe/Madrid",
-    ];
-
-    if (typeof Intl.supportedValuesOf === "function") {
-      return Intl.supportedValuesOf("timeZone");
-    }
-
-    return fallback;
-  }, []);
+  const timeZoneOptions = useMemo(() => [...SUPPORTED_COMPANY_TIMEZONES], []);
 
   return (
     <TooltipProvider delayDuration={150}>

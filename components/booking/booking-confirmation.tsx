@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl"
 import { useLocations, useServices, useTherapist } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"
 import { AddToCalendarButton } from "@/components/common/add-to-calendar-button"
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useBookingWizard } from "@/contexts"
@@ -186,12 +187,22 @@ export function BookingConfirmation() {
   {data.selectedTime ? formatTime12h(data.selectedTime) : ""}
 </p>
                 {officeTimeZoneLabel ? (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {t("officeTimeZoneNotice", {
-                      location: selectedLocation?.title || t("location"),
-                      timezone: officeTimeZoneLabel,
-                    })}
-                  </p>
+                  <div className="mt-1 space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      {t("officeTimeZoneNotice", {
+                        location: selectedLocation?.title || t("location"),
+                        timezone: officeTimeZoneLabel,
+                      })}
+                    </p>
+                    {selectedLocation?.timezone ? (
+                      <TimeZoneDifferenceNote
+                        officeTimeZone={selectedLocation.timezone}
+                        date={data.selectedDate}
+                        namespace="Booking"
+                        className="text-xs text-muted-foreground"
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
 
@@ -266,6 +277,7 @@ export function BookingConfirmation() {
                 startTimeHHmm={data.selectedTime}
                 endTimeHHmm={endTimeHHmm}
                 organizerEmail={process.env.NEXT_PUBLIC_BOOKING_FROM_EMAIL}
+                timeZone={selectedLocation.timezone}
               />
             ) : null}
           </div>

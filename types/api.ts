@@ -1,3 +1,5 @@
+import { BookingStatus, BookingType } from "@prisma/client";
+
 // Interfaz para la respuesta de creación de booking
 export interface CreateBookingResponse {
   success: boolean;
@@ -14,10 +16,11 @@ export interface ApiResponse<T = any> {
 
 // Interfaz para la petición de creación de booking
 export interface CreateBookingRequest {
-  bookingType: string;
+  bookingType: BookingType;
   locationId: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname: string;
   lastname: string;
   phone: string;
@@ -26,12 +29,8 @@ export interface CreateBookingRequest {
   therapistId?: string;
   patientId?: string;
   bookingNotes?: string;
-  // Opción 1: bookingSchedule como ISO string (flujo antiguo)
-  bookingSchedule?: string;
-  // Opción 2: selectedDate + selectedTime (flujo nuevo, recomendado)
-  selectedDate?: string; // YYYY-MM-DD
-  selectedTime?: string; // HH:mm
-  status?: string;
+  bookingSchedule: string;
+  status?: BookingStatus;
 }
 
 // Interfaz para horarios de negocio (respuesta de API)

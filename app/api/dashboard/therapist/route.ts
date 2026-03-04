@@ -1,8 +1,9 @@
 import { PST_TZ, dateKeyInTZ } from "@/lib/utils/timezone";
 
 import { NextResponse } from "next/server";
-import { getDefaultTherapistId } from "@/lib/config/features";
+import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { resolveManagedTherapistIdForUser } from "@/services";
 
 function toPSTRange(date: Date) {
   // Construir inicio/fin de día en PST y convertir a UTC para comparar con DB
@@ -29,8 +30,11 @@ function monthRangePST(date: Date) {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+    const { prismaUser } = await getCurrentUser();
     const therapistId =
-      getDefaultTherapistId() || url.searchParams.get("therapistId") || "";
+      url.searchParams.get("therapistId") ||
+      (await resolveManagedTherapistIdForUser(prismaUser)) ||
+      "";
 
     if (!therapistId) {
       return NextResponse.json(

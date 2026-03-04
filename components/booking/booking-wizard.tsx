@@ -64,21 +64,23 @@ export function BookingWizard() {
   const showSideContext = step <= 2;
 
   return (
-    <div ref={wizardTopRef} className="w-full p-2 mx-auto">
-      <BookingStepper 
-        steps={steps.map((_, index) => ({
-          id: index,
-          name: [
-            t('appointmentType'),
-            t('specialty'), 
-            t('dateTime'),
-            t('basicInformation'),
-            t('confirmationStep')
-          ][index],
-          status: index < step ? "complete" : index === step ? "current" : "upcoming"
-        }))} 
-      />
-      
+    <div className="w-full p-2 mx-auto">
+      <div ref={wizardTopRef} className="scroll-mt-24">
+        <BookingStepper
+          steps={steps.map((_, index) => ({
+            id: index,
+            name: [
+              t('appointmentType'),
+              t('specialty'),
+              t('dateTime'),
+              t('basicInformation'),
+              t('confirmationStep')
+            ][index],
+            status: index < step ? "complete" : index === step ? "current" : "upcoming"
+          }))} 
+        />
+      </div>
+
       <div
         className={cn(
           "gap-6",

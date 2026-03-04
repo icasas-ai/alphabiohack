@@ -3,10 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useUser } from "@/contexts/user-context";
+import { ProtectedLoadingScreen } from "@/components/common/protected-loading-screen";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  redirectTo?: "/auth/login" | "/" | "/dashboard" | "/profile" | "/appointments" | "/contact" | "/booking" | "/auth/sign-up" | "/auth/sign-up-success" | "/auth/forgot-password" | "/auth/update-password" | "/auth/error" | "/auth/confirm";
+  redirectTo?: "/auth/login" | "/" | "/dashboard" | "/profile" | "/company" | "/account" | "/bookings" | "/contact" | "/booking" | "/auth/sign-up" | "/auth/sign-up-success" | "/auth/forgot-password" | "/auth/update-password" | "/auth/error" | "/auth/confirm";
 }
 
 export function ProtectedRoute({ 
@@ -18,17 +19,14 @@ export function ProtectedRoute({
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
+      // @ts-expect-error - authenticated route targets are validated by app routes
       router.push(redirectTo);
     }
   }, [loading, isAuthenticated, router, redirectTo]);
 
   // Mostrar loading mientras se verifica la autenticación
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <ProtectedLoadingScreen />;
   }
 
   // Si no está autenticado, no renderizar nada (el redirect ya se ejecutó)

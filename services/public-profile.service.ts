@@ -1,6 +1,5 @@
 import { UserRole } from "@prisma/client";
 
-import { getDefaultTherapistId } from "@/lib/config/features";
 import {
   findCompanyWithSelect,
   findFirstTherapistWithSelect,
@@ -21,9 +20,6 @@ export const publicProfileSelect = {
   informacionPublica: true,
   especialidad: true,
   summary: true,
-  weekdaysHours: true,
-  saturdayHours: true,
-  sundayHours: true,
   facebook: true,
   instagram: true,
   linkedin: true,
@@ -87,27 +83,15 @@ export async function getPublicCompanyLocations() {
 
 export async function getPublicProfile() {
   const company = await getPublicCompany();
-  const defaultTherapistId = getDefaultTherapistId();
 
   if (company) {
     const publicTherapist = await getPublicTherapistForCompany(
       company.id,
-      company.publicTherapistId || defaultTherapistId,
+      company.publicTherapistId,
     );
 
     if (publicTherapist && publicTherapist.role?.includes?.(UserRole.Therapist)) {
       return findUserByIdWithSelect(publicTherapist.id, publicProfileSelect);
-    }
-  }
-
-  if (defaultTherapistId) {
-    const configuredTherapist = await findUserByIdWithSelect(
-      defaultTherapistId,
-      publicProfileSelect,
-    );
-
-    if (configuredTherapist?.role?.includes?.(UserRole.Therapist) ?? false) {
-      return configuredTherapist;
     }
   }
 

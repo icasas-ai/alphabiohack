@@ -30,9 +30,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   PST_TZ,
-  combineDateAndTimeToUtc,
   parseDateStringInTimeZone,
 } from "@/lib/utils/timezone";
+import { buildBookingScheduleIsoForTimezone } from "@/lib/utils/booking-request";
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note";
 
 type EditableBooking = {
   id: string;
@@ -234,11 +235,6 @@ export function EditBookingDialog({
 
     try {
       setIsSaving(true);
-      const bookingSchedule = combineDateAndTimeToUtc(
-        selectedDate,
-        selectedTime,
-        timezone,
-      );
 
       const response = await fetch(`/api/bookings/${booking.id}`, {
         method: "PUT",
@@ -251,7 +247,11 @@ export function EditBookingDialog({
           email: email.trim(),
           phone: phone.trim(),
           bookingNotes: notes.trim() || undefined,
-          bookingSchedule: bookingSchedule.toISOString(),
+          bookingSchedule: buildBookingScheduleIsoForTimezone(
+            selectedDate,
+            selectedTime,
+            timezone,
+          ),
         }),
       });
 
@@ -399,12 +399,23 @@ export function EditBookingDialog({
             <Alert variant="info">
               <CalendarDays className="h-4 w-4" />
               <AlertDescription>
-                {monthLoading
-                  ? t("loadingAvailability")
-                  : t("timeZoneNotice", {
-                      timezone,
-                      office: booking?.location.title || "",
-                    })}
+                {monthLoading ? (
+                  t("loadingAvailability")
+                ) : (
+                  <div className="space-y-1">
+                    <span>
+                      {t("timeZoneNotice", {
+                        timezone,
+                        office: booking?.location.title || "",
+                      })}
+                    </span>
+                    <TimeZoneDifferenceNote
+                      officeTimeZone={timezone}
+                      date={selectedDate}
+                      namespace="Bookings"
+                    />
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
 

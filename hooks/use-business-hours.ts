@@ -5,21 +5,17 @@ import { useCallback, useEffect, useState } from "react";
 import { API_ENDPOINTS } from "@/constants";
 import type { BusinessHours } from "@/types";
 
-export function useBusinessHours(locationId?: string) {
+export function useBusinessHours(locationId: string) {
   const [businessHours, setBusinessHours] = useState<BusinessHours[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBusinessHours = useCallback(async (locationId?: string) => {
+  const fetchBusinessHours = useCallback(async (targetLocationId: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const url = locationId
-        ? API_ENDPOINTS.BUSINESS_HOURS.BY_LOCATION(locationId)
-        : API_ENDPOINTS.BUSINESS_HOURS.BASE;
-
-      const response = await fetch(url, {
+      const response = await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_LOCATION(targetLocationId), {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
@@ -108,9 +104,7 @@ export function useBusinessHours(locationId?: string) {
 
   // Cargar horarios automáticamente cuando cambie la ubicación
   useEffect(() => {
-    if (locationId) {
-      fetchBusinessHours(locationId);
-    }
+    fetchBusinessHours(locationId);
   }, [locationId, fetchBusinessHours]);
 
   const refetch = useCallback(() => {

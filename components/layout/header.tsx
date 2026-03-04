@@ -3,14 +3,16 @@
 import { Mail, Menu, Phone, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CONTACT_INFO } from "@/constants"
-import Image from "next/image"
 import { LanguageSelector } from "@/components/common/language-selector"
+import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import { Link as LocalizedLink } from "@/i18n/navigation"
 import { ThemeToggle } from "@/components/common/theme-toggle"
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 
 interface PublicContactData {
+  name?: string | null
+  logo?: string | null
   email?: string | null
   telefono?: string | null
 }
@@ -40,6 +42,7 @@ export function MedicalHeader() {
 
   const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
   const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
+  const brandName = publicContact?.name || CONTACT_INFO.BRAND_NAME
 
   const navigation = [
     { name: t('home'), href: "/" as const },
@@ -77,15 +80,12 @@ export function MedicalHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
-            <LocalizedLink href="/" className="block w-full">
-              <Image 
-                src="/images/logo.png" 
-                alt="MyAlphaPulse Logo" 
-                width={200} 
-                height={200} 
-                className="w-full max-w-[250px] h-auto object-contain"
-                priority
+          <div className="shrink-0">
+            <LocalizedLink href="/" className="block">
+              <PublicBrandLogo
+                src={publicContact?.logo}
+                alt={`${brandName} logo`}
+                variant="header"
               />
             </LocalizedLink>
           </div>

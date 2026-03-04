@@ -36,9 +36,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   PST_TZ,
-  combineDateAndTimeToUtc,
   parseDateStringInTimeZone,
 } from "@/lib/utils/timezone";
+import { buildCreateBookingRequestFromStaff } from "@/lib/utils/booking-request";
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note";
 
 interface CreateBookingDialogProps {
   open: boolean;
@@ -59,7 +60,6 @@ export function CreateBookingDialog({
 }: CreateBookingDialogProps) {
   const t = useTranslations("Bookings");
   const { prismaUser } = useUser();
-  const { defaultTherapistId } = useTherapistConfig();
   const { locations } = useLocations();
   const { specialties } = useSpecialties();
 
@@ -81,8 +81,11 @@ export function CreateBookingDialog({
     if (prismaUser?.role.includes(UserRole.Therapist)) {
       return prismaUser.id;
     }
-    return defaultTherapistId;
-  }, [defaultTherapistId, prismaUser]);
+    if (prismaUser?.role.includes(UserRole.FrontDesk)) {
+      return prismaUser.managedByTherapistId || null;
+    }
+    return null;
+  }, [prismaUser]);
 
   const { services } = useServices(specialtyId || undefined);
   const selectedLocation = locations.find((location) => location.id === locationId);
@@ -194,11 +197,12 @@ export function CreateBookingDialog({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
+        body: JSON.stringify(buildCreateBookingRequestFromStaff({
           bookingType: BookingType.DirectVisit,
           locationId,
           specialtyId,
           serviceId,
+          bookedDurationMinutes: services.find((service) => service.id === serviceId)?.duration,
           therapistId,
           firstname: firstname.trim(),
           lastname: lastname.trim(),
@@ -206,15 +210,10 @@ export function CreateBookingDialog({
           phone: phone.trim(),
           bookingNotes: notes.trim() || undefined,
           givenConsent: false,
-          selectedDate: toDateKey(selectedDate),
-          selectedTime,
           status,
-          bookingSchedule: combineDateAndTimeToUtc(
-            selectedDate,
-            selectedTime,
-            timezone,
-          ).toISOString(),
-        }),
+          selectedDate,
+          selectedTime,
+        }, timezone)),
       });
 
       const result = await response.json().catch(() => null);
@@ -388,12 +387,19 @@ export function CreateBookingDialog({
                       {t("loadingAvailability")}
                     </div>
                   ) : selectedLocation ? (
-                    <span>
-                      {t("timeZoneNotice", {
-                        timezone,
-                        office: selectedLocation.title,
-                      })}
-                    </span>
+                    <div className="space-y-1">
+                      <span>
+                        {t("timeZoneNotice", {
+                          timezone,
+                          office: selectedLocation.title,
+                        })}
+                      </span>
+                      <TimeZoneDifferenceNote
+                        officeTimeZone={timezone}
+                        date={selectedDate}
+                        namespace="Bookings"
+                      />
+                    </div>
                   ) : (
                     <span>{t("selectOfficeFirst")}</span>
                   )}

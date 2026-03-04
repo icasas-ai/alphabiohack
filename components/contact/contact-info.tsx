@@ -13,11 +13,11 @@ import { useState, useEffect } from "react";
 import { BusinessHours } from "@/components/contact/business-hours";
 import { InfoCard } from "@/components/contact/info-card";
 import { useTranslations } from "next-intl";
-import { useUser } from "@/contexts/user-context";
 import { ContactInfoSkeleton } from "@/components/contact/contact-info-skeleton";
 import { SocialLinks } from "@/components/common/social-links";
 
 interface ContactData {
+  email?: string | null;
   telefono?: string | null;
   informacionPublica?: string | null;
   weekdaysHours?: string | null;
@@ -38,38 +38,27 @@ interface ContactInfoProps {
 
 export function ContactInfo({ className }: ContactInfoProps) {
   const t = useTranslations("Contact");
-  const { prismaUser, loading: authLoading, isAuthenticated } = useUser();
   const [publicData, setPublicData] = useState<ContactData | null>(null);
   const [publicLoading, setPublicLoading] = useState(true);
 
-  // Cuando no estamos autenticados, traer datos públicos
   useEffect(() => {
-    if (!isAuthenticated) {
-      const fetchPublicContact = async () => {
-        try {
-          const response = await fetch("/api/public/contact");
-          if (response.ok) {
-            const data = await response.json();
-            setPublicData(data);
-          }
-        } catch (error) {
-          console.error("Error fetching public contact data:", error);
-        } finally {
-          setPublicLoading(false);
+    const fetchPublicContact = async () => {
+      try {
+        const response = await fetch("/api/public/contact");
+        if (response.ok) {
+          const data = await response.json();
+          setPublicData(data);
         }
-      };
-      fetchPublicContact();
-    }
-  }, [isAuthenticated]);
+      } catch (error) {
+        console.error("Error fetching public contact data:", error);
+      } finally {
+        setPublicLoading(false);
+      }
+    };
+    fetchPublicContact();
+  }, []);
 
-  // Determinar si estamos cargando
-  const loading = isAuthenticated ? authLoading : publicLoading;
-
-  // Usar datos autenticados si existen, sino usar públicos
-  const contactData = isAuthenticated ? prismaUser : publicData;
-
-  // Mostrar loader mientras carga
-  if (loading || !contactData) {
+  if (publicLoading || !publicData) {
     return (
       <div className={`${className || ""}`}>
         <ContactInfoSkeleton />
@@ -77,10 +66,10 @@ export function ContactInfo({ className }: ContactInfoProps) {
     );
   }
 
-  // Mostrar solo datos de BD, sin fallbacks
-  const phoneNumber = contactData?.telefono || "";
-  const address = contactData?.informacionPublica || "";
-  const socialData = contactData && "facebook" in contactData ? contactData : null;
+  const phoneNumber = publicData.telefono || "";
+  const email = publicData.email || "";
+  const address = publicData.informacionPublica || "";
+  const socialData = publicData;
 
   return (
     <div className={`space-y-6 ${className || ""}`}>
@@ -110,7 +99,7 @@ export function ContactInfo({ className }: ContactInfoProps) {
         title={t("email")}
       >
         <div className="space-y-4">
-          <p className="">{t("emailAddress")}</p>
+          <p className="">{email || t("emailAddress")}</p>
           
           {/* Social Links */}
           <SocialLinks
@@ -128,9 +117,9 @@ export function ContactInfo({ className }: ContactInfoProps) {
 
       {/* Horarios de Atención */}
       <BusinessHours 
-        weekdaysHours={contactData?.weekdaysHours}
-        saturdayHours={contactData?.saturdayHours}
-        sundayHours={contactData?.sundayHours}
+        weekdaysHours={publicData.weekdaysHours}
+        saturdayHours={publicData.saturdayHours}
+        sundayHours={publicData.sundayHours}
       />
     </div>
   );

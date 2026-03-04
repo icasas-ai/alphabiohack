@@ -4,29 +4,28 @@ import { MedicalFooter } from "@/components/layout/footer"
 import { MedicalHeader } from "@/components/layout/header"
 import { SpecialtiesSection } from "@/components/sections/specialties"
 import { featureFlags } from "@/lib/config/features"
-import { getPublicCompanyLocations, getPublicProfile } from "@/services/public-profile.service"
+import { getPublicCompanyLocations, getPublicCompanyProfile } from "@/services/public-profile.service"
 
 export default async function HomePage() {
   const { blog } = featureFlags.features
   const { services } = featureFlags.features
-  const [publicProfile, locations] = await Promise.all([
-    getPublicProfile(),
+  const [publicCompany, locations] = await Promise.all([
+    getPublicCompanyProfile(),
     getPublicCompanyLocations(),
   ])
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <MedicalHeader />
-      <main>
+      <main className="flex flex-1 flex-col">
         <HeroSection
           initialPublicData={
-            publicProfile
+            publicCompany
               ? {
-                  firstname: publicProfile.firstname,
-                  lastname: publicProfile.lastname,
-                  especialidad: publicProfile.especialidad,
-                  summary: publicProfile.summary,
-                  avatar: publicProfile.avatar,
+                  name: publicCompany.name,
+                  publicSpecialty: publicCompany.publicSpecialty,
+                  publicSummary: publicCompany.publicSummary,
+                  logo: publicCompany.logo,
                 }
               : null
           }

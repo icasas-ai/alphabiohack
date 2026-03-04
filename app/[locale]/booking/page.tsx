@@ -6,10 +6,10 @@ import { MedicalHeader } from "@/components/layout/header"
 export default function BookingPage() {
   return (
     <BookingWizardProvider>
-      <div className="min-h-screen">
+      <div className="flex min-h-screen flex-col">
         <MedicalHeader />
-        <main className="py-8 min-h-[calc(100vh-100px)]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-screen">
+        <main className="flex-1 py-8">
+          <div className="mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8">
             <BookingWizard />
           </div>
         </main>

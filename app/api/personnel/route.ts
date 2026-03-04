@@ -6,11 +6,11 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
 import { getCurrentUser, hashPassword } from "@/lib/auth/session";
-import { canManagePersonnel, getManagedTherapistId } from "@/lib/auth/authorization";
+import { canManagePersonnel } from "@/lib/auth/authorization";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/services/email.service";
-import { getPrimaryCompanyIdForUser } from "@/services";
+import { getPrimaryCompanyIdForUser, resolveManagedTherapistIdForUser } from "@/services";
 
 function generateTemporaryPassword() {
   return randomBytes(12)
@@ -29,7 +29,7 @@ async function getPersonnelContext() {
     return { prismaUser, therapistId: null, error: "Forbidden", status: 403 as const };
   }
 
-  const therapistId = getManagedTherapistId(prismaUser);
+  const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
   if (!therapistId) {
     return {
       prismaUser,

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 import { useState } from "react"
@@ -287,14 +288,23 @@ export function BasicInformationForm() {
                   <div className="flex-1 flex flex-col mt-2">
                     <p className="text-sm font-medium text-foreground capitalize"> {formatSelectedDate()}</p>
                     <p className="text-xs text-muted-foreground">{formatSelectedTime()}</p>
-                    {officeTimeZoneLabel ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t("officeTimeZoneNotice", {
-                          location: selectedLocation?.title || t("location"),
-                          timezone: officeTimeZoneLabel,
-                        })}
-                      </p>
+                {officeTimeZoneLabel ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("officeTimeZoneNotice", {
+                        location: selectedLocation?.title || t("location"),
+                        timezone: officeTimeZoneLabel,
+                      })}
+                    </p>
+                    {selectedLocation?.timezone ? (
+                      <TimeZoneDifferenceNote
+                        officeTimeZone={selectedLocation.timezone}
+                        date={data.selectedDate}
+                        namespace="Booking"
+                      />
                     ) : null}
+                  </div>
+                ) : null}
                   </div>
               </div>
             </div>

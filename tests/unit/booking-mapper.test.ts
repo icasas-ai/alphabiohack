@@ -1,14 +1,17 @@
 import { BookingStatus, BookingType } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 
-import { mapBookingFormDataToCreateData } from "@/services/booking.service";
+import {
+  buildCreateBookingRequestFromStaff,
+  buildCreateBookingRequestFromWizard,
+} from "@/lib/utils/booking-request";
 import { parseDateStringInTimeZone } from "@/lib/utils/timezone";
 
-describe("mapBookingFormDataToCreateData", () => {
-  it("maps wizard data into a booking payload using the office timezone", () => {
+describe("buildCreateBookingRequestFromWizard", () => {
+  it("maps wizard data into a normalized booking request using the office timezone", () => {
     const officeDate = parseDateStringInTimeZone("2026-03-02", "America/Chicago");
 
-    const result = mapBookingFormDataToCreateData(
+    const result = buildCreateBookingRequestFromWizard(
       {
         appointmentType: BookingType.DirectVisit,
         locationId: "loc_1",
@@ -49,6 +52,49 @@ describe("mapBookingFormDataToCreateData", () => {
       status: BookingStatus.Pending,
     });
 
-    expect(result.bookingSchedule.toISOString()).toBe("2026-03-02T16:00:00.000Z");
+    expect(result.bookingSchedule).toBe("2026-03-02T16:00:00.000Z");
+  });
+
+  it("maps front desk booking data into a normalized booking request using the office timezone", () => {
+    const officeDate = parseDateStringInTimeZone("2026-03-02", "America/Chicago");
+
+    const result = buildCreateBookingRequestFromStaff(
+      {
+        bookingType: BookingType.DirectVisit,
+        locationId: "loc_1",
+        specialtyId: "spec_1",
+        serviceId: "svc_1",
+        bookedDurationMinutes: 60,
+        firstname: "Jane",
+        lastname: "Doe",
+        phone: "+15555555555",
+        email: "jane@example.com",
+        givenConsent: false,
+        therapistId: "therapist_1",
+        bookingNotes: "Front desk created booking",
+        status: BookingStatus.Confirmed,
+        selectedDate: officeDate,
+        selectedTime: "14:00",
+      },
+      "America/Chicago",
+    );
+
+    expect(result).toMatchObject({
+      bookingType: BookingType.DirectVisit,
+      locationId: "loc_1",
+      specialtyId: "spec_1",
+      serviceId: "svc_1",
+      bookedDurationMinutes: 60,
+      firstname: "Jane",
+      lastname: "Doe",
+      phone: "+15555555555",
+      email: "jane@example.com",
+      givenConsent: false,
+      therapistId: "therapist_1",
+      bookingNotes: "Front desk created booking",
+      status: BookingStatus.Confirmed,
+    });
+
+    expect(result.bookingSchedule).toBe("2026-03-02T20:00:00.000Z");
   });
 });

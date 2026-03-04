@@ -4,9 +4,7 @@ import {
   Clock,
   Cog,
   LayoutDashboard,
-  LifeBuoy,
   LucideIcon,
-  Send,
   User,
   Users,
   Monitor,
@@ -58,7 +56,7 @@ export const getSidebarConfig = (
         },
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
@@ -92,12 +90,12 @@ export const getSidebarConfig = (
     ...baseNavMain,
     {
       title: t("myDashboard"),
-      url: "/appointments",
+      url: "/bookings",
       icon: LayoutDashboard,
       items: [
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
@@ -108,12 +106,12 @@ export const getSidebarConfig = (
     ...baseNavMain,
     {
       title: t("myAccount"),
-      url: "/appointments",
+      url: "/bookings",
       icon: BookOpen,
       items: [
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
@@ -157,19 +155,9 @@ export const getSidebarConfig = (
           : regularUserNavMain,
     navSecondary: [
       {
-        title: t("profile"),
-        url: "/profile",
+        title: t("company"),
+        url: "/company",
         icon: User,
-      },
-      {
-        title: t("support"),
-        url: "#",
-        icon: LifeBuoy,
-      },
-      {
-        title: t("feedback"),
-        url: "#",
-        icon: Send,
       },
       {
         title: t("publicView"),

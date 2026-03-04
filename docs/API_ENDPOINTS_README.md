@@ -106,13 +106,14 @@ export const API_ENDPOINTS = {
     BASE: "/api/specialties",
   },
 
-  SPECIALTIES_SERVICES: {
-    BASE: "/api/specialties-services",
-  },
-
   // Horarios de atención
   BUSINESS_HOURS: {
-    BASE: "/api/business-hours",
+    BY_LOCATION: (locationId: string) =>
+      `/api/locations/${locationId}/business-hours`,
+    BY_ID: (locationId: string, id: string) =>
+      `/api/locations/${locationId}/business-hours/${id}`,
+    BY_DAY_AND_LOCATION: (locationId: string, dayOfWeek: string) =>
+      `/api/locations/${locationId}/business-hours?dayOfWeek=${dayOfWeek}`,
   },
 } as const;
 ```

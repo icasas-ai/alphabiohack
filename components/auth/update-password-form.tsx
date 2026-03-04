@@ -42,7 +42,7 @@ export function UpdatePasswordForm({
         await refreshAuthState();
         const roles = Array.isArray(data.user?.role) ? data.user.role : [];
         if (roles.includes(UserRole.FrontDesk)) {
-          router.push("/appointments");
+          router.push("/bookings");
           return;
         }
 

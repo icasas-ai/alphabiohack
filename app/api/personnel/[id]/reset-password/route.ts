@@ -5,11 +5,12 @@ import { UserRole } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
-import { canManagePersonnel, getManagedTherapistId } from "@/lib/auth/authorization";
+import { canManagePersonnel } from "@/lib/auth/authorization";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { getCurrentUser, hashPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/services/email.service";
+import { resolveManagedTherapistIdForUser } from "@/services";
 
 function generateTemporaryPassword() {
   return randomBytes(12)
@@ -39,7 +40,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const therapistId = getManagedTherapistId(prismaUser);
+    const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
     if (!therapistId) {
       return NextResponse.json(
         { error: "No therapist is configured for this account." },

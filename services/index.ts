@@ -5,6 +5,7 @@ export {
   getPrimaryCompanyIdForUser,
   getPublicCompany,
   getPublicTherapistForCompany,
+  resolveManagedTherapistIdForUser,
   resolveScopedCompanyId,
 } from "./company.service";
 
@@ -89,7 +90,6 @@ export {
   checkTherapistAvailability,
   checkTimeSlotAvailability,
   createBooking,
-  createBookingFromForm,
   deleteBooking,
   deleteBookingsByLocation,
   deleteBookingsByPatient,
@@ -112,7 +112,6 @@ export {
   getBookingStatsByTherapist,
   getPendingBookings,
   getRecentBookings,
-  mapBookingFormDataToCreateData,
   updateBooking,
   updateBookingStatus,
 } from "./booking.service";

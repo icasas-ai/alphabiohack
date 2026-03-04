@@ -129,7 +129,7 @@ export function useAvailabilityOperations(): AvailabilityOperations {
             isActive: true,
           };
 
-          const response = await fetch(API_ENDPOINTS.BUSINESS_HOURS.BASE, {
+          const response = await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_LOCATION(locationId), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(businessHoursData),
@@ -156,7 +156,7 @@ export function useAvailabilityOperations(): AvailabilityOperations {
         } else {
           // Deshabilitar BusinessHours para el día
           const response = await fetch(
-            `${API_ENDPOINTS.BUSINESS_HOURS.BASE}?locationId=${locationId}&dayOfWeek=${dayOfWeek}`
+            API_ENDPOINTS.BUSINESS_HOURS.BY_DAY_AND_LOCATION(locationId, dayOfWeek)
           );
           const result = await response.json();
 
@@ -165,7 +165,7 @@ export function useAvailabilityOperations(): AvailabilityOperations {
               isActive: false,
             };
 
-            await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(result.data.id), {
+            await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(locationId, result.data.id), {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(updateData),
@@ -203,7 +203,7 @@ export function useAvailabilityOperations(): AvailabilityOperations {
                 isActive: true,
               };
 
-              const response = await fetch(API_ENDPOINTS.BUSINESS_HOURS.BASE, {
+              const response = await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_LOCATION(data.locationId), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(businessHoursData),
@@ -237,7 +237,7 @@ export function useAvailabilityOperations(): AvailabilityOperations {
               };
 
               await fetch(
-                API_ENDPOINTS.BUSINESS_HOURS.BY_ID(day.businessHoursId),
+                API_ENDPOINTS.BUSINESS_HOURS.BY_ID(data.locationId, day.businessHoursId),
                 {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },

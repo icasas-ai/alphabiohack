@@ -1,6 +1,7 @@
 import type { CreateLocationData, UpdateLocationData } from "@/types";
 import tzlookup from '@photostructure/tz-lookup';
 
+import { isSupportedCompanyTimezone } from "@/lib/constants/supported-timezones";
 import { prisma } from "@/lib/prisma";
 import {
   createLocationRecord,
@@ -82,6 +83,10 @@ async function resolveLocationTimezoneAndCoordinates(data: {
     throw new Error(
       "Unable to determine the office timezone. Select a timezone manually or verify the full address."
     );
+  }
+
+  if (!isSupportedCompanyTimezone(timezone)) {
+    throw new Error("Unsupported timezone. Select a supported US or Canada timezone.");
   }
 
   return {

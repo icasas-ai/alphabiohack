@@ -1,9 +1,10 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { hasSupabaseAuth } from "@/lib/auth/config";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 
@@ -62,22 +63,7 @@ function decodeSession(raw: string): SessionPayload | null {
   }
 }
 
-export function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
-export function verifyPassword(password: string, storedHash: string) {
-  const [salt, hash] = storedHash.split(":");
-  if (!salt || !hash) return false;
-
-  const derived = scryptSync(password, salt, 64).toString("hex");
-  if (hash.length !== derived.length) {
-    return false;
-  }
-  return timingSafeEqual(Buffer.from(hash), Buffer.from(derived));
-}
+export { hashPassword, verifyPassword };
 
 export async function createLocalSession(userId: string) {
   const cookieStore = await cookies();

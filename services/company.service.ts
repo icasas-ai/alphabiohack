@@ -84,3 +84,39 @@ export async function getPublicTherapistForCompany(companyId: string, preferredT
 
   return therapistMembership?.user ?? null;
 }
+
+type ManagedTherapistUser = {
+  id: string;
+  role: UserRole[];
+  managedByTherapistId?: string | null;
+};
+
+export async function resolveManagedTherapistIdForUser(
+  user: ManagedTherapistUser | null | undefined,
+) {
+  if (!user) return null;
+
+  if (user.role.includes(UserRole.Therapist)) {
+    return user.id;
+  }
+
+  if (user.role.includes(UserRole.FrontDesk)) {
+    return user.managedByTherapistId ?? null;
+  }
+
+  if (user.role.includes(UserRole.Admin)) {
+    const company = await getPrimaryCompanyForUser(user.id);
+    if (!company) {
+      return null;
+    }
+
+    const therapist = await getPublicTherapistForCompany(
+      company.id,
+      company.publicTherapistId,
+    );
+
+    return therapist?.id ?? null;
+  }
+
+  return null;
+}

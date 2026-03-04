@@ -1,8 +1,5 @@
 import {
-  BookingFormData,
-  checkTimeSlotAvailability,
   createBooking,
-  createBookingFromForm,
   getAllBookings,
   getBookingsByDate,
   getBookingsByDateRange,
@@ -32,8 +29,8 @@ import {
 import { BookingType } from "@prisma/client";
 import { getServerLanguage } from "@/services/i18n.service";
 import { getTimeZoneOrDefault } from "@/services/config.service";
-import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
+import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
 
 function getBookingDurationMinutes(
   booking: { bookedDurationMinutes?: number | null; service?: { duration?: number | null } | null },
@@ -115,183 +112,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const selectedDateValue =
-      typeof body.selectedDate === "string"
-        ? body.selectedDate.slice(0, 10)
-        : body.selectedDate
-          ? new Date(body.selectedDate).toISOString().slice(0, 10)
-          : null;
-
-    // Detectar si viene del formulario del wizard
-    const isFromWizard =
-      body.appointmentType &&
-      body.selectedDate &&
-      body.selectedTime &&
-      body.basicInfo;
-
-    if (isFromWizard) {
-      if (
-        body.therapistId &&
-        body.locationId &&
-        selectedDateValue &&
-        body.selectedTime
-      ) {
-        const availability = await isAvailabilitySlotBookable({
-          therapistId: body.therapistId,
-          locationId: body.locationId,
-          date: selectedDateValue,
-          time: body.selectedTime,
-        });
-
-        if (!availability.isAvailable) {
-          const language = await getServerLanguage();
-          const { body: err, status } = errorResponse(
-            "conflict.slot_unavailable",
-            language,
-            409
-          );
-          return NextResponse.json(err, { status });
-        }
-
-        body.bookedDurationMinutes =
-          availability.sessionDurationMinutes ?? body.bookedDurationMinutes;
-      }
-
-      // Usar la función específica para el wizard con tipo seguro
-      const booking = await createBookingFromForm({
-        ...body,
-        selectedDate: body.selectedDate ? new Date(body.selectedDate) : null,
-      } as BookingFormData);
-      // enviar invitaciones (terapeuta y paciente)
-      try {
-        const language = await getServerLanguage();
-        const start = booking.bookingSchedule;
-        const serviceId = (booking as { serviceId?: string }).serviceId;
-        let fallbackServiceDuration = booking.service?.duration as
-          | number
-          | undefined;
-        if (!fallbackServiceDuration && serviceId) {
-          const svc = await prisma.service.findUnique({
-            where: { id: serviceId },
-            select: { duration: true },
-          });
-          fallbackServiceDuration = svc?.duration;
-        }
-        // Fallback adicional: intentar leer del body del wizard
-        if (
-          !fallbackServiceDuration &&
-          Array.isArray(
-            (body as unknown as { selectedServiceIds?: string[] })
-              ?.selectedServiceIds
-          ) &&
-          (body as unknown as { selectedServiceIds?: string[] })
-            .selectedServiceIds?.[0]
-        ) {
-          const svc = await prisma.service.findUnique({
-            where: {
-              id: (body as unknown as { selectedServiceIds: string[] })
-                .selectedServiceIds[0],
-            },
-            select: { duration: true },
-          });
-          fallbackServiceDuration = svc?.duration;
-        }
-        const durationMin = getBookingDurationMinutes(
-          booking,
-          fallbackServiceDuration,
-        );
-        const end = new Date(start.getTime() + durationMin * 60000);
-        const locationAddress = booking.location?.address ?? "";
-        const timeZone = getTimeZoneOrDefault(
-          booking.location?.timezone || undefined
-        );
-        const patientName = `${booking.firstname} ${booking.lastname}`.trim();
-        const therapistEmail = booking.therapist?.email;
-        const therapistName =
-          booking.therapist?.firstname && booking.therapist?.lastname
-            ? `${booking.therapist.firstname} ${booking.therapist.lastname}`
-            : booking.therapist?.firstname || "Profesional";
-
-        if (therapistEmail) {
-          const { icsContent, reactProps, subject } =
-            buildTherapistInviteArtifacts({
-              patientName,
-              patientEmail: booking.email,
-              therapistName,
-              locationAddress,
-              notes: booking.bookingNotes || undefined,
-              start,
-              end,
-              language,
-              bookingId: booking.id,
-              attendeeEmail: therapistEmail,
-              timeZone,
-            });
-          await sendTherapistInviteEmail({
-            to: therapistEmail,
-            subject,
-            reactProps,
-            icsContent,
-          });
-        }
-
-        if (booking.email) {
-          const { icsContent, reactProps, subject } =
-            buildPatientInviteArtifacts({
-              therapistName,
-              patientName,
-              patientEmail: booking.email,
-              locationAddress,
-              notes: booking.bookingNotes || undefined,
-              start,
-              end,
-              language,
-              bookingId: booking.id,
-              attendeeEmail: booking.email,
-              timeZone,
-            });
-          await sendPatientInviteEmail({
-            to: booking.email,
-            subject,
-            reactProps,
-            icsContent,
-          });
-        }
-      } catch (e) {
-        console.error("Error sending invite email:", e);
-      }
-      return NextResponse.json(
-        successResponse(booking, "bookings.create.success"),
-        { status: 201 }
-      );
-    }
-
-    // Validaciones básicas para datos directos (flujo no-wizard)
     const language = await getServerLanguage();
-    
-    // Detectar si es flujo alterno (con selectedDate/selectedTime)
-    const isAlternateFlow = body.selectedDate && body.selectedTime;
-    
-    if (isAlternateFlow) {
-      // Convertir selectedDate + selectedTime a bookingSchedule usando zona horaria de la ubicación
-      try {
-        const location = await prisma.location.findUnique({
-          where: { id: body.locationId },
-          select: { timezone: true },
-        });
-        const tz = location?.timezone ?? "America/Los_Angeles";
-        
-        // Parsear selectedDate como fecha local en la zona horaria correcta
-        const selectedDate = parseDateStringInTimeZone(body.selectedDate, tz);
-        const bookingSchedule = combineDateAndTimeToUtc(selectedDate, body.selectedTime, tz);
-        body.bookingSchedule = bookingSchedule;
-      } catch (error) {
-        console.error("Error processing date/time:", error);
-        const { body: err, status } = errorResponse("internal_error", language, 500);
-        return NextResponse.json(err, { status });
-      }
-    }
-    
+    const parsedBookingSchedule = new Date(body.bookingSchedule);
+
     if (
       !body.bookingType ||
       !body.locationId ||
@@ -299,7 +122,8 @@ export async function POST(request: NextRequest) {
       !body.lastname ||
       !body.phone ||
       !body.email ||
-      !body.bookingSchedule
+      !body.bookingSchedule ||
+      Number.isNaN(parsedBookingSchedule.getTime())
     ) {
       const { body: err, status } = errorResponse(
         "validation.required",
@@ -309,13 +133,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(err, { status });
     }
 
-    // Verificar disponibilidad del terapeuta si se proporciona
-    if (body.therapistId && body.locationId && selectedDateValue && body.selectedTime) {
+    body.bookingSchedule = parsedBookingSchedule;
+
+    if (body.therapistId) {
+      const location = await prisma.location.findUnique({
+        where: { id: body.locationId },
+        select: { timezone: true },
+      });
+      const { dateString, timeString } = formatBookingToLocalStrings(
+        parsedBookingSchedule,
+        location?.timezone || "America/Los_Angeles",
+      );
       const availability = await isAvailabilitySlotBookable({
         therapistId: body.therapistId,
         locationId: body.locationId,
-        date: selectedDateValue,
-        time: body.selectedTime,
+        date: dateString,
+        time: timeString,
       });
 
       if (!availability.isAvailable) {
@@ -329,29 +162,7 @@ export async function POST(request: NextRequest) {
 
       body.bookedDurationMinutes =
         availability.sessionDurationMinutes ?? body.bookedDurationMinutes;
-    } else if (body.therapistId) {
-      // Parsear fecha: si viene sin offset, asumir PST (-08:00). Si ya trae Z u offset, usar tal cual.
-      let bookingSchedulePST = new Date(body.bookingSchedule);
-      if (isNaN(bookingSchedulePST.getTime())) {
-        const hasOffset = /[Zz]|[+-]\d{2}:\d{2}$/.test(body.bookingSchedule);
-        bookingSchedulePST = new Date(
-          body.bookingSchedule + (hasOffset ? "" : "-08:00")
-        );
-      }
-
-      const availability = await checkTimeSlotAvailability(
-        body.therapistId,
-        bookingSchedulePST
-      );
-
-      if (!availability.isAvailable) {
-        const { body: err, status } = errorResponse(
-          "conflict.slot_unavailable",
-          language,
-          409
-        );
-        return NextResponse.json(err, { status });
-      }
+      body.bookingSchedule = availability.bookingSchedule ?? parsedBookingSchedule;
     }
 
     const booking = await createBooking(body);

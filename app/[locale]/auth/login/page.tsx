@@ -11,7 +11,7 @@ export default async function Page() {
       redirect("/auth/update-password");
     }
     if (prismaUser.role.includes(UserRole.FrontDesk)) {
-      redirect("/appointments");
+      redirect("/bookings");
     }
     redirect("/dashboard");
   }

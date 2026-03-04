@@ -64,16 +64,14 @@ export function LoginForm({
       }
 
       await refreshAuthState();
-      router.refresh();
-      if (!hasSupabaseAuth && result?.mustChangePassword) {
-        router.push("/auth/update-password");
-        return;
-      }
+      const destination =
+        !hasSupabaseAuth && result?.mustChangePassword
+          ? "/auth/update-password"
+          : "/dashboard";
 
-      router.push("/dashboard");
+      router.replace(destination);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));
-    } finally {
       setIsLoading(false);
     }
   };

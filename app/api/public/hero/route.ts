@@ -1,23 +1,22 @@
 import { NextResponse } from "next/server";
-import { getPublicProfile } from "@/services/public-profile.service";
+import { getPublicCompanyProfile } from "@/services/public-profile.service";
 
 export async function GET() {
   try {
-    const user = await getPublicProfile();
+    const company = await getPublicCompanyProfile();
 
-    if (!user) {
+    if (!company) {
       return NextResponse.json(
-        { error: "No user information found" },
+        { error: "No company information found" },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
-      firstname: user.firstname,
-      lastname: user.lastname,
-      especialidad: user.especialidad,
-      summary: user.summary,
-      avatar: user.avatar,
+      name: company.name,
+      publicSpecialty: company.publicSpecialty,
+      publicSummary: company.publicSummary,
+      logo: company.logo,
     });
   } catch (error) {
     console.error("Error fetching hero info:", error);

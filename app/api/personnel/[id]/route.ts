@@ -3,9 +3,10 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
 
-import { canManagePersonnel, getManagedTherapistId } from "@/lib/auth/authorization";
+import { canManagePersonnel } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { resolveManagedTherapistIdForUser } from "@/services";
 
 async function getAccess(personnelId: string) {
   const { prismaUser } = await getCurrentUser();
@@ -17,7 +18,7 @@ async function getAccess(personnelId: string) {
     return { prismaUser, personnel: null, error: "Forbidden", status: 403 as const };
   }
 
-  const therapistId = getManagedTherapistId(prismaUser);
+  const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
   if (!therapistId) {
     return { prismaUser, personnel: null, error: "No therapist is configured for this account.", status: 409 as const };
   }

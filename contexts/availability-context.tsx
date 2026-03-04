@@ -283,7 +283,7 @@ export function AvailabilityProvider({ locationId, children }: AvailabilityProvi
 
             businessHoursId = result.data.id;
           } else {
-            await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(businessHoursId), {
+            await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(locationId, businessHoursId), {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ isActive: true }),
@@ -340,7 +340,7 @@ export function AvailabilityProvider({ locationId, children }: AvailabilityProvi
             )
           );
         } else if (day.businessHoursId) {
-          await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(day.businessHoursId), {
+          await fetch(API_ENDPOINTS.BUSINESS_HOURS.BY_ID(locationId, day.businessHoursId), {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ isActive: false }),

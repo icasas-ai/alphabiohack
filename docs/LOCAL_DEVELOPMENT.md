@@ -69,14 +69,14 @@ GOOGLE_MAPS_API_KEY=
 
 NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
 
-NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 ```
 
 Notes:
 
 - `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
 - `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
+- `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
 - local sign-up creates `Patient`, not `Therapist`
 - `RESEND_API_KEY` is not needed for local Mailpit testing
@@ -212,8 +212,8 @@ When Supabase env vars are empty:
 Important:
 
 - local sign-up creates `Patient` users
-- public booking uses `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-- that env var must point to a therapist-role user
+- public booking uses the company's `publicTherapistId`, with `DEFAULT_THERAPIST_ID` as a server-side fallback
+- if you set `DEFAULT_THERAPIST_ID`, it must point to a therapist-role user
 
 For more detail, see [USER_IDENTITY_MODEL.md](./USER_IDENTITY_MODEL.md).
 

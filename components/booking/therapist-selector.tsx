@@ -15,7 +15,7 @@ import { useTranslations } from "next-intl"
 export function TherapistSelector() {
   const { data, update } = useBookingWizard()
   const { therapists, loading, error } = useTherapists()
-  const { isSingleTherapistMode, defaultTherapistId } = useTherapistConfig()
+  const { isSingleTherapistMode } = useTherapistConfig()
   const t = useTranslations("Booking")
 
   const handleSelect = useCallback(
@@ -34,7 +34,7 @@ export function TherapistSelector() {
     window.location.reload()
   }, [])
 
-  if (isSingleTherapistMode && defaultTherapistId) {
+  if (isSingleTherapistMode && data.therapistId) {
     return null
   }
 

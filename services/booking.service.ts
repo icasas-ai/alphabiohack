@@ -1,10 +1,6 @@
-import type {
-  BookingFormData,
-  CreateBookingData,
-  UpdateBookingData,
-} from "@/types";
+import type { CreateBookingData, UpdateBookingData } from "@/types";
 import { BookingStatus, BookingType, DaysOfWeek  } from "@prisma/client";
-import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
+import { PST_TZ } from "@/lib/utils/timezone";
 import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
 
 import { prisma } from "@/lib/prisma";
@@ -39,77 +35,6 @@ const mapBookingWithLocalTime = (booking: any ) => {
     bookingLocalDate: dateString, // YYYY-MM-DD
     bookingLocalTime: timeString, // HH:mm
   };
-};
-
-// Función para mapear BookingFormData a CreateBookingData
-/**
- * Mapea los datos del formulario de reserva a la estructura de creación de cita.
- * Permite inyectar una zona horaria específica para combinar la fecha y la hora.
- * Si no se proporciona tz, se usa PST_TZ por defecto.
- */
-export const mapBookingFormDataToCreateData = (
-  formData: BookingFormData,
-  tz: string = PST_TZ
-): CreateBookingData => {
-  // Validar que los campos requeridos no sean null
-  if (!formData.selectedDate || !formData.locationId) {
-    throw new Error("Missing required fields: selectedDate and locationId");
-  }
-
-  // Combinar fecha y hora usando la zona horaria proporcionada (por defecto PST)
-  const bookingSchedule = combineDateAndTimeToUtc(
-    formData.selectedDate,
-    formData.selectedTime,
-    tz
-  );
-
-  return {
-    bookingType: formData.appointmentType,
-    locationId: formData.locationId,
-    specialtyId: formData.specialtyId || undefined,
-    serviceId: formData.selectedServiceIds?.[0] || undefined,
-    bookedDurationMinutes: formData.sessionDurationMinutes || undefined,
-    firstname: formData.basicInfo.firstName,
-    lastname: formData.basicInfo.lastName,
-    phone: formData.basicInfo.phone,
-    email: formData.basicInfo.email,
-    givenConsent: formData.basicInfo.givenConsent,
-    therapistId: formData.therapistId || undefined,
-    patientId: formData.patientId || undefined,
-    bookingNotes: formData.basicInfo.bookingNotes,
-    bookingSchedule: bookingSchedule,
-    status: formData.status,
-  };
-};
-
-// Crear cita desde el formulario del wizard
-export const createBookingFromForm = async (formData: BookingFormData) => {
-  try {
-    // Obtener la zona horaria de la ubicación seleccionada. Si no existe, se usará PST_TZ por defecto.
-    let timezone = PST_TZ;
-    let companyId: string | undefined;
-    try {
-      if (formData.locationId) {
-        const location = await findLocationByIdWithSelect(formData.locationId, {
-          timezone: true,
-          companyId: true,
-        });
-        timezone = location?.timezone ?? PST_TZ;
-        companyId = location?.companyId;
-      }
-    } catch (tzError) {
-      // En caso de error al obtener la ubicación, mantener la zona horaria por defecto.
-      console.error("Error fetching location timezone:", tzError);
-    }
-    const createData = mapBookingFormDataToCreateData(formData, timezone);
-    if (companyId) {
-      createData.companyId = companyId;
-    }
-    return await createBooking(createData);
-  } catch (error) {
-    console.error("Error creating booking from form:", error);
-    throw error;
-  }
 };
 
 // Crear cita

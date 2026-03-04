@@ -18,9 +18,6 @@ interface UserProfile {
   informacionPublica?: string;
   especialidad?: string;
   summary?: string;
-  weekdaysHours?: string;
-  saturdayHours?: string;
-  sundayHours?: string;
   facebook?: string;
   instagram?: string;
   linkedin?: string;
@@ -45,9 +42,6 @@ export function ProfileForm() {
     informacionPublica: "",
     especialidad: "",
     summary: "",
-    weekdaysHours: "9:00 AM - 6:00 PM",
-    saturdayHours: "9:00 AM - 2:00 PM",
-    sundayHours: "Closed",
     facebook: "",
     instagram: "",
     linkedin: "",
@@ -70,9 +64,6 @@ export function ProfileForm() {
         avatar: prismaUser.avatar || "",
         especialidad: (prismaUser as { especialidad?: string | null }).especialidad ?? "",
         summary: (prismaUser as { summary?: string | null }).summary ?? "",
-        weekdaysHours: (prismaUser as { weekdaysHours?: string | null }).weekdaysHours ?? "9:00 AM - 6:00 PM",
-        saturdayHours: (prismaUser as { saturdayHours?: string | null }).saturdayHours ?? "9:00 AM - 2:00 PM",
-        sundayHours: (prismaUser as { sundayHours?: string | null }).sundayHours ?? "Closed",
         facebook: (prismaUser as { facebook?: string | null }).facebook ?? "",
         instagram: (prismaUser as { instagram?: string | null }).instagram ?? "",
         linkedin: (prismaUser as { linkedin?: string | null }).linkedin ?? "",
@@ -157,9 +148,6 @@ export function ProfileForm() {
           telefono: formData.telefono,
           especialidad: formData.especialidad,
           summary: formData.summary,
-          weekdaysHours: formData.weekdaysHours,
-          saturdayHours: formData.saturdayHours,
-          sundayHours: formData.sundayHours,
           facebook: formData.facebook,
           instagram: formData.instagram,
           linkedin: formData.linkedin,
@@ -332,53 +320,6 @@ export function ProfileForm() {
           className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           rows={4}
         />
-      </div>
-
-      <div className="border-t pt-6">
-        <h3 className="text-lg font-semibold mb-4">Business Hours</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-2">
-            <label htmlFor="weekdaysHours" className="text-sm font-medium">
-              Monday to Friday
-            </label>
-            <Input
-              id="weekdaysHours"
-              name="weekdaysHours"
-              type="text"
-              value={formData.weekdaysHours || ""}
-              onChange={handleChange}
-              placeholder="9:00 AM - 6:00 PM"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="saturdayHours" className="text-sm font-medium">
-              Saturday
-            </label>
-            <Input
-              id="saturdayHours"
-              name="saturdayHours"
-              type="text"
-              value={formData.saturdayHours || ""}
-              onChange={handleChange}
-              placeholder="9:00 AM - 2:00 PM"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="sundayHours" className="text-sm font-medium">
-              Sunday
-            </label>
-            <Input
-              id="sundayHours"
-              name="sundayHours"
-              type="text"
-              value={formData.sundayHours || ""}
-              onChange={handleChange}
-              placeholder="Closed"
-            />
-          </div>
-        </div>
       </div>
 
       <div className="border-t pt-6">

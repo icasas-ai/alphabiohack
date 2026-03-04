@@ -8,13 +8,13 @@ import { useUser } from "@/contexts/user-context";
 
 interface RoleRestrictedProps {
   allowedRoles: UserRole[];
-  redirectTo?: "/appointments" | "/dashboard" | "/profile" | "/auth/login";
+  redirectTo?: "/bookings" | "/dashboard" | "/profile" | "/company" | "/account" | "/auth/login";
   children: React.ReactNode;
 }
 
 export function RoleRestricted({
   allowedRoles,
-  redirectTo = "/appointments",
+  redirectTo = "/bookings",
   children,
 }: RoleRestrictedProps) {
   const router = useRouter();
@@ -25,6 +25,7 @@ export function RoleRestricted({
 
   useEffect(() => {
     if (!loading && prismaUser && !isAllowed) {
+      // @ts-expect-error - authenticated route targets are validated by app routes
       router.push(redirectTo);
     }
   }, [isAllowed, loading, prismaUser, redirectTo, router]);

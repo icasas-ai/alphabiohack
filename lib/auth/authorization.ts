@@ -1,7 +1,5 @@
 import { User, UserRole } from "@prisma/client";
 
-import { getDefaultTherapistId } from "@/lib/config/features";
-
 type RoleUser = Pick<User, "id" | "role" | "managedByTherapistId">;
 
 export function hasRole(user: RoleUser | null | undefined, role: UserRole) {
@@ -29,9 +27,6 @@ export function getManagedTherapistId(user: RoleUser | null | undefined) {
   if (hasRole(user, UserRole.Therapist)) return user.id;
   if (hasRole(user, UserRole.FrontDesk)) {
     return user.managedByTherapistId ?? null;
-  }
-  if (hasRole(user, UserRole.Admin)) {
-    return getDefaultTherapistId();
   }
   return null;
 }

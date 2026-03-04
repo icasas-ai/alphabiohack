@@ -41,7 +41,7 @@ This file is the source of truth for the local seed profiles, including the defa
 Important:
 
 - local self-signup still creates `Patient` users
-- the seeded therapist is the practical source for `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` in local development
+- the seeded therapist is the practical source for the company's `publicTherapistId` or `DEFAULT_THERAPIST_ID` in local development
 - if you want different local default users, edit the seed config file instead of `.env.local`
 
 ## Common Commands

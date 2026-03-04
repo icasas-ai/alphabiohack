@@ -3,13 +3,16 @@
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from "lucide-react"
 
 import { CONTACT_INFO } from "@/constants"
-import Image from "next/image"
+import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import Link from "next/link"
 import { Link as LocalizedLink } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
 import { useEffect, useState } from "react"
 
 interface PublicContactData {
+  name?: string | null
+  logo?: string | null
+  publicSummary?: string | null
   email?: string | null
   telefono?: string | null
   informacionPublica?: string | null
@@ -44,6 +47,8 @@ export function MedicalFooter() {
   const publicAddress = publicContact?.informacionPublica || CONTACT_INFO.ADDRESS
   const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
   const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
+  const publicSummary = publicContact?.publicSummary || t('description')
+  const brandName = publicContact?.name || CONTACT_INFO.BRAND_NAME
   const facebookLink =
     publicContact?.facebook || "https://www.facebook.com/profile.php?id=61575723443538&locale=es_LA"
   const instagramLink =
@@ -57,19 +62,17 @@ export function MedicalFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
-            <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
-              <LocalizedLink href="/" className="block w-full">
-                <Image 
-                  src="/images/logo.png" 
-                  alt="MyAlphaPulse Logo" 
-                  width={200} 
-                  height={200} 
-                  className="w-full h-auto object-contain"
+            <div className="w-full">
+              <LocalizedLink href="/" className="block">
+                <PublicBrandLogo
+                  src={publicContact?.logo}
+                  alt={`${brandName} logo`}
+                  variant="footer"
                 />
               </LocalizedLink>
             </div>
             <p className="text-secondary-foreground/80 text-sm leading-relaxed">
-              {t('description')}
+              {publicSummary}
             </p>
             <div className="flex space-x-4">
               <Link href={facebookLink} className="text-secondary-foreground/80 hover:text-primary transition-colors">
@@ -132,7 +135,7 @@ export function MedicalFooter() {
         <div className="border-t border-secondary-foreground/20 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-secondary-foreground/80 text-sm">
-              © {new Date().getFullYear()} MyAlphaPulse. {t('copyright')}
+              © {new Date().getFullYear()} {brandName}. {t('copyright')}
             </p>
             <div className="flex space-x-6 text-sm">
               <Link href={CONTACT_INFO.TERMS_AND_CONDITIONS} className="text-secondary-foreground/80 hover:text-primary transition-colors">

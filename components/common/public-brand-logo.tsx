@@ -1,0 +1,68 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+
+type PublicBrandLogoProps = {
+  src?: string | null;
+  alt: string;
+  variant?: "header" | "footer" | "hero";
+  className?: string;
+  imageClassName?: string;
+  fallbackSrc?: string;
+};
+
+const variantClasses = {
+  header: {
+    frame: "relative flex h-10 w-[170px] items-center sm:h-11 sm:w-[210px]",
+    shell: "relative h-full w-full overflow-hidden rounded-xl bg-background/80 px-1.5 py-1 shadow-sm ring-1 ring-white/10",
+    image: "object-contain object-left",
+    sizes: "(max-width: 640px) 170px, 210px",
+  },
+  footer: {
+    frame: "relative flex h-20 w-full max-w-[220px] items-center",
+    shell: "relative h-full w-full overflow-hidden rounded-2xl bg-background/75 p-2 shadow-sm ring-1 ring-white/10",
+    image: "object-contain object-left",
+    sizes: "(max-width: 768px) 180px, 220px",
+  },
+  hero: {
+    frame:
+      "relative aspect-square w-full max-w-[220px] sm:max-w-[320px]",
+    shell:
+      "relative h-full w-full overflow-hidden rounded-full bg-background shadow-2xl ring-1 ring-white/10",
+    image: "rounded-full object-cover object-center",
+    sizes: "(max-width: 640px) 220px, 320px",
+  },
+} as const;
+
+export function PublicBrandLogo({
+  src,
+  alt,
+  variant = "header",
+  className,
+  imageClassName,
+  fallbackSrc = "/images/logo.png",
+}: PublicBrandLogoProps) {
+  const resolvedSrc = src || fallbackSrc;
+  const config = variantClasses[variant];
+  const baseImageClassName = cn("h-full w-full", config.image, imageClassName);
+
+  return (
+    <div className={cn(config.frame, className)}>
+      <div className={config.shell}>
+        {resolvedSrc.startsWith("data:image") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={resolvedSrc} alt={alt} className={baseImageClassName} />
+        ) : (
+          <Image
+            src={resolvedSrc}
+            alt={alt}
+            fill
+            sizes={config.sizes}
+            className={baseImageClassName}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

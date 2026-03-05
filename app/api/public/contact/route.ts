@@ -15,6 +15,7 @@ export async function GET() {
     return NextResponse.json({
       name: company.name,
       logo: company.logo,
+      headerLogo: company.headerLogo,
       publicSummary: company.publicSummary,
       email: company.publicEmail,
       telefono: company.publicPhone,

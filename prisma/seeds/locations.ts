@@ -1,4 +1,4 @@
-import { PrismaClient, Location as PrismaLocation } from "@prisma/client";
+import { PrismaClient, Location as PrismaLocation } from "@/lib/prisma-client";
 
 import { PST_TZ } from "@/lib/utils/timezone";
 

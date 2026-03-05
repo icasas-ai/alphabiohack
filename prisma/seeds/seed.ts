@@ -8,9 +8,7 @@ import {
   seedDefaultUsers,
 } from "@/prisma/seeds";
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function main() {
   const users = await seedDefaultUsers(prisma);

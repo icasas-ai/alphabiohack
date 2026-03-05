@@ -4,7 +4,7 @@ export const DEFAULT_SEED_COMPANY = {
   name: "AlphaBioHack Practice",
   logo: null,
   publicEmail: "therapist@example.com",
-  publicPhone: "+1 555 123 4567",
+  publicPhone: "+15551234567",
   publicDescription:
     "A therapist-led practice using AlphaBioHack for bookings, scheduling, and client operations.",
   publicSummary:

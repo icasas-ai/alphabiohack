@@ -186,6 +186,7 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 - `npm run db:migrate:deploy` - apply committed migrations using `.env.local`
 - `npm run db:migrate:status` - check migration status
 - `npm run db:seed` - seed local data
+- `npm run db:seed:prod` - bootstrap a real company and owner user without demo data
 - `npm run db:reset` - reset and reseed the database
 - `npm run db:studio` - open Prisma Studio using `.env.local`
 
@@ -201,6 +202,7 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 ## Supporting Docs
 
 - [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) - local setup, Docker, Prisma commands, Mailpit
+- [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) - complete env var reference, required modes, and deployment notes
 - [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) - Windows downloads, PowerShell commands, Prisma setup, and startup flow
 - [docs/AVAILABILITY_SYSTEM.md](docs/AVAILABILITY_SYSTEM.md) - current availability architecture
 - [docs/TIMEZONE_HANDLING.md](docs/TIMEZONE_HANDLING.md) - how office timezone affects booking, availability, and invites

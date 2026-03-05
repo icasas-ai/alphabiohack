@@ -58,6 +58,7 @@ import {
   BOOKING_STATUS_TRANSITIONS,
   type BookingStatusValue,
 } from "@/lib/utils/booking-status";
+import { formatInTZ } from "@/lib/utils/timezone";
 
 export type BookingRow = {
   id: string;
@@ -252,7 +253,15 @@ export function BookingsDataTable({
             return <div>{localDate}</div>;
           }
 
-          return <div>{format(new Date(row.original.bookingSchedule), "MMM d, yyyy")}</div>;
+          return (
+            <div>
+              {formatInTZ(
+                new Date(row.original.bookingSchedule),
+                "MMM d, yyyy",
+                row.original.location?.timezone,
+              )}
+            </div>
+          );
         },
       },
       {
@@ -264,7 +273,15 @@ export function BookingsDataTable({
             return <div>{localTime}</div>;
           }
 
-          return <div>{format(new Date(row.original.bookingSchedule), "HH:mm")}</div>;
+          return (
+            <div>
+              {formatInTZ(
+                new Date(row.original.bookingSchedule),
+                "HH:mm",
+                row.original.location?.timezone,
+              )}
+            </div>
+          );
         },
       },
       {

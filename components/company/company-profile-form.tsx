@@ -25,6 +25,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { SUPPORTED_COMPANY_TIMEZONES } from "@/lib/constants/supported-timezones";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  isValidUrlInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeSlugInput,
+  normalizeUrlInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { cn } from "@/lib/utils";
 
 type CompanyProfile = {
@@ -32,6 +42,7 @@ type CompanyProfile = {
   name: string;
   slug: string;
   logo: string;
+  headerLogo: string;
   publicEmail: string;
   publicPhone: string;
   publicDescription: string;
@@ -56,6 +67,7 @@ const EMPTY_COMPANY: CompanyProfile = {
   name: "",
   slug: "",
   logo: "",
+  headerLogo: "",
   publicEmail: "",
   publicPhone: "",
   publicDescription: "",
@@ -154,6 +166,7 @@ function normalizeCompanyProfile(
     name: data?.name ?? "",
     slug: data?.slug ?? "",
     logo: data?.logo ?? "",
+    headerLogo: data?.headerLogo ?? "",
     publicEmail: data?.publicEmail ?? "",
     publicPhone: data?.publicPhone ?? "",
     publicDescription: data?.publicDescription ?? "",
@@ -236,6 +249,7 @@ export function CompanyProfileForm() {
   const [formData, setFormData] = useState<CompanyProfile>(EMPTY_COMPANY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [timeZoneOpen, setTimeZoneOpen] = useState(false);
   const hasLoadedRef = useRef(false);
 
@@ -277,7 +291,26 @@ export function CompanyProfileForm() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const nextValue =
+      name === "slug"
+        ? normalizeSlugInput(value)
+        : name === "publicEmail"
+          ? normalizeEmailInput(value)
+          : name === "publicSummary" || name === "publicDescription"
+            ? value
+          : [
+                "website",
+                "facebook",
+                "instagram",
+                "linkedin",
+                "twitter",
+                "tiktok",
+                "youtube",
+              ].includes(name)
+            ? value.trim()
+            : normalizeWhitespace(value);
+
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleFieldChange = (name: keyof CompanyProfile, value: string | boolean) => {
@@ -308,8 +341,35 @@ export function CompanyProfileForm() {
     }
   };
 
+  const handleHeaderLogoChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("invalidImage"));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t("imageTooLarge"));
+      return;
+    }
+
+    try {
+      const headerLogo = await convertFileToBase64(file);
+      setFormData((prev) => ({ ...prev, headerLogo }));
+      toast.success(t("headerLogoLoaded"));
+    } catch (error) {
+      console.error("Error converting company header logo:", error);
+      toast.error(t("logoLoadError"));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     if (!formData.canEdit) {
       toast.error(t("forbidden"));
       return;
@@ -317,12 +377,63 @@ export function CompanyProfileForm() {
 
     try {
       setSaving(true);
+      const payload = {
+        ...formData,
+        name: normalizeWhitespace(formData.name),
+        slug: normalizeSlugInput(formData.slug),
+        publicEmail: normalizeEmailInput(formData.publicEmail),
+        publicPhone: normalizePhoneInput(formData.publicPhone),
+        publicDescription: formData.publicDescription.trim(),
+        publicSummary: formData.publicSummary.trim(),
+        publicSpecialty: normalizeWhitespace(formData.publicSpecialty),
+        weekdaysHours: formData.weekdaysHours.trim(),
+        saturdayHours: formData.saturdayHours.trim(),
+        sundayHours: formData.sundayHours.trim(),
+        website: normalizeUrlInput(formData.website),
+        facebook: normalizeUrlInput(formData.facebook),
+        instagram: normalizeUrlInput(formData.instagram),
+        linkedin: normalizeUrlInput(formData.linkedin),
+        twitter: normalizeUrlInput(formData.twitter),
+        tiktok: normalizeUrlInput(formData.tiktok),
+        youtube: normalizeUrlInput(formData.youtube),
+      };
+
+      if (!payload.name) {
+        toast.error(t("saveError"));
+        return;
+      }
+
+      if (payload.publicEmail && !isValidEmailInput(payload.publicEmail)) {
+        toast.error(t("saveError"));
+        return;
+      }
+
+      if (payload.publicPhone && !isValidPhoneInput(payload.publicPhone)) {
+        toast.error(t("saveError"));
+        return;
+      }
+
+      for (const field of [
+        "website",
+        "facebook",
+        "instagram",
+        "linkedin",
+        "twitter",
+        "tiktok",
+        "youtube",
+      ] as const) {
+        if (payload[field] && !isValidUrlInput(payload[field])) {
+          toast.error(t("saveError"));
+          return;
+        }
+      }
+
       const response = await fetch("/api/company/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -337,6 +448,7 @@ export function CompanyProfileForm() {
           canEdit: prev.canEdit,
         }),
       );
+      setHasAttemptedSubmit(false);
       toast.success(t("saved"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("saveError"));
@@ -352,6 +464,25 @@ export function CompanyProfileForm() {
       </div>
     );
   }
+
+  const invalidPublicEmail =
+    hasAttemptedSubmit &&
+    Boolean(formData.publicEmail.trim()) &&
+    !isValidEmailInput(formData.publicEmail);
+  const invalidPublicPhone =
+    hasAttemptedSubmit &&
+    Boolean(normalizePhoneInput(formData.publicPhone)) &&
+    !isValidPhoneInput(normalizePhoneInput(formData.publicPhone));
+  const invalidUrls = {
+    website: hasAttemptedSubmit && Boolean(formData.website.trim()) && !isValidUrlInput(formData.website),
+    facebook: hasAttemptedSubmit && Boolean(formData.facebook.trim()) && !isValidUrlInput(formData.facebook),
+    instagram: hasAttemptedSubmit && Boolean(formData.instagram.trim()) && !isValidUrlInput(formData.instagram),
+    linkedin: hasAttemptedSubmit && Boolean(formData.linkedin.trim()) && !isValidUrlInput(formData.linkedin),
+    twitter: hasAttemptedSubmit && Boolean(formData.twitter.trim()) && !isValidUrlInput(formData.twitter),
+    tiktok: hasAttemptedSubmit && Boolean(formData.tiktok.trim()) && !isValidUrlInput(formData.tiktok),
+    youtube: hasAttemptedSubmit && Boolean(formData.youtube.trim()) && !isValidUrlInput(formData.youtube),
+  };
+  const invalidName = hasAttemptedSubmit && !normalizeWhitespace(formData.name);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -370,12 +501,12 @@ export function CompanyProfileForm() {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="name">{t("name")}</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={!formData.canEdit || saving} autoComplete="organization" maxLength={120} aria-invalid={invalidName} className={cn(invalidName && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="slug">{t("slug")}</Label>
-            <Input id="slug" name="slug" value={formData.slug} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="slug" name="slug" value={formData.slug} onChange={handleChange} disabled={!formData.canEdit || saving} spellCheck={false} autoCapitalize="none" maxLength={80} />
           </div>
         </div>
 
@@ -405,6 +536,34 @@ export function CompanyProfileForm() {
             )}
           </div>
           <p className="text-xs text-muted-foreground">{t("logoHint")}</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="headerLogo">{t("headerLogo")}</Label>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+            <Input
+              id="headerLogo"
+              name="headerLogo"
+              type="file"
+              accept="image/*"
+              onChange={handleHeaderLogoChange}
+              disabled={!formData.canEdit || saving}
+              className="max-w-sm"
+            />
+            {formData.headerLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={formData.headerLogo}
+                alt={formData.name || "Company header logo"}
+                className="h-16 w-40 rounded-xl border object-cover"
+              />
+            ) : (
+              <div className="flex h-16 min-w-40 items-center justify-center rounded-xl border border-dashed px-4 text-sm text-muted-foreground">
+                {formData.name || t("headerLogoFallback")}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{t("headerLogoHint")}</p>
         </div>
       </section>
 
@@ -479,12 +638,12 @@ export function CompanyProfileForm() {
 
         <div className="space-y-2">
           <Label htmlFor="publicSummary">{t("publicSummary")}</Label>
-          <Textarea id="publicSummary" name="publicSummary" value={formData.publicSummary} onChange={handleChange} disabled={!formData.canEdit || saving} rows={4} />
+          <Textarea id="publicSummary" name="publicSummary" value={formData.publicSummary} onChange={handleChange} disabled={!formData.canEdit || saving} rows={4} maxLength={300} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="publicDescription">{t("publicDescription")}</Label>
-          <Textarea id="publicDescription" name="publicDescription" value={formData.publicDescription} onChange={handleChange} disabled={!formData.canEdit || saving} rows={3} />
+          <Textarea id="publicDescription" name="publicDescription" value={formData.publicDescription} onChange={handleChange} disabled={!formData.canEdit || saving} rows={3} maxLength={1000} />
           <p className="text-xs text-muted-foreground">{t("publicDescriptionHint")}</p>
         </div>
       </section>
@@ -498,7 +657,7 @@ export function CompanyProfileForm() {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="publicEmail">{t("publicEmail")}</Label>
-            <Input id="publicEmail" name="publicEmail" type="email" value={formData.publicEmail} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="publicEmail" name="publicEmail" type="email" value={formData.publicEmail} onChange={handleChange} disabled={!formData.canEdit || saving} autoComplete="email" autoCapitalize="none" inputMode="email" spellCheck={false} aria-invalid={invalidPublicEmail} className={cn(invalidPublicEmail && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="publicPhone">{t("publicPhone")}</Label>
@@ -506,10 +665,13 @@ export function CompanyProfileForm() {
               id="publicPhone"
               name="publicPhone"
               value={formData.publicPhone}
-              onChange={(value) => handleFieldChange("publicPhone", value || "")}
+              onChange={(value) => handleFieldChange("publicPhone", normalizePhoneInput(value || ""))}
               defaultCountry="US"
               international
               disabled={!formData.canEdit || saving}
+              autoComplete="tel"
+              aria-invalid={invalidPublicPhone}
+              className={cn(invalidPublicPhone && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
             />
           </div>
         </div>
@@ -548,31 +710,31 @@ export function CompanyProfileForm() {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="website">{t("website")}</Label>
-            <Input id="website" name="website" value={formData.website} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="website" name="website" type="url" value={formData.website} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://example.com" aria-invalid={invalidUrls.website} className={cn(invalidUrls.website && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="facebook">{t("facebook")}</Label>
-            <Input id="facebook" name="facebook" value={formData.facebook} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="facebook" name="facebook" type="url" value={formData.facebook} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://facebook.com/..." aria-invalid={invalidUrls.facebook} className={cn(invalidUrls.facebook && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="instagram">{t("instagram")}</Label>
-            <Input id="instagram" name="instagram" value={formData.instagram} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="instagram" name="instagram" type="url" value={formData.instagram} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://instagram.com/..." aria-invalid={invalidUrls.instagram} className={cn(invalidUrls.instagram && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="linkedin">{t("linkedin")}</Label>
-            <Input id="linkedin" name="linkedin" value={formData.linkedin} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="linkedin" name="linkedin" type="url" value={formData.linkedin} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://linkedin.com/..." aria-invalid={invalidUrls.linkedin} className={cn(invalidUrls.linkedin && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="twitter">{t("twitter")}</Label>
-            <Input id="twitter" name="twitter" value={formData.twitter} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="twitter" name="twitter" type="url" value={formData.twitter} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://x.com/..." aria-invalid={invalidUrls.twitter} className={cn(invalidUrls.twitter && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="tiktok">{t("tiktok")}</Label>
-            <Input id="tiktok" name="tiktok" value={formData.tiktok} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="tiktok" name="tiktok" type="url" value={formData.tiktok} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://tiktok.com/..." aria-invalid={invalidUrls.tiktok} className={cn(invalidUrls.tiktok && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="youtube">{t("youtube")}</Label>
-            <Input id="youtube" name="youtube" value={formData.youtube} onChange={handleChange} disabled={!formData.canEdit || saving} />
+            <Input id="youtube" name="youtube" type="url" value={formData.youtube} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://youtube.com/..." aria-invalid={invalidUrls.youtube} className={cn(invalidUrls.youtube && "border-red-500 ring-1 ring-red-500/20")} />
           </div>
         </div>
       </section>

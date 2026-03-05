@@ -1,4 +1,4 @@
-import { CompanyMembershipRole, UserRole } from "@prisma/client";
+import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 
 import {
   findCompanyById,

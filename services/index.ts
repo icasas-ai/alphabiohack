@@ -36,21 +36,6 @@ export {
 } from "./location.service";
 
 export {
-  createBusinessHours,
-  createMultipleBusinessHours,
-  deleteBusinessHours,
-  deleteBusinessHoursByLocation,
-  getAllBusinessHours,
-  getAvailableHours,
-  getBusinessHoursByDayAndLocation,
-  getBusinessHoursById,
-  getBusinessHoursByLocation,
-  getCurrentWeekHours,
-  isLocationOpen,
-  updateBusinessHours,
-} from "./business-hours.service";
-
-export {
   createSpecialty,
   deleteSpecialty,
   getAllSpecialties,
@@ -87,15 +72,12 @@ export {
 
 export {
   assignTherapistToBooking,
-  checkTherapistAvailability,
-  checkTimeSlotAvailability,
   createBooking,
   deleteBooking,
   deleteBookingsByLocation,
   deleteBookingsByPatient,
   deleteBookingsByTherapist,
   getAllBookings,
-  getAvailableTimeSlots,
   getBookingById,
   getBookingsByDate,
   getBookingsByDateRange,
@@ -134,13 +116,11 @@ export {
 export type {
   BookingFormData,
   CreateBookingData,
-  CreateBusinessHoursData,
   CreateLocationData,
   CreateServiceData,
   CreateSpecialtyData,
   CreateUserData,
   UpdateBookingData,
-  UpdateBusinessHoursData,
   UpdateLocationData,
   UpdateServiceData,
   UpdateSpecialtyData,

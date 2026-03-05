@@ -10,6 +10,7 @@ import {
 } from "@/services";
 import { errorResponse, successResponse } from "@/services/api-errors.service";
 import { getCurrentUser } from "@/lib/auth/session";
+import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 // GET /api/locations - Obtener todas las ubicaciones
 export async function GET(request: NextRequest) {
@@ -74,9 +75,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const normalizedTitle = normalizeWhitespace(body.title);
+    const normalizedAddress = normalizeWhitespace(body.address);
 
     // Validaciones básicas
-    if (!body.address || !body.title) {
+    if (!normalizedAddress || !normalizedTitle) {
       const { body: err, status } = errorResponse(
         "validation.required",
         null,
@@ -85,7 +88,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(err, { status });
     }
 
-    const location = await createLocation(body, companyId);
+    const location = await createLocation(
+      {
+        ...body,
+        title: normalizedTitle,
+        address: normalizedAddress,
+        description: typeof body.description === "string" ? body.description.trim() : body.description,
+      },
+      companyId,
+    );
     return NextResponse.json(
       successResponse(location, "locations.create.success"),
       { status: 201 }

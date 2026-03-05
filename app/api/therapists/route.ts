@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 import { getPublicCompany, getUsersByRole } from "@/services";
 

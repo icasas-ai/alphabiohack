@@ -13,11 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
 import { Loader2 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { cn } from "@/lib/utils";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { useRouter } from "@/i18n/navigation";
 import { loginUser } from "@/services/auth.service";
+import { isValidEmailInput, normalizeEmailInput } from "@/lib/validation/form-fields";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
@@ -30,20 +31,31 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const router = useRouter();
   const { refreshAuthState } = useUser();
   const t = useTranslations('Auth');
+  const normalizedEmail = normalizeEmailInput(email);
+  const emailError =
+    hasAttemptedSubmit && (!normalizedEmail ? t("emailRequired") : !isValidEmailInput(normalizedEmail) ? t("emailInvalid") : null);
+  const passwordError = hasAttemptedSubmit && !password ? t("passwordRequired") : null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await loginUser(email, password);
+      if (!normalizedEmail || !isValidEmailInput(normalizedEmail) || !password) {
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await loginUser(normalizedEmail, password);
 
       if (hasSupabaseAuth && result?.user) {
-        const prismaUser = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
+        const prismaUser = await fetch(`/api/users?email=${encodeURIComponent(normalizedEmail)}`);
         const prismaUserData = await prismaUser.json();
         if (!prismaUserData?.data?.length) {
           await fetch(`/api/users`, {
@@ -52,7 +64,7 @@ export function LoginForm({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email,
+              email: normalizedEmail,
               supabaseId: result.user.id,
               firstname: "",
               lastname: "",
@@ -98,7 +110,14 @@ export function LoginForm({
                   disabled={isLoading}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(emailError)}
+                  className={cn(emailError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  inputMode="email"
+                  spellCheck={false}
                 />
+                {emailError ? <p className="text-sm text-red-500">{emailError}</p> : null}
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
@@ -118,7 +137,11 @@ export function LoginForm({
                   disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={Boolean(passwordError)}
+                  className={cn(passwordError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="current-password"
                 />
+                {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}
               </div>
               {isLoading ? (
                 <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">

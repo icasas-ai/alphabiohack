@@ -4,8 +4,6 @@ export { useSpecialties } from "./use-specialties";
 
 export { useServices } from "./use-services";
 
-export { useBusinessHours } from "./use-business-hours";
-
 export { useCreateBooking } from "./use-create-booking";
 
 export {
@@ -33,6 +31,5 @@ export type {
   UseSupabaseUploadReturn,
 } from "./use-supabase-upload";
 
-export { useAvailabilityOperations } from "./use-availability-operations";
 export { useLocationOperations } from "./use-location-operations";
 export { useOverrides } from "./use-overrides";

@@ -402,6 +402,7 @@
     "error": "Error",
     "success": "Éxito",
     "invalidTimeSlot": "El horario de fin debe ser posterior al horario de inicio",
+    "timeRangeOverlap": "Los rangos de horario no pueden superponerse",
     "timeSlotAdded": "Horario agregado exitosamente",
     "timeSlotRemoved": "Horario eliminado exitosamente",
     "dayEnabled": "Día habilitado",
@@ -672,7 +673,32 @@
     "participantDetails": "Datos del cliente",
     "participantDetailsDescription": "Ingresa la información del participante que la oficina reunió para esta reserva.",
     "loadingAvailability": "Cargando disponibilidad en tiempo real...",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "bookingRequirements": {
+      "title": "Requisitos para reservar",
+      "description": "Esta reserva todavía no se puede crear. Completa la configuración o los campos faltantes abajo.",
+      "missingAssignedTherapist": "Asigna este usuario de recepción a un terapeuta antes de crear reservas.",
+      "missingTherapistContext": "Se requiere un contexto de terapeuta para que este usuario pueda crear reservas.",
+      "missingLocations": "Agrega al menos una oficina.",
+      "missingSpecialties": "Agrega al menos una especialidad.",
+      "missingServicesForSpecialty": "Agrega al menos un servicio para la especialidad seleccionada.",
+      "missingAvailability": "Configura la disponibilidad para este terapeuta y oficina antes de reservar.",
+      "availabilityLoadError": "No se pudo cargar la disponibilidad en tiempo real para esta oficina.",
+      "loadingAvailability": "La disponibilidad en tiempo real todavía se está cargando.",
+      "loadingTimes": "Los horarios disponibles todavía se están cargando para la fecha seleccionada.",
+      "noTimesForDate": "No hay horarios reservables en la fecha seleccionada.",
+      "selectLocation": "Selecciona una oficina.",
+      "selectSpecialty": "Selecciona una especialidad.",
+      "selectService": "Selecciona un servicio.",
+      "selectDate": "Selecciona una fecha reservable.",
+      "selectTime": "Selecciona una hora disponible.",
+      "firstName": "Ingresa el nombre del cliente.",
+      "lastName": "Ingresa el apellido del cliente.",
+      "email": "Ingresa el correo del cliente.",
+      "validEmail": "Ingresa un correo válido.",
+      "phone": "Ingresa el teléfono del cliente.",
+      "validPhone": "Ingresa un teléfono válido."
+    }
   },
   "Booking": {
     "title": "Reserva tu Cita",
@@ -889,7 +915,9 @@
       "enterFirstName": "Debes ingresar tu nombre",
       "enterLastName": "Debes ingresar tu apellido",
       "enterPhone": "Debes ingresar tu teléfono",
+      "invalidPhone": "Debes ingresar un teléfono válido",
       "enterEmail": "Debes ingresar tu email",
+      "invalidEmail": "Debes ingresar un email válido",
       "acceptSmsConsent": "Debes aceptar la casilla de consentimiento de SMS"
     },
     "addToGoogleCalendar": "Agregar a Calendario",
@@ -918,6 +946,7 @@
     "validation": {
       "required": "Faltan campos requeridos",
       "invalidEmail": "El email no es válido",
+      "invalidPhone": "El número de teléfono no es válido",
       "invalidCoordinates": "Coordenadas inválidas"
     },
     "not_found": "No encontrado",
@@ -935,6 +964,13 @@
       }
     },
     "contact": {
+      "validation": {
+        "nameRequired": "Ingresa tu nombre.",
+        "emailRequired": "Ingresa tu correo electrónico.",
+        "invalidEmail": "Ingresa un correo electrónico válido.",
+        "invalidPhone": "Ingresa un teléfono válido.",
+        "messageRequired": "Ingresa tu mensaje."
+      },
       "submit": {
         "success": "Tu mensaje ha sido enviado correctamente.",
         "error": "No pudimos enviar tu mensaje. Intenta nuevamente."
@@ -1228,6 +1264,9 @@
     "slug": "Slug",
     "logo": "Logo",
     "logoHint": "Sube una imagen para el logo o deja la actual.",
+    "headerLogo": "Logo del encabezado",
+    "headerLogoHint": "Sube una imagen separada para el encabezado. Si la dejas vacía, el encabezado público mostrará el nombre de la empresa como texto.",
+    "headerLogoFallback": "Se mostrará el nombre de la empresa",
     "publicEmail": "Correo público",
     "publicPhone": "Teléfono público",
     "publicDescription": "Dirección o descripción pública",
@@ -1262,6 +1301,7 @@
     "invalidImage": "Selecciona un archivo de imagen válido",
     "imageTooLarge": "La imagen debe ser menor a 5MB",
     "logoLoaded": "Logo cargado correctamente",
+    "headerLogoLoaded": "Logo del encabezado cargado correctamente",
     "logoLoadError": "No se pudo procesar la imagen seleccionada"
   }
 }

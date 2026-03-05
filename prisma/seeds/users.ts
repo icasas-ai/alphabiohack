@@ -1,4 +1,4 @@
-import { PrismaClient, User as PrismaUser } from "@prisma/client";
+import { PrismaClient, User as PrismaUser } from "@/lib/prisma-client";
 
 import { DEFAULT_SEED_USERS } from "@/prisma/seeds/config/default-users";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";

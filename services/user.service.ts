@@ -1,6 +1,6 @@
 import type { CreateUserData, UpdateUserData } from "@/types";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 import { prisma } from "@/lib/prisma";
 
 // Crear usuario

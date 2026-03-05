@@ -7,7 +7,7 @@ import {
 } from "@/services";
 import { NextRequest, NextResponse } from "next/server";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 // GET /api/users - Obtener todos los usuarios
 export async function GET(request: NextRequest) {

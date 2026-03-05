@@ -1,4 +1,4 @@
-import { BookingStatus, BookingType } from "@prisma/client";
+import { BookingStatus, BookingType } from "@/lib/prisma-client";
 import { describe, expect, it } from "vitest";
 
 import {

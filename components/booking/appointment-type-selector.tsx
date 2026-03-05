@@ -4,7 +4,7 @@ import { Building2, Home, Phone, Video } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
-import { BookingType } from "@prisma/client"
+import { BookingType } from "@/lib/prisma-browser"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { useAppointmentTypes } from "@/hooks"

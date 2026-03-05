@@ -1,11 +1,18 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 import { canManagePersonnel } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { resolveManagedTherapistIdForUser } from "@/services";
 
 async function getAccess(personnelId: string) {
@@ -50,11 +57,28 @@ export async function PATCH(
 
   try {
     const { firstname, lastname, email, telefono } = await request.json();
-    const nextEmail = String(email ?? "").trim().toLowerCase();
+    const normalizedFirstname = normalizeWhitespace(firstname);
+    const normalizedLastname = normalizeWhitespace(lastname);
+    const nextEmail = normalizeEmailInput(email);
+    const normalizedPhone = normalizePhoneInput(telefono);
 
-    if (!firstname || !lastname || !nextEmail) {
+    if (!normalizedFirstname || !normalizedLastname || !nextEmail) {
       return NextResponse.json(
         { error: "First name, last name, and email are required." },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidEmailInput(nextEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    if (normalizedPhone && !isValidPhoneInput(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number." },
         { status: 400 },
       );
     }
@@ -77,10 +101,10 @@ export async function PATCH(
     const updated = await prisma.user.update({
       where: { id },
       data: {
-        firstname: String(firstname).trim(),
-        lastname: String(lastname).trim(),
+        firstname: normalizedFirstname,
+        lastname: normalizedLastname,
         email: nextEmail,
-        telefono: telefono ? String(telefono).trim() : null,
+        telefono: normalizedPhone || null,
       },
       select: {
         id: true,

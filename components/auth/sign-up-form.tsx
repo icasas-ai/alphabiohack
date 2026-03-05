@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { cn } from "@/lib/utils";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { useRouter } from "@/i18n/navigation";
+import { isValidEmailInput, normalizeEmailInput } from "@/lib/validation/form-fields";
 import { registerUser } from "@/services/auth.service";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -30,23 +31,41 @@ export function SignUpForm({
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const router = useRouter();
   const { refreshAuthState } = useUser();
   const t = useTranslations('Auth');
+  const normalizedEmail = normalizeEmailInput(email);
+  const emailError =
+    hasAttemptedSubmit && (!normalizedEmail ? t("emailRequired") : !isValidEmailInput(normalizedEmail) ? t("emailInvalid") : null);
+  const passwordError =
+    hasAttemptedSubmit && (!password ? t("passwordRequired") : password.length < 8 ? t("passwordTooShort") : null);
+  const repeatPasswordError =
+    hasAttemptedSubmit && (!repeatPassword ? t("passwordRequired") : password !== repeatPassword ? t("passwordMismatch") : null);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
     setError(null);
 
-    if (password !== repeatPassword) {
-      setError(t('passwordMismatch'));
+    if (
+      !normalizedEmail ||
+      !isValidEmailInput(normalizedEmail) ||
+      !password ||
+      password.length < 8 ||
+      !repeatPassword ||
+      password !== repeatPassword
+    ) {
+      if (password && repeatPassword && password !== repeatPassword) {
+        setError(t('passwordMismatch'));
+      }
       setIsLoading(false);
       return;
     }
 
     try {
-      const result = await registerUser(email, password);
+      const result = await registerUser(normalizedEmail, password);
 
       if (hasSupabaseAuth && result?.user) {
         await fetch(`/api/users`, {
@@ -55,7 +74,7 @@ export function SignUpForm({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email,
+            email: normalizedEmail,
             supabaseId: result.user.id,
             firstname: "",
             lastname: "",
@@ -94,7 +113,14 @@ export function SignUpForm({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(emailError)}
+                  className={cn(emailError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  inputMode="email"
+                  spellCheck={false}
                 />
+                {emailError ? <p className="text-sm text-red-500">{emailError}</p> : null}
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
@@ -105,9 +131,14 @@ export function SignUpForm({
                   type="password"
                   placeholder={t('passwordPlaceholder')}
                   required
+                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={Boolean(passwordError)}
+                  className={cn(passwordError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="new-password"
                 />
+                {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
@@ -118,9 +149,14 @@ export function SignUpForm({
                   type="password"
                   placeholder={t('passwordPlaceholder')}
                   required
+                  minLength={8}
                   value={repeatPassword}
                   onChange={(e) => setRepeatPassword(e.target.value)}
+                  aria-invalid={Boolean(repeatPasswordError)}
+                  className={cn(repeatPasswordError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="new-password"
                 />
+                {repeatPasswordError ? <p className="text-sm text-red-500">{repeatPasswordError}</p> : null}
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>

@@ -22,7 +22,11 @@ export function ViewToggle({ currentView, onViewChange, className }: ViewToggleP
         variant={currentView === 'list' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewChange('list')}
-        className="flex items-center gap-2"
+        className={cn(
+          "flex items-center gap-2",
+          currentView === 'list' &&
+            "border-[rgb(var(--interactive-selected-rgb)_/_0.38)] bg-[rgb(var(--interactive-selected-rgb))] text-white hover:bg-[rgb(var(--interactive-selected-strong-rgb))]",
+        )}
       >
         <List className="h-4 w-4" />
         <span className="hidden sm:inline">{t('list')}</span>
@@ -31,7 +35,11 @@ export function ViewToggle({ currentView, onViewChange, className }: ViewToggleP
         variant={currentView === 'calendar' ? 'default' : 'ghost'}
         size="sm"
         onClick={() => onViewChange('calendar')}
-        className="flex items-center gap-2"
+        className={cn(
+          "flex items-center gap-2",
+          currentView === 'calendar' &&
+            "border-[rgb(var(--interactive-selected-rgb)_/_0.38)] bg-[rgb(var(--interactive-selected-rgb))] text-white hover:bg-[rgb(var(--interactive-selected-strong-rgb))]",
+        )}
       >
         <Calendar className="h-4 w-4" />
         <span className="hidden sm:inline">{t('calendar')}</span>

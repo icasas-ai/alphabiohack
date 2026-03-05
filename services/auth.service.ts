@@ -1,5 +1,6 @@
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeEmailInput } from "@/lib/validation/form-fields";
 
 export type AuthMode = "local" | "supabase";
 
@@ -58,6 +59,8 @@ export const logoutUser = async () => {
 };
 
 export const loginUser = async (email: string, password: string) => {
+  const normalizedEmail = normalizeEmailInput(email);
+
   if (!hasSupabaseAuth) {
     const response = await fetch("/api/auth/local/login", {
       method: "POST",
@@ -65,7 +68,7 @@ export const loginUser = async (email: string, password: string) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: normalizedEmail, password }),
     });
 
     if (!response.ok) {
@@ -86,7 +89,7 @@ export const loginUser = async (email: string, password: string) => {
       data: { user },
       error,
     } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
     if (error) throw error;
@@ -94,7 +97,7 @@ export const loginUser = async (email: string, password: string) => {
       user: user
         ? {
             id: user.id,
-            email: user.email ?? email,
+            email: user.email ?? normalizedEmail,
           }
         : null,
     };
@@ -104,6 +107,8 @@ export const loginUser = async (email: string, password: string) => {
 };
 
 export const registerUser = async (email: string, password: string) => {
+  const normalizedEmail = normalizeEmailInput(email);
+
   if (!hasSupabaseAuth) {
     const response = await fetch("/api/auth/local/register", {
       method: "POST",
@@ -111,7 +116,7 @@ export const registerUser = async (email: string, password: string) => {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: normalizedEmail, password }),
     });
 
     if (!response.ok) {
@@ -125,7 +130,7 @@ export const registerUser = async (email: string, password: string) => {
   try {
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/protected`,
@@ -136,7 +141,7 @@ export const registerUser = async (email: string, password: string) => {
       user: data.user
         ? {
             id: data.user.id,
-            email: data.user.email ?? email,
+            email: data.user.email ?? normalizedEmail,
           }
         : null,
     };
@@ -146,6 +151,8 @@ export const registerUser = async (email: string, password: string) => {
 };
 
 export const requestPasswordReset = async (email: string) => {
+  const normalizedEmail = normalizeEmailInput(email);
+
   if (!hasSupabaseAuth) {
     return {
       supported: false as const,
@@ -154,7 +161,7 @@ export const requestPasswordReset = async (email: string) => {
   }
 
   const supabase = createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
     redirectTo: `${window.location.origin}/auth/update-password`,
   });
 

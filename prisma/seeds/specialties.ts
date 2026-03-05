@@ -1,4 +1,4 @@
-import { PrismaClient, Specialty as PrismaSpecialty } from "@prisma/client";
+import { PrismaClient, Specialty as PrismaSpecialty } from "@/lib/prisma-client";
 
 const DEFAULT_SPECIALTIES = [
   {

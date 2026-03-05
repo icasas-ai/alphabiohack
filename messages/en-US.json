@@ -313,6 +313,7 @@
     "error": "Error",
     "success": "Success",
     "invalidTimeSlot": "End time must be after start time",
+    "timeRangeOverlap": "Time ranges cannot overlap",
     "timeSlotAdded": "Time slot added successfully",
     "timeSlotRemoved": "Time slot removed successfully",
     "dayEnabled": "Day enabled",
@@ -583,7 +584,32 @@
     "participantDetails": "Client details",
     "participantDetailsDescription": "Enter the participant information the office collected for this booking.",
     "loadingAvailability": "Loading live availability...",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "bookingRequirements": {
+      "title": "Booking requirements",
+      "description": "This booking cannot be created yet. Complete the remaining setup or form fields below.",
+      "missingAssignedTherapist": "Assign this Front Desk user to a therapist before creating bookings.",
+      "missingTherapistContext": "A therapist context is required before this user can create bookings.",
+      "missingLocations": "Add at least one office location.",
+      "missingSpecialties": "Add at least one specialty.",
+      "missingServicesForSpecialty": "Add at least one service for the selected specialty.",
+      "missingAvailability": "Configure availability for this therapist and office before booking.",
+      "availabilityLoadError": "Live availability could not be loaded for this office.",
+      "loadingAvailability": "Live availability is still loading.",
+      "loadingTimes": "Available times are still loading for the selected date.",
+      "noTimesForDate": "There are no bookable times on the selected date.",
+      "selectLocation": "Select an office.",
+      "selectSpecialty": "Select a specialty.",
+      "selectService": "Select a service.",
+      "selectDate": "Select a bookable date.",
+      "selectTime": "Select an available time.",
+      "firstName": "Enter the client's first name.",
+      "lastName": "Enter the client's last name.",
+      "email": "Enter the client's email address.",
+      "validEmail": "Enter a valid email address.",
+      "phone": "Enter the client's phone number.",
+      "validPhone": "Enter a valid phone number."
+    }
   },
   "Booking": {
     "title": "Book Your Appointment",
@@ -799,7 +825,9 @@
       "enterFirstName": "You must enter your first name",
       "enterLastName": "You must enter your last name",
       "enterPhone": "You must enter your phone number",
+      "invalidPhone": "You must enter a valid phone number",
       "enterEmail": "You must enter your email",
+      "invalidEmail": "You must enter a valid email",
       "acceptSmsConsent": "You must accept the SMS consent checkbox"
     },
     "addToGoogleCalendar": "Add to Calendar",
@@ -829,6 +857,7 @@
     "validation": {
       "required": "Missing required fields",
       "invalidEmail": "Invalid email",
+      "invalidPhone": "Invalid phone number",
       "invalidCoordinates": "Invalid coordinates"
     },
     "not_found": "Not found",
@@ -845,6 +874,13 @@
       }
     },
     "contact": {
+      "validation": {
+        "nameRequired": "Please enter your name.",
+        "emailRequired": "Please enter your email address.",
+        "invalidEmail": "Please enter a valid email address.",
+        "invalidPhone": "Please enter a valid phone number.",
+        "messageRequired": "Please enter your message."
+      },
       "submit": {
         "success": "Your message has been sent successfully.",
         "error": "We couldn't send your message. Please try again."
@@ -1239,6 +1275,9 @@
     "slug": "Slug",
     "logo": "Logo",
     "logoHint": "Upload a logo image or leave the current one in place.",
+    "headerLogo": "Header logo",
+    "headerLogoHint": "Upload a separate header image. If you leave it empty, the public header will show the company name as text.",
+    "headerLogoFallback": "Company name will be shown",
     "publicEmail": "Public email",
     "publicPhone": "Public phone",
     "publicDescription": "Public address or description",
@@ -1273,6 +1312,7 @@
     "invalidImage": "Please choose a valid image file",
     "imageTooLarge": "The image must be smaller than 5MB",
     "logoLoaded": "Logo loaded successfully",
+    "headerLogoLoaded": "Header logo loaded successfully",
     "logoLoadError": "Unable to process the selected image"
   }
 }

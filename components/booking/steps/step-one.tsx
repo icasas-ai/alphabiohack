@@ -3,9 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { SpecialtySelector } from "../specialty-selector";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { useBookingWizard } from "@/contexts";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 interface StepOneProps {
@@ -15,10 +14,17 @@ interface StepOneProps {
 }
 
 export function StepOne({ onNext, onBack }: StepOneProps) {
-  const { canProceedToStep, getStepValidation } = useBookingWizard();
-  const isDisabled = !canProceedToStep(1);
-  const validation = getStepValidation(1);
+  const { canProceedToStep } = useBookingWizard();
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const t = useTranslations('Booking');
+
+  const handleNext = () => {
+    setHasAttemptedSubmit(true);
+    if (!canProceedToStep(1)) {
+      return;
+    }
+    onNext();
+  };
 
   return (
     <CardContent className="space-y-6">
@@ -29,35 +35,15 @@ export function StepOne({ onNext, onBack }: StepOneProps) {
         </p>
       </div>
 
-      <SpecialtySelector />
+      <SpecialtySelector showValidation={hasAttemptedSubmit} />
 
       <div className="space-y-3 pt-4">
-        {isDisabled && validation.errors.length > 0 ? (
-          <Alert variant="warning">
-            <AlertDescription>
-              <p className="text-sm font-medium">{t('continueSelectionHint')}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-              {validation.errors.map((error) => (
-                <Badge
-                  key={error}
-                  variant="warning"
-                  className="rounded-full bg-white/80"
-                >
-                  {error}
-                </Badge>
-              ))}
-              </div>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
         <div className="flex justify-between items-center space-x-2">
           <Button onClick={onBack} variant="outline" className="cursor-pointer" >
             {t('back')}
           </Button>
           <Button
-            onClick={onNext}
-            disabled={isDisabled}
+            onClick={handleNext}
             className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
           >
             {t('continue')}

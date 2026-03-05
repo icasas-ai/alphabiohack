@@ -1,7 +1,7 @@
 "use client"
 
-import { PST_TZ, dateKeyInTZ } from '@/lib/utils/timezone';
 import React, { useMemo, useState } from 'react';
+import { format } from 'date-fns';
 
 import { AppointmentsCalendar } from './appointments-calendar';
 import type { CalendarEvent } from '@/lib/utils/calendar';
@@ -63,9 +63,9 @@ export function CalendarView({
 
   // Filtrar eventos del día seleccionado
   const dayEvents = useMemo(() => {
-    const dateKey = dateKeyInTZ(selectedDate, PST_TZ);
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
     return filteredEvents.filter(event => {
-      const eventDate = event.dateKey || dateKeyInTZ(new Date(event.time), PST_TZ);
+      const eventDate = event.dateKey || format(new Date(event.time), "yyyy-MM-dd");
       return eventDate === dateKey;
     });
   }, [filteredEvents, selectedDate]);

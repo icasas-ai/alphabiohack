@@ -20,7 +20,7 @@ import { NavUser } from "@/components/nav-user"
 import { SITE_DATA } from "@/constants"
 import { getSidebarConfig, type SidebarRoleMode } from "@/lib/config/sidebar";
 import { useUser } from "@/contexts/user-context";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { useTranslations } from "next-intl"
 
 function useSidebarRoleMode(): SidebarRoleMode {

@@ -12,10 +12,16 @@ import { cn } from "@/lib/utils"
 import { useCallback } from "react"
 import { useTranslations } from "next-intl"
 
-export function TherapistSelector() {
+interface TherapistSelectorProps {
+  showValidation?: boolean
+}
+
+export function TherapistSelector({ showValidation = false }: TherapistSelectorProps) {
   const { data, update } = useBookingWizard()
-  const { therapists, loading, error } = useTherapists()
   const { isSingleTherapistMode } = useTherapistConfig()
+  const { therapists, loading, error } = useTherapists({
+    enabled: !isSingleTherapistMode,
+  })
   const t = useTranslations("Booking")
 
   const handleSelect = useCallback(
@@ -34,7 +40,7 @@ export function TherapistSelector() {
     window.location.reload()
   }, [])
 
-  if (isSingleTherapistMode && data.therapistId) {
+  if (isSingleTherapistMode) {
     return null
   }
 
@@ -54,7 +60,7 @@ export function TherapistSelector() {
         variant: "card",
       }}
     >
-      <Card className="surface-panel">
+      <Card className={cn("surface-panel", showValidation && !data.therapistId && "border-red-500/70 ring-1 ring-red-500/20")}>
         <CardContent className="pt-6">
           <h3 className="mb-4 text-lg font-semibold text-foreground">{t("selectDoctor")}</h3>
           <RadioGroup
@@ -106,6 +112,9 @@ export function TherapistSelector() {
               )
             })}
           </RadioGroup>
+          {showValidation && !data.therapistId ? (
+            <p className="mt-3 text-sm text-red-500">{t("selectDoctor")}</p>
+          ) : null}
         </CardContent>
       </Card>
     </AsyncWrapper>

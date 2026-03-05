@@ -15,6 +15,7 @@ import { Link } from "@/i18n/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { getAuthCapabilities, requestPasswordReset } from "@/services/auth.service";
+import { isValidEmailInput, normalizeEmailInput } from "@/lib/validation/form-fields";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -26,16 +27,26 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const t = useTranslations('Auth');
   const authCapabilities = getAuthCapabilities();
+  const normalizedEmail = normalizeEmailInput(email);
+  const emailError =
+    hasAttemptedSubmit && (!normalizedEmail ? t("emailRequired") : !isValidEmailInput(normalizedEmail) ? t("emailInvalid") : null);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await requestPasswordReset(email);
+      if (!normalizedEmail || !isValidEmailInput(normalizedEmail)) {
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await requestPasswordReset(normalizedEmail);
       if (!result.supported) {
         setError(t("passwordResetUnavailableLocal"));
         return;
@@ -87,7 +98,14 @@ export function ForgotPasswordForm({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={Boolean(emailError)}
+                    className={cn(emailError && "border-red-500 ring-1 ring-red-500/20")}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    inputMode="email"
+                    spellCheck={false}
                   />
+                  {emailError ? <p className="text-sm text-red-500">{emailError}</p> : null}
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button

@@ -10,9 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAppointmentFlags } from "@/hooks"
 import { useBookingWizard } from "@/contexts"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 
-export function SpecialtySelector() {
+interface SpecialtySelectorProps {
+  showValidation?: boolean
+}
+
+export function SpecialtySelector({ showValidation = false }: SpecialtySelectorProps) {
   const { data, update } = useBookingWizard()
   const { specialties, loading: specialtiesLoading, error: specialtiesError } = useSpecialties()
   const { services, loading: servicesLoading, error: servicesError } = useServices(data.specialtyId || undefined)
@@ -74,7 +79,11 @@ export function SpecialtySelector() {
             onValueChange={handleSpecialtyChange}
           >
             <SelectTrigger
-              className="w-full min-h-10 h-auto py-2 items-center text-left"
+              className={cn(
+                "w-full min-h-10 h-auto py-2 items-center text-left",
+                showValidation && !data.specialtyId && "border-red-500 ring-1 ring-red-500/20",
+              )}
+              aria-invalid={showValidation && !data.specialtyId}
               aria-label={t('selectSpecialty')}
             >
               <SelectValue
@@ -103,6 +112,9 @@ export function SpecialtySelector() {
             </SelectContent>
           </Select>
         )}
+        {showValidation && !data.specialtyId ? (
+          <p className="mt-3 text-sm text-red-500">{t('selectSpecialty')}</p>
+        ) : null}
       </div>
 
       {data.specialtyId && (
@@ -119,7 +131,14 @@ export function SpecialtySelector() {
               <AlertDescription>{t('noServicesAvailable')}</AlertDescription>
             </Alert>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-4 md:grid-cols-3",
+                showValidation &&
+                  data.selectedServiceIds.length === 0 &&
+                  "[&>div>div]:border-red-500/70 [&>div>div]:ring-1 [&>div>div]:ring-red-500/20",
+              )}
+            >
               {services.map((service) => (
                 <Card
                   key={service.id}
@@ -163,6 +182,9 @@ export function SpecialtySelector() {
               ))}
             </div>
           )}
+          {showValidation && data.selectedServiceIds.length === 0 ? (
+            <p className="mt-3 text-sm text-red-500">{t('selectService')}</p>
+          ) : null}
         </div>
       )}
     </div>

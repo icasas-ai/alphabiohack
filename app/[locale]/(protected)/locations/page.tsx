@@ -4,7 +4,7 @@ import { RoleRestricted } from "@/components/auth/role-restricted";
 import LocationsPage from "@/components/pages/LocationsPage";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocations } from "@/hooks";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 
 function LocationsContent() {
   const { loading, error } = useLocations();

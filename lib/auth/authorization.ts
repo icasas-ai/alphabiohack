@@ -1,4 +1,4 @@
-import { User, UserRole } from "@prisma/client";
+import { User, UserRole } from "@/lib/prisma-client";
 
 type RoleUser = Pick<User, "id" | "role" | "managedByTherapistId">;
 

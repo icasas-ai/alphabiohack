@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 import {
   findCompanyWithSelect,
@@ -34,6 +34,7 @@ export const publicCompanySelect = {
   slug: true,
   name: true,
   logo: true,
+  headerLogo: true,
   publicEmail: true,
   publicPhone: true,
   publicDescription: true,

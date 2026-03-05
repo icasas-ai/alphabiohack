@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  checkTimeSlotAvailability,
   deleteBooking,
   getBookingById,
+  isAvailabilitySlotBookable,
   updateBooking,
 } from "@/services";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { canManageBookingAsOperator } from "@/lib/auth/authorization";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 
 async function canAccessBooking(bookingId: string) {
   const { prismaUser } = await getCurrentUser();
@@ -94,18 +101,72 @@ export async function PUT(
     }
 
     const existingBooking = access.booking;
+    const nextEmail =
+      body.email !== undefined ? normalizeEmailInput(body.email) : undefined;
+    const nextPhone =
+      body.phone !== undefined ? normalizePhoneInput(body.phone) : undefined;
+
+    if (nextEmail !== undefined && (!nextEmail || !isValidEmailInput(nextEmail))) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    if (nextPhone !== undefined && (!nextPhone || !isValidPhoneInput(nextPhone))) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid phone number." },
+        { status: 400 }
+      );
+    }
+
+    if (body.bookingSchedule) {
+      const parsedBookingSchedule = new Date(body.bookingSchedule);
+      if (Number.isNaN(parsedBookingSchedule.getTime())) {
+        return NextResponse.json(
+          { success: false, error: "Please enter a valid booking schedule." },
+          { status: 400 }
+        );
+      }
+      body.bookingSchedule = parsedBookingSchedule;
+    }
+
+    if (body.firstname !== undefined) {
+      body.firstname = normalizeWhitespace(body.firstname);
+    }
+
+    if (body.lastname !== undefined) {
+      body.lastname = normalizeWhitespace(body.lastname);
+    }
+
+    if (nextEmail !== undefined) {
+      body.email = nextEmail;
+    }
+
+    if (nextPhone !== undefined) {
+      body.phone = nextPhone;
+    }
+
+    if (body.bookingNotes !== undefined) {
+      body.bookingNotes =
+        typeof body.bookingNotes === "string"
+          ? body.bookingNotes.trim() || undefined
+          : undefined;
+    }
 
     // Si se está cambiando el terapeuta o el horario, verificar disponibilidad
     if (body.therapistId || body.bookingSchedule) {
       const therapistId = body.therapistId || existingBooking.therapistId;
       const bookingSchedule =
         body.bookingSchedule || existingBooking.bookingSchedule;
+      const locationId = body.locationId || existingBooking.locationId;
 
       if (therapistId) {
-        const availability = await checkTimeSlotAvailability(
+        const availability = await isAvailabilitySlotBookable({
           therapistId,
-          new Date(bookingSchedule)
-        );
+          locationId,
+          bookingSchedule: new Date(bookingSchedule),
+        });
 
         if (
           !availability.isAvailable &&

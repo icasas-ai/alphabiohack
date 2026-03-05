@@ -1,6 +1,6 @@
 "use client";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { useEffect } from "react";
 
 import { useRouter } from "@/i18n/navigation";

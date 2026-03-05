@@ -48,6 +48,7 @@ import { useAppToast } from "@/hooks/use-app-toast";
 import { useLocations } from "@/hooks";
 import { useUser } from "@/contexts";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 interface TimeRangeState {
   startTime: string;
@@ -193,6 +194,59 @@ function cloneDay(day: AvailabilityDayState): AvailabilityDayState {
     ...day,
     notes: day.notes || "",
     timeRanges: day.timeRanges.map((range) => ({ ...range })),
+  };
+}
+
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function getTimeRangeValidation(timeRanges: TimeRangeState[]) {
+  const invalidOrderIndexes = new Set<number>();
+  const overlappingIndexes = new Set<number>();
+
+  const normalized = timeRanges
+    .map((range, index) => ({
+      index,
+      startTime: range.startTime,
+      endTime: range.endTime,
+      isActive: range.isActive,
+    }))
+    .filter((range) => range.isActive !== false && range.startTime && range.endTime)
+    .map((range) => ({
+      ...range,
+      startMinutes: timeToMinutes(range.startTime),
+      endMinutes: timeToMinutes(range.endTime),
+    }))
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+
+  for (const range of normalized) {
+    if (range.endMinutes <= range.startMinutes) {
+      invalidOrderIndexes.add(range.index);
+    }
+  }
+
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = normalized[index - 1];
+    const current = normalized[index];
+
+    if (
+      !invalidOrderIndexes.has(previous.index) &&
+      !invalidOrderIndexes.has(current.index) &&
+      current.startMinutes < previous.endMinutes
+    ) {
+      overlappingIndexes.add(previous.index);
+      overlappingIndexes.add(current.index);
+    }
+  }
+
+  return {
+    invalidOrderIndexes,
+    overlappingIndexes,
+    hasInvalidOrder: invalidOrderIndexes.size > 0,
+    hasOverlap: overlappingIndexes.size > 0,
+    hasErrors: invalidOrderIndexes.size > 0 || overlappingIndexes.size > 0,
   };
 }
 
@@ -451,6 +505,16 @@ export function AvailabilityPage() {
       return;
     }
 
+    if (formTimeRangeValidation.hasInvalidOrder) {
+      toast.error(t("invalidTimeSlot"));
+      return;
+    }
+
+    if (formTimeRangeValidation.hasOverlap) {
+      toast.error(t("timeRangeOverlap"));
+      return;
+    }
+
     try {
       setSavingPeriod(true);
 
@@ -523,6 +587,17 @@ export function AvailabilityPage() {
 
     if (!day) return;
 
+    const dayTimeRangeValidation = getTimeRangeValidation(day.timeRanges);
+    if (dayTimeRangeValidation.hasInvalidOrder) {
+      toast.error(t("invalidTimeSlot"));
+      return;
+    }
+
+    if (dayTimeRangeValidation.hasOverlap) {
+      toast.error(t("timeRangeOverlap"));
+      return;
+    }
+
     try {
       setSavingDayId(dayId);
       const response = await fetch(API_ENDPOINTS.AVAILABILITY.DAY_BY_ID(dayId), {
@@ -593,6 +668,10 @@ export function AvailabilityPage() {
     return buildDefaultPeriodTitle(selectedLocation.title, form.startDate, form.endDate);
   }, [form.endDate, form.startDate, selectedLocation, t]);
   const createMonthKey = form.startDate ? form.startDate.slice(0, 7) : selectedMonth;
+  const formTimeRangeValidation = useMemo(
+    () => getTimeRangeValidation(form.timeRanges),
+    [form.timeRanges],
+  );
   const createMonthOpenDays = useMemo(() => {
     const openDates = new Set<string>();
 
@@ -640,6 +719,8 @@ export function AvailabilityPage() {
     if (!selectedLocationId) return t("createDisabledLocation");
     if (!form.startDate || !form.endDate) return t("createDisabledDates");
     if (!form.sessionDurationMinutes) return t("createDisabledSessionLength");
+    if (formTimeRangeValidation.hasInvalidOrder) return t("invalidTimeSlot");
+    if (formTimeRangeValidation.hasOverlap) return t("timeRangeOverlap");
     if (!form.timeRanges.some((range) => range.startTime && range.endTime)) {
       return t("createDisabledTimeRanges");
     }
@@ -649,6 +730,8 @@ export function AvailabilityPage() {
     form.endDate,
     form.sessionDurationMinutes,
     form.startDate,
+    formTimeRangeValidation.hasInvalidOrder,
+    formTimeRangeValidation.hasOverlap,
     form.timeRanges,
     selectedLocationId,
     t,
@@ -1069,6 +1152,9 @@ export function AvailabilityPage() {
 
                             {selectedReviewDay ? (() => {
                               const draft = editDays[selectedReviewDay.id] || cloneDay(selectedReviewDay);
+                              const draftTimeRangeValidation = getTimeRangeValidation(
+                                draft.timeRanges,
+                              );
                               const daySummary = summary?.days.find(
                                 (summaryDay) => summaryDay.id === selectedReviewDay.id,
                               );
@@ -1185,48 +1271,72 @@ export function AvailabilityPage() {
                                       </Button>
                                     </div>
 
-                                    {draft.timeRanges.map((range, index) => (
-                                      <div
-                                        key={`${selectedReviewDay.id}-range-${index}`}
-                                        className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                                      >
-                                        <Input
-                                          type="time"
-                                          value={range.startTime}
-                                          onChange={(event) =>
-                                            updateDayRange(selectedReviewDay.id, index, {
-                                              startTime: event.target.value,
-                                            })
-                                          }
-                                        />
-                                        <Input
-                                          type="time"
-                                          value={range.endTime}
-                                          onChange={(event) =>
-                                            updateDayRange(selectedReviewDay.id, index, {
-                                              endTime: event.target.value,
-                                            })
-                                          }
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() =>
-                                            removeDayRange(selectedReviewDay.id, index)
-                                          }
-                                          disabled={draft.timeRanges.length === 1}
+                                    {draft.timeRanges.map((range, index) => {
+                                      const rowInvalid =
+                                        draftTimeRangeValidation.invalidOrderIndexes.has(index) ||
+                                        draftTimeRangeValidation.overlappingIndexes.has(index);
+
+                                      return (
+                                        <div
+                                          key={`${selectedReviewDay.id}-range-${index}`}
+                                          className="space-y-2"
                                         >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
+                                          <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                                            <Input
+                                              type="time"
+                                              value={range.startTime}
+                                              aria-invalid={rowInvalid}
+                                              className={cn(
+                                                rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                                              )}
+                                              onChange={(event) =>
+                                                updateDayRange(selectedReviewDay.id, index, {
+                                                  startTime: event.target.value,
+                                                })
+                                              }
+                                            />
+                                            <Input
+                                              type="time"
+                                              value={range.endTime}
+                                              aria-invalid={rowInvalid}
+                                              className={cn(
+                                                rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                                              )}
+                                              onChange={(event) =>
+                                                updateDayRange(selectedReviewDay.id, index, {
+                                                  endTime: event.target.value,
+                                                })
+                                              }
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                removeDayRange(selectedReviewDay.id, index)
+                                              }
+                                              disabled={draft.timeRanges.length === 1}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          {draftTimeRangeValidation.invalidOrderIndexes.has(index) ? (
+                                            <p className="text-sm text-red-500">{t("invalidTimeSlot")}</p>
+                                          ) : draftTimeRangeValidation.overlappingIndexes.has(index) ? (
+                                            <p className="text-sm text-red-500">{t("timeRangeOverlap")}</p>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
 
                                   <Button
                                     type="button"
                                     onClick={() => handleSaveDay(selectedReviewDay.id)}
-                                    disabled={savingDayId === selectedReviewDay.id}
+                                    disabled={
+                                      savingDayId === selectedReviewDay.id ||
+                                      draftTimeRangeValidation.hasErrors
+                                    }
                                   >
                                     <Clock3 className="mr-2 h-4 w-4" />
                                     {savingDayId === selectedReviewDay.id
@@ -1450,29 +1560,50 @@ export function AvailabilityPage() {
                   </Button>
                 </div>
 
-                {form.timeRanges.map((range, index) => (
-                  <div key={`period-range-${index}`} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                    <Input
-                      type="time"
-                      value={range.startTime}
-                      onChange={(event) => updateFormRange(index, { startTime: event.target.value })}
-                    />
-                    <Input
-                      type="time"
-                      value={range.endTime}
-                      onChange={(event) => updateFormRange(index, { endTime: event.target.value })}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeFormRange(index)}
-                      disabled={form.timeRanges.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                {form.timeRanges.map((range, index) => {
+                  const rowInvalid =
+                    formTimeRangeValidation.invalidOrderIndexes.has(index) ||
+                    formTimeRangeValidation.overlappingIndexes.has(index);
+
+                  return (
+                    <div key={`period-range-${index}`} className="space-y-2">
+                      <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                        <Input
+                          type="time"
+                          value={range.startTime}
+                          aria-invalid={rowInvalid}
+                          className={cn(
+                            rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                          )}
+                          onChange={(event) => updateFormRange(index, { startTime: event.target.value })}
+                        />
+                        <Input
+                          type="time"
+                          value={range.endTime}
+                          aria-invalid={rowInvalid}
+                          className={cn(
+                            rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                          )}
+                          onChange={(event) => updateFormRange(index, { endTime: event.target.value })}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFormRange(index)}
+                          disabled={form.timeRanges.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {formTimeRangeValidation.invalidOrderIndexes.has(index) ? (
+                        <p className="text-sm text-red-500">{t("invalidTimeSlot")}</p>
+                      ) : formTimeRangeValidation.overlappingIndexes.has(index) ? (
+                        <p className="text-sm text-red-500">{t("timeRangeOverlap")}</p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
 
               <Button

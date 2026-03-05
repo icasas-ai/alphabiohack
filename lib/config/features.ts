@@ -1,4 +1,4 @@
-import { BookingType } from "@prisma/client";
+import { BookingType } from "@/lib/prisma-browser";
 
 /**
  * Feature Flags Configuration

@@ -7,71 +7,35 @@ import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import Link from "next/link"
 import { Link as LocalizedLink } from "@/i18n/navigation"
 import { useTranslations } from "next-intl"
-import { useEffect, useState } from "react"
-
-interface PublicContactData {
-  name?: string | null
-  logo?: string | null
-  publicSummary?: string | null
-  email?: string | null
-  telefono?: string | null
-  informacionPublica?: string | null
-  facebook?: string | null
-  instagram?: string | null
-  linkedin?: string | null
-  twitter?: string | null
-}
 
 export function MedicalFooter() {
   const t = useTranslations('Footer')
-  const [publicContact, setPublicContact] = useState<PublicContactData | null>(null)
-
-  useEffect(() => {
-    const fetchPublicContact = async () => {
-      try {
-        const response = await fetch("/api/public/contact")
-        if (!response.ok) {
-          return
-        }
-
-        const data = (await response.json()) as PublicContactData
-        setPublicContact(data)
-      } catch (error) {
-        console.error("Error fetching public footer contact data:", error)
-      }
-    }
-
-    fetchPublicContact()
-  }, [])
-
-  const publicAddress = publicContact?.informacionPublica || CONTACT_INFO.ADDRESS
-  const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
-  const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
-  const publicSummary = publicContact?.publicSummary || t('description')
-  const brandName = publicContact?.name || CONTACT_INFO.BRAND_NAME
-  const facebookLink =
-    publicContact?.facebook || "https://www.facebook.com/profile.php?id=61575723443538&locale=es_LA"
-  const instagramLink =
-    publicContact?.instagram || "https://www.instagram.com/tenma_control/"
-  const linkedinLink = publicContact?.linkedin || "#"
-  const twitterLink = publicContact?.twitter || "#"
+  const brandName = CONTACT_INFO.BRAND_NAME
+  const publicAddress = CONTACT_INFO.ADDRESS
+  const publicPhone = CONTACT_INFO.PHONE
+  const publicEmail = CONTACT_INFO.EMAIL
+  const publicSummary = t('description')
+  const facebookLink = CONTACT_INFO.SOCIAL_MEDIA.FACEBOOK
+  const instagramLink = CONTACT_INFO.SOCIAL_MEDIA.INSTAGRAM
+  const linkedinLink = CONTACT_INFO.SOCIAL_MEDIA.LINKEDIN
+  const twitterLink = CONTACT_INFO.SOCIAL_MEDIA.TWITTER
 
   return (
     <footer className="bg-secondary text-secondary-foreground">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Company Info */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-[320px]">
             <div className="w-full">
               <LocalizedLink href="/" className="block">
                 <PublicBrandLogo
-                  src={publicContact?.logo}
+                  src="/images/logo.png"
                   alt={`${brandName} logo`}
                   variant="footer"
                 />
               </LocalizedLink>
             </div>
-            <p className="text-secondary-foreground/80 text-sm leading-relaxed">
+            <p className="max-w-[320px] text-secondary-foreground/80 text-sm leading-relaxed">
               {publicSummary}
             </p>
             <div className="flex space-x-4">

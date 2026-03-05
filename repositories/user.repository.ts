@@ -1,4 +1,4 @@
-import { Prisma, UserRole } from "@prisma/client";
+import { Prisma, UserRole } from "@/lib/prisma-client";
 
 import { prisma } from "@/lib/prisma";
 

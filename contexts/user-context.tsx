@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-import { User as PrismaUser } from "@prisma/client";
+import { User as PrismaUser } from "@/lib/prisma-browser";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
 

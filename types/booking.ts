@@ -1,4 +1,4 @@
-import { BookingStatus, BookingType } from "@prisma/client";
+import { BookingStatus, BookingType } from "@/lib/prisma-browser";
 
 // Interfaz para crear una nueva cita
 export interface CreateBookingData {

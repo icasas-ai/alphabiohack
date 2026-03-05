@@ -12,12 +12,17 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
+import { cn } from "@/lib/utils"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 
 const calendarDateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 
-export function DateTimeSelector() {
+interface DateTimeSelectorProps {
+  showValidation?: boolean
+}
+
+export function DateTimeSelector({ showValidation = false }: DateTimeSelectorProps) {
   const { data, update } = useBookingWizard()
   const t = useTranslations('Booking')
   const format = useFormatter()
@@ -170,21 +175,39 @@ export function DateTimeSelector() {
                       </div>
                     </div>
                   ) : (
-                    <Calendar
-                      key={month.toISOString()}
-                      mode="single"
-                      selected={data.selectedDate || undefined}
-                      onSelect={handleDateSelect}
-                      month={month}
-                      onMonthChange={setMonth}
-                      disabled={(date) => !isDateAvailable(date)}
-                      showOutsideDays={false}
-                      className="bg-transparent p-0 w-full"
-                    />
+                    <div
+                      className={cn(
+                        "rounded-xl",
+                        showValidation &&
+                          !data.selectedDate &&
+                          "border border-red-500/70 ring-1 ring-red-500/20 p-2",
+                      )}
+                    >
+                      <Calendar
+                        key={month.toISOString()}
+                        mode="single"
+                        selected={data.selectedDate || undefined}
+                        onSelect={handleDateSelect}
+                        month={month}
+                        onMonthChange={setMonth}
+                        disabled={(date) => !isDateAvailable(date)}
+                        showOutsideDays={false}
+                        className="bg-transparent p-0 w-full"
+                      />
+                    </div>
                   )}
+                  {showValidation && !data.selectedDate ? (
+                    <p className="mt-3 text-sm text-red-500">{t('selectDate')}</p>
+                  ) : null}
                 </section>
 
-                <aside className="no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l" aria-label={t('availableTimeSlots')}>
+                <aside
+                  className={cn(
+                    "no-scrollbar inset-y-0 right-0 flex max-h-72 w-full scroll-pb-6 flex-col gap-4 overflow-y-auto border-t p-6 md:absolute md:max-h-none md:w-48 md:border-t-0 md:border-l",
+                    showValidation && !data.selectedTime && data.selectedDate && "bg-red-500/5",
+                  )}
+                  aria-label={t('availableTimeSlots')}
+                >
                   <div className="grid gap-2">
                     {data.selectedDate ? (
                       dayLoading ? (
@@ -217,6 +240,11 @@ export function DateTimeSelector() {
                       </Alert>
                     )}
                   </div>
+                  {showValidation && !data.selectedTime ? (
+                    <p className="text-sm text-red-500">
+                      {data.selectedDate ? t('selectTime') : t('selectDateFirst')}
+                    </p>
+                  ) : null}
                 </aside>
               </>
             )}

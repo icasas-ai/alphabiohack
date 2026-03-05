@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { CompanyMembershipRole, UserRole } from "@prisma/client";
+import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 import { randomBytes, randomUUID } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
@@ -9,6 +9,13 @@ import { getCurrentUser, hashPassword } from "@/lib/auth/session";
 import { canManagePersonnel } from "@/lib/auth/authorization";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { sendEmail } from "@/services/email.service";
 import { getPrimaryCompanyIdForUser, resolveManagedTherapistIdForUser } from "@/services";
 
@@ -95,15 +102,32 @@ export async function POST(request: NextRequest) {
     }
 
     const { firstname, lastname, email, telefono } = await request.json();
+    const normalizedFirstname = normalizeWhitespace(firstname);
+    const normalizedLastname = normalizeWhitespace(lastname);
+    const normalizedEmail = normalizeEmailInput(email);
+    const normalizedPhone = normalizePhoneInput(telefono);
 
-    if (!firstname || !lastname || !email) {
+    if (!normalizedFirstname || !normalizedLastname || !normalizedEmail) {
       return NextResponse.json(
         { error: "First name, last name, and email are required." },
         { status: 400 },
       );
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!isValidEmailInput(normalizedEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    if (normalizedPhone && !isValidPhoneInput(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number." },
+        { status: 400 },
+      );
+    }
+
     const existing = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: { id: true },
@@ -119,10 +143,10 @@ export async function POST(request: NextRequest) {
     const temporaryPassword = generateTemporaryPassword();
     const user = await prisma.user.create({
       data: {
-        firstname: String(firstname).trim(),
-        lastname: String(lastname).trim(),
+        firstname: normalizedFirstname,
+        lastname: normalizedLastname,
         email: normalizedEmail,
-        telefono: telefono ? String(telefono).trim() : null,
+        telefono: normalizedPhone || null,
         supabaseId: `local-frontdesk-${randomUUID()}`,
         role: [UserRole.FrontDesk],
         passwordHash: hashPassword(temporaryPassword),

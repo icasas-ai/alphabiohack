@@ -42,6 +42,7 @@ import { useSupabaseUpload } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 interface LocationFormProps {
   location?: Location;
@@ -116,11 +117,13 @@ export function LocationForm({
   const t = useTranslations("Locations");
   const [formData, setFormData] = useState<LocationFormState>(createInitialState(location));
   const [timeZoneOpen, setTimeZoneOpen] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const initialState = useMemo(() => createInitialState(location), [location]);
 
   useEffect(() => {
     setFormData(initialState);
+    setHasAttemptedSubmit(false);
   }, [initialState]);
 
   const logoUpload = useSupabaseUpload({
@@ -138,7 +141,13 @@ export function LocationForm({
   }, [formData.logo, logoUpload.successes]);
 
   const handleInputChange = (field: keyof LocationFormState, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [field]:
+        field === "title" || field === "address"
+          ? normalizeWhitespace(value)
+          : value,
+    }));
   };
 
   const handleReset = () => {
@@ -167,8 +176,15 @@ export function LocationForm({
     !formData.address.trim() ||
     coordinatesIncomplete ||
     coordinatesInvalid;
+  const fieldErrors = {
+    title: hasAttemptedSubmit && !formData.title.trim(),
+    address: hasAttemptedSubmit && !formData.address.trim(),
+    lat: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
+    lon: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
+  };
 
   const handleSubmit = async () => {
+    setHasAttemptedSubmit(true);
     if (!onSubmit || disableSubmit) return;
 
     await onSubmit({
@@ -261,6 +277,10 @@ export function LocationForm({
                     value={formData.title}
                     onChange={(event) => handleInputChange("title", event.target.value)}
                     placeholder={t("clinicNamePlaceholder")}
+                    aria-invalid={fieldErrors.title}
+                    className={cn(fieldErrors.title && "border-red-500 ring-1 ring-red-500/20")}
+                    autoComplete="organization"
+                    maxLength={120}
                   />
                 </div>
                 <div className="space-y-2">
@@ -272,6 +292,10 @@ export function LocationForm({
                     value={formData.address}
                     onChange={(event) => handleInputChange("address", event.target.value)}
                     placeholder={t("addressPlaceholder")}
+                    aria-invalid={fieldErrors.address}
+                    className={cn(fieldErrors.address && "border-red-500 ring-1 ring-red-500/20")}
+                    autoComplete="street-address"
+                    maxLength={160}
                   />
                 </div>
               </div>
@@ -361,10 +385,14 @@ export function LocationForm({
                     <InfoHint label={t("latitude")} content={t("help.latitude")} />
                   </div>
                   <Input
+                    type="number"
+                    step="any"
                     inputMode="decimal"
                     value={formData.lat}
                     onChange={(event) => handleInputChange("lat", event.target.value)}
                     placeholder={t("latitudePlaceholder")}
+                    aria-invalid={fieldErrors.lat}
+                    className={cn(fieldErrors.lat && "border-red-500 ring-1 ring-red-500/20")}
                   />
                 </div>
                 <div className="space-y-2">
@@ -373,10 +401,14 @@ export function LocationForm({
                     <InfoHint label={t("longitude")} content={t("help.longitude")} />
                   </div>
                   <Input
+                    type="number"
+                    step="any"
                     inputMode="decimal"
                     value={formData.lon}
                     onChange={(event) => handleInputChange("lon", event.target.value)}
                     placeholder={t("longitudePlaceholder")}
+                    aria-invalid={fieldErrors.lon}
+                    className={cn(fieldErrors.lon && "border-red-500 ring-1 ring-red-500/20")}
                   />
                 </div>
               </div>
@@ -448,7 +480,7 @@ export function LocationForm({
             {t("reset")}
           </Button>
           {onSubmit ? (
-            <Button onClick={handleSubmit} disabled={disableSubmit}>
+            <Button onClick={handleSubmit} disabled={loading}>
               <Save className="mr-2 h-4 w-4" />
               {loading ? t("saving") : isNew ? t("create") : t("update")}
             </Button>

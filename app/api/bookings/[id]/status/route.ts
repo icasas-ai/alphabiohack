@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { BookingStatus, UserRole } from "@prisma/client";
+import { BookingStatus, UserRole } from "@/lib/prisma-client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { BOOKING_STATUS_TRANSITIONS } from "@/lib/utils/booking-status";
 import { prisma } from "@/lib/prisma";
 import { updateBookingStatus } from "@/services";
-import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
 import { canManageBookingAsOperator } from "@/lib/auth/authorization";
 import { isAvailabilitySlotBookable } from "@/services/availability.service";
 
@@ -101,16 +100,10 @@ export async function PUT(
           );
         }
 
-        const { dateString, timeString } = formatBookingToLocalStrings(
-          booking.bookingSchedule,
-          booking.location?.timezone || "America/Los_Angeles"
-        );
-
         const slotCheck = await isAvailabilitySlotBookable({
           therapistId: booking.therapistId,
           locationId: booking.locationId,
-          date: dateString,
-          time: timeString,
+          bookingSchedule: booking.bookingSchedule,
         });
 
         if (!slotCheck.isAvailable) {

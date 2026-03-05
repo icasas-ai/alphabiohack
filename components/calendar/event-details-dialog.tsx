@@ -39,6 +39,7 @@ import React from 'react';
 import { Separator } from '@/components/ui/separator';
 import { es } from 'date-fns/locale';
 import { format } from 'date-fns';
+import { parseDateStringInTimeZone } from '@/lib/utils/timezone';
 import { Loader2, MoreHorizontal } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -139,6 +140,10 @@ export function EventDetailsDialog({
     }
   };
 
+  const eventDisplayDate = event.dateKey
+    ? parseDateStringInTimeZone(event.dateKey)
+    : new Date(event.time);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md" showCloseButton={false}>
@@ -201,7 +206,7 @@ export function EventDetailsDialog({
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">
-                  {format(new Date(event.time), 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es })}
+                  {format(eventDisplayDate, 'EEEE, d \'de\' MMMM \'de\' yyyy', { locale: es })}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {event.displayTime || format(new Date(event.time), 'HH:mm')}

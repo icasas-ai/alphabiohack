@@ -6,7 +6,7 @@ import {
   Location as PrismaLocation,
   Service as PrismaService,
   User as PrismaUser,
-} from "@prisma/client";
+} from "@/lib/prisma-client";
 import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 
 // Fechas de ejemplo

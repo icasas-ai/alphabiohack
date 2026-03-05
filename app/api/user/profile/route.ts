@@ -1,5 +1,12 @@
 import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import {
+  isValidPhoneInput,
+  isValidUrlInput,
+  normalizePhoneInput,
+  normalizeUrlInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET() {
@@ -63,23 +70,50 @@ export async function PUT(request: NextRequest) {
       website,
     } = body;
 
+    const normalizedPhone = normalizePhoneInput(telefono);
+    const normalizedUrls = {
+      facebook: normalizeUrlInput(facebook),
+      instagram: normalizeUrlInput(instagram),
+      linkedin: normalizeUrlInput(linkedin),
+      twitter: normalizeUrlInput(twitter),
+      tiktok: normalizeUrlInput(tiktok),
+      youtube: normalizeUrlInput(youtube),
+      website: normalizeUrlInput(website),
+    };
+
+    if (normalizedPhone && !isValidPhoneInput(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number." },
+        { status: 400 }
+      );
+    }
+
+    for (const [key, value] of Object.entries(normalizedUrls)) {
+      if (value && !isValidUrlInput(value)) {
+        return NextResponse.json(
+          { error: `Please enter a valid URL for ${key}.` },
+          { status: 400 }
+        );
+      }
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: prismaUser.id },
       data: {
-        firstname: firstname || undefined,
-        lastname: lastname || undefined,
-        avatar: avatar || undefined,
-        telefono: telefono || undefined,
-        informacionPublica: informacionPublica || undefined,
-        especialidad: especialidad || undefined,
-        summary: summary || undefined,
-        facebook: facebook || undefined,
-        instagram: instagram || undefined,
-        linkedin: linkedin || undefined,
-        twitter: twitter || undefined,
-        tiktok: tiktok || undefined,
-        youtube: youtube || undefined,
-        website: website || undefined,
+        firstname: normalizeWhitespace(firstname) || undefined,
+        lastname: normalizeWhitespace(lastname) || undefined,
+        avatar: avatar || null,
+        telefono: normalizedPhone || null,
+        informacionPublica: normalizeWhitespace(informacionPublica) || null,
+        especialidad: normalizeWhitespace(especialidad) || null,
+        summary: typeof summary === "string" ? summary.trim() || null : null,
+        facebook: normalizedUrls.facebook || null,
+        instagram: normalizedUrls.instagram || null,
+        linkedin: normalizedUrls.linkedin || null,
+        twitter: normalizedUrls.twitter || null,
+        tiktok: normalizedUrls.tiktok || null,
+        youtube: normalizedUrls.youtube || null,
+        website: normalizedUrls.website || null,
       },
     });
 

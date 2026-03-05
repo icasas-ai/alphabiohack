@@ -19,7 +19,7 @@ interface ContactFormProps {
 
 export function ContactForm({ className }: ContactFormProps) {
   const t = useTranslations("Contact");
-  const { formData, isLoading, handleInputChange, handleSubmit, isFormValid } =
+  const { formData, isLoading, fieldErrors, handleInputChange, handleSubmit } =
     useContactForm();
 
   return (
@@ -31,6 +31,10 @@ export function ContactForm({ className }: ContactFormProps) {
         placeholder={t("form.namePlaceholder")}
         value={formData.name}
         onChange={handleInputChange}
+        error={fieldErrors.name}
+        autoComplete="name"
+        autoCapitalize="words"
+        maxLength={120}
         required
       />
 
@@ -43,6 +47,11 @@ export function ContactForm({ className }: ContactFormProps) {
         placeholder={t("form.emailPlaceholder")}
         value={formData.email}
         onChange={handleInputChange}
+        error={fieldErrors.email}
+        autoComplete="email"
+        autoCapitalize="none"
+        spellCheck={false}
+        inputMode="email"
         required
       />
 
@@ -55,6 +64,9 @@ export function ContactForm({ className }: ContactFormProps) {
         placeholder={t("form.phonePlaceholder")}
         value={formData.phone}
         onChange={handleInputChange}
+        error={fieldErrors.phone}
+        autoComplete="tel"
+        inputMode="tel"
       />
 
       {/* Servicios */}
@@ -65,6 +77,7 @@ export function ContactForm({ className }: ContactFormProps) {
         placeholder={t("form.servicesPlaceholder")}
         value={formData.services}
         onChange={handleInputChange}
+        maxLength={160}
       />
 
       {/* Mensaje */}
@@ -75,14 +88,16 @@ export function ContactForm({ className }: ContactFormProps) {
         placeholder={t("form.messagePlaceholder")}
         value={formData.message}
         onChange={handleInputChange}
+        error={fieldErrors.message}
         required
         type="textarea"
+        maxLength={2000}
       />
 
       {/* Botón de envío */}
       <Button
         type="submit"
-        disabled={isLoading || !isFormValid}
+        disabled={isLoading}
         className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50"
       >
         {isLoading ? (

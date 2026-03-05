@@ -7,6 +7,7 @@ import {
   updateLocation,
 } from "@/services";
 import { errorResponse, successResponse } from "@/services/api-errors.service";
+import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 interface LocationResponseData {
   location: unknown;
@@ -68,6 +69,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const normalizedTitle =
+      body.title !== undefined ? normalizeWhitespace(body.title) : undefined;
+    const normalizedAddress =
+      body.address !== undefined ? normalizeWhitespace(body.address) : undefined;
 
     // Verificar que la ubicación existe
     const existingLocation = await getLocationById(id);
@@ -76,7 +81,26 @@ export async function PUT(
       return NextResponse.json(body, { status });
     }
 
-    const updatedLocation = await updateLocation(id, body);
+    if (body.title !== undefined && !normalizedTitle) {
+      return NextResponse.json(
+        { success: false, error: "Location title is required." },
+        { status: 400 }
+      );
+    }
+
+    if (body.address !== undefined && !normalizedAddress) {
+      return NextResponse.json(
+        { success: false, error: "Location address is required." },
+        { status: 400 }
+      );
+    }
+
+    const updatedLocation = await updateLocation(id, {
+      ...body,
+      ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
+      ...(normalizedAddress !== undefined ? { address: normalizedAddress } : {}),
+      ...(typeof body.description === "string" ? { description: body.description.trim() } : {}),
+    });
     return NextResponse.json(
       successResponse(updatedLocation, "locations.update.success")
     );

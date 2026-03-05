@@ -1,6 +1,6 @@
 "use client";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 
 import { PersonnelPage } from "@/components/personnel/personnel-page";
 import { RoleRestricted } from "@/components/auth/role-restricted";

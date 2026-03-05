@@ -14,26 +14,48 @@ import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
 import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
+import { cn } from "@/lib/utils"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields"
 import { useState } from "react"
 
-export function BasicInformationForm() {
+interface BasicInformationFormProps {
+  showValidation?: boolean
+}
+
+export function BasicInformationForm({ showValidation = false }: BasicInformationFormProps) {
   const { data, update } = useBookingWizard()
   const { locations } = useLocations()
   const { services } = useServices(data.specialtyId || undefined)
   const { specialties } = useSpecialties()
   const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
   const t = useTranslations('Booking')
+  const tValidation = useTranslations('Booking.Validation')
   const format = useFormatter()
   const locale = useLocale()
   
   const [showNoteField, setShowNoteField] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
+    const normalizedValue =
+      typeof value === "string"
+        ? field === "email"
+          ? normalizeEmailInput(value)
+          : field === "firstName" || field === "lastName"
+            ? normalizeWhitespace(value)
+            : value
+        : value
+
     update({
       basicInfo: {
         ...data.basicInfo,
-        [field]: value
+        [field]: normalizedValue
       }
     })
   }
@@ -42,10 +64,20 @@ export function BasicInformationForm() {
     update({
       basicInfo: {
         ...data.basicInfo,
-        phone: value || ""
+        phone: normalizePhoneInput(value || "")
       }
     })
   }
+
+  const invalidFirstName = showValidation && !normalizeWhitespace(data.basicInfo.firstName)
+  const invalidLastName = showValidation && !normalizeWhitespace(data.basicInfo.lastName)
+  const invalidEmail =
+    showValidation &&
+    (!data.basicInfo.email.trim() || !isValidEmailInput(data.basicInfo.email))
+  const invalidPhone =
+    showValidation &&
+    (!data.basicInfo.phone.trim() || !isValidPhoneInput(data.basicInfo.phone))
+  const invalidConsent = showValidation && !data.basicInfo.givenConsent
 
   // Obtener información de la ubicación seleccionada
   const selectedLocation = locations.find(loc => loc.id === data.locationId)
@@ -116,7 +148,20 @@ export function BasicInformationForm() {
               placeholder={t('phone')}
               defaultCountry="US"
               aria-required="true"
+              aria-invalid={invalidPhone}
+              className={cn(
+                invalidPhone &&
+                  "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20",
+              )}
+              autoComplete="tel"
             />
+            {invalidPhone ? (
+              <p className="text-sm text-red-500">
+                {data.basicInfo.phone.trim()
+                  ? tValidation('invalidPhone')
+                  : tValidation('enterPhone')}
+              </p>
+            ) : null}
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t('phoneConsentText')}
             </p>
@@ -134,7 +179,15 @@ export function BasicInformationForm() {
                 value={data.basicInfo.firstName}
                 onChange={(e) => handleInputChange("firstName", e.target.value)}
                 aria-required="true"
+                aria-invalid={invalidFirstName}
+                className={cn(invalidFirstName && "border-red-500 ring-1 ring-red-500/20")}
+                autoComplete="given-name"
+                autoCapitalize="words"
+                maxLength={80}
               />
+              {invalidFirstName ? (
+                <p className="text-sm text-red-500">{tValidation('enterFirstName')}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="booking-last-name" className="text-sm font-medium">
@@ -146,7 +199,15 @@ export function BasicInformationForm() {
                 value={data.basicInfo.lastName}
                 onChange={(e) => handleInputChange("lastName", e.target.value)}
                 aria-required="true"
+                aria-invalid={invalidLastName}
+                className={cn(invalidLastName && "border-red-500 ring-1 ring-red-500/20")}
+                autoComplete="family-name"
+                autoCapitalize="words"
+                maxLength={80}
               />
+              {invalidLastName ? (
+                <p className="text-sm text-red-500">{tValidation('enterLastName')}</p>
+              ) : null}
             </div>
           </div>
 
@@ -162,11 +223,30 @@ export function BasicInformationForm() {
               value={data.basicInfo.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
               aria-required="true"
+              aria-invalid={invalidEmail}
+              className={cn(invalidEmail && "border-red-500 ring-1 ring-red-500/20")}
+              autoComplete="email"
+              autoCapitalize="none"
+              inputMode="email"
+              spellCheck={false}
             />
+            {invalidEmail ? (
+              <p className="text-sm text-red-500">
+                {data.basicInfo.email.trim()
+                  ? tValidation('invalidEmail')
+                  : tValidation('enterEmail')}
+              </p>
+            ) : null}
           </div>
 
           {/* Marketing Checkbox */}
-          <div className="flex items-start space-x-3 mb-8">
+          <div
+            className={cn(
+              "mb-8 rounded-xl transition-colors",
+              invalidConsent && "border border-red-500/70 bg-red-500/5 p-3",
+            )}
+          >
+            <div className="flex items-start space-x-3">
             <Checkbox
               id="marketing"
               checked={data.basicInfo.givenConsent}
@@ -185,6 +265,10 @@ export function BasicInformationForm() {
                 {t('marketingConsentText', { clinicName: selectedLocation?.title || t('clinic') })}
               </p>
             </div>
+            </div>
+            {invalidConsent ? (
+              <p className="mt-3 text-sm text-red-500">{tValidation('acceptSmsConsent')}</p>
+            ) : null}
           </div>
         </div>
 
@@ -211,6 +295,7 @@ export function BasicInformationForm() {
               value={data.basicInfo.bookingNotes}
               onChange={(e) => handleInputChange("bookingNotes", e.target.value)}
               className="min-h-[100px] resize-none"
+              maxLength={1000}
             />
           )}
         </div>

@@ -59,7 +59,6 @@ export const API_ENDPOINTS = {
   // Autenticación y usuarios
   USER: {
     BASE: "/api/user",
-    BOOKINGS: "/api/user/bookings",
   },
 
   // Ubicaciones
@@ -75,7 +74,6 @@ export const API_ENDPOINTS = {
   // Terapeutas
   THERAPISTS: {
     BASE: "/api/therapists",
-    BOOKINGS: "/api/therapists/bookings",
     BY_ID: (id: string) => `/api/therapists/${id}`,
   },
 
@@ -92,7 +90,6 @@ export const API_ENDPOINTS = {
   // Citas/Bookings
   BOOKINGS: {
     BASE: "/api/bookings",
-    AVAILABILITY: "/api/bookings/availability",
     STATS: "/api/bookings/stats",
     BY_ID: (id: string) => `/api/bookings/${id}`,
   },
@@ -106,16 +103,19 @@ export const API_ENDPOINTS = {
     BASE: "/api/specialties",
   },
 
-  // Horarios de atención
-  BUSINESS_HOURS: {
-    BY_LOCATION: (locationId: string) =>
-      `/api/locations/${locationId}/business-hours`,
-    BY_ID: (locationId: string, id: string) =>
-      `/api/locations/${locationId}/business-hours/${id}`,
-    BY_DAY_AND_LOCATION: (locationId: string, dayOfWeek: string) =>
-      `/api/locations/${locationId}/business-hours?dayOfWeek=${dayOfWeek}`,
-  },
 } as const;
+```
+
+### Bookings por scope
+
+Los listados de bookings para paciente y operador se unificaron en `/api/bookings`:
+
+```typescript
+// Paciente autenticado
+fetch(`${API_ENDPOINTS.BOOKINGS.BASE}?scope=self`);
+
+// FrontDesk / Therapist / Admin autenticado
+fetch(`${API_ENDPOINTS.BOOKINGS.BASE}?scope=managed`);
 ```
 
 ## Beneficios

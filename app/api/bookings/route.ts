@@ -14,6 +14,7 @@ import {
   getPendingBookings,
   getRecentBookings,
   isAvailabilitySlotBookable,
+  resolveManagedTherapistIdForUser,
 } from "@/services";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -26,11 +27,19 @@ import {
   sendTherapistInviteEmail,
 } from "@/services/email.service";
 
-import { BookingType } from "@prisma/client";
+import { BookingType } from "@/lib/prisma-client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { canOperateAppointments } from "@/lib/auth/authorization";
 import { getServerLanguage } from "@/services/i18n.service";
 import { getTimeZoneOrDefault } from "@/services/config.service";
 import { prisma } from "@/lib/prisma";
-import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 
 function getBookingDurationMinutes(
   booking: { bookedDurationMinutes?: number | null; service?: { duration?: number | null } | null },
@@ -48,6 +57,7 @@ function getBookingDurationMinutes(
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
     const patientId = searchParams.get("patientId");
     const therapistId = searchParams.get("therapistId");
     const locationId = searchParams.get("locationId");
@@ -64,6 +74,39 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit");
 
     let bookings;
+
+    if (scope === "self" || scope === "managed") {
+      const { prismaUser } = await getCurrentUser();
+      if (!prismaUser) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 },
+        );
+      }
+
+      if (scope === "self") {
+        bookings = await getBookingsByEmail(prismaUser.email);
+        return NextResponse.json(successResponse(bookings));
+      }
+
+      if (!canOperateAppointments(prismaUser)) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 },
+        );
+      }
+
+      const managedTherapistId = await resolveManagedTherapistIdForUser(prismaUser);
+      if (!managedTherapistId) {
+        return NextResponse.json(
+          { success: false, error: "No therapist is configured for this operator" },
+          { status: 409 },
+        );
+      }
+
+      bookings = await getBookingsByTherapist(managedTherapistId);
+      return NextResponse.json(successResponse(bookings));
+    }
 
     if (patientId) {
       bookings = await getBookingsByPatient(patientId);
@@ -113,15 +156,19 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const language = await getServerLanguage();
+    const normalizedFirstname = normalizeWhitespace(body.firstname);
+    const normalizedLastname = normalizeWhitespace(body.lastname);
+    const normalizedEmail = normalizeEmailInput(body.email);
+    const normalizedPhone = normalizePhoneInput(body.phone);
     const parsedBookingSchedule = new Date(body.bookingSchedule);
 
     if (
       !body.bookingType ||
       !body.locationId ||
-      !body.firstname ||
-      !body.lastname ||
-      !body.phone ||
-      !body.email ||
+      !normalizedFirstname ||
+      !normalizedLastname ||
+      !normalizedPhone ||
+      !normalizedEmail ||
       !body.bookingSchedule ||
       Number.isNaN(parsedBookingSchedule.getTime())
     ) {
@@ -133,22 +180,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(err, { status });
     }
 
+    if (!isValidEmailInput(normalizedEmail)) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidPhoneInput(normalizedPhone)) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid phone number." },
+        { status: 400 },
+      );
+    }
+
+    body.firstname = normalizedFirstname;
+    body.lastname = normalizedLastname;
+    body.email = normalizedEmail;
+    body.phone = normalizedPhone;
+    body.bookingNotes =
+      typeof body.bookingNotes === "string" ? body.bookingNotes.trim() || undefined : undefined;
     body.bookingSchedule = parsedBookingSchedule;
 
     if (body.therapistId) {
-      const location = await prisma.location.findUnique({
-        where: { id: body.locationId },
-        select: { timezone: true },
-      });
-      const { dateString, timeString } = formatBookingToLocalStrings(
-        parsedBookingSchedule,
-        location?.timezone || "America/Los_Angeles",
-      );
       const availability = await isAvailabilitySlotBookable({
         therapistId: body.therapistId,
         locationId: body.locationId,
-        date: dateString,
-        time: timeString,
+        bookingSchedule: parsedBookingSchedule,
       });
 
       if (!availability.isAvailable) {
@@ -197,6 +255,8 @@ export async function POST(request: NextRequest) {
           ? `${booking.therapist.firstname} ${booking.therapist.lastname}`
           : booking.therapist?.firstname || "Terapeuta";
 
+      const inviteTasks: Promise<unknown>[] = [];
+
       if (therapistEmail) {
         const { icsContent, reactProps, subject } =
           buildTherapistInviteArtifacts({
@@ -212,12 +272,14 @@ export async function POST(request: NextRequest) {
             attendeeEmail: therapistEmail,
             timeZone,
           });
-        await sendTherapistInviteEmail({
-          to: therapistEmail,
-          subject,
-          reactProps,
-          icsContent,
-        });
+        inviteTasks.push(
+          sendTherapistInviteEmail({
+            to: therapistEmail,
+            subject,
+            reactProps,
+            icsContent,
+          }),
+        );
       }
 
       if (booking.email) {
@@ -236,12 +298,18 @@ export async function POST(request: NextRequest) {
             timeZone,
           }
         );
-        await sendPatientInviteEmail({
-          to: booking.email,
-          subject,
-          reactProps,
-          icsContent,
-        });
+        inviteTasks.push(
+          sendPatientInviteEmail({
+            to: booking.email,
+            subject,
+            reactProps,
+            icsContent,
+          }),
+        );
+      }
+
+      if (inviteTasks.length) {
+        await Promise.allSettled(inviteTasks);
       }
     } catch (e) {
       console.error("Error sending invite email:", e);

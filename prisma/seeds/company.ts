@@ -3,7 +3,7 @@ import {
   PrismaClient,
   User as PrismaUser,
   UserRole,
-} from "@prisma/client";
+} from "@/lib/prisma-client";
 
 import { DEFAULT_SEED_COMPANY } from "@/prisma/seeds/config/default-company";
 
@@ -41,27 +41,46 @@ export async function seedDefaultCompany(
     users.find((user) => (user.role as UserRole[] | undefined)?.includes(UserRole.Therapist)) ??
     users[0];
 
-  const company = await prisma.company.upsert({
+  const companySeedData = {
+    ...DEFAULT_SEED_COMPANY,
+    publicTherapistId: publicTherapist?.id || null,
+    publicEmail: publicTherapist?.email || DEFAULT_SEED_COMPANY.publicEmail,
+  };
+
+  const existingCompany = await prisma.company.findFirst({
     where: {
-      slug: DEFAULT_SEED_COMPANY.slug,
-    },
-    update: {
-      ...DEFAULT_SEED_COMPANY,
-      publicTherapistId: publicTherapist?.id || null,
-      publicEmail: publicTherapist?.email || DEFAULT_SEED_COMPANY.publicEmail,
-    },
-    create: {
-      ...DEFAULT_SEED_COMPANY,
-      publicTherapistId: publicTherapist?.id || null,
-      publicEmail: publicTherapist?.email || DEFAULT_SEED_COMPANY.publicEmail,
+      OR: [
+        { id: DEFAULT_SEED_COMPANY.id },
+        { slug: DEFAULT_SEED_COMPANY.slug },
+      ],
     },
     select: {
       id: true,
-      slug: true,
-      name: true,
-      publicTherapistId: true,
     },
   });
+
+  const company = existingCompany
+    ? await prisma.company.update({
+        where: {
+          id: existingCompany.id,
+        },
+        data: companySeedData,
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          publicTherapistId: true,
+        },
+      })
+    : await prisma.company.create({
+        data: companySeedData,
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          publicTherapistId: true,
+        },
+      });
 
   for (const user of users) {
     if (!user.id || !user.role) continue;

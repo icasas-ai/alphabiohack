@@ -75,7 +75,6 @@ export const API_ENDPOINTS = {
   // Autenticación y usuarios
   USER: {
     BASE: "/api/user",
-    BOOKINGS: "/api/user/bookings",
   },
 
   // Ubicaciones
@@ -91,7 +90,6 @@ export const API_ENDPOINTS = {
   // Terapeutas
   THERAPISTS: {
     BASE: "/api/therapists",
-    BOOKINGS: "/api/therapists/bookings",
     BY_ID: (id: string) => `/api/therapists/${id}`,
   },
 
@@ -106,7 +104,6 @@ export const API_ENDPOINTS = {
   // Citas/Bookings
   BOOKINGS: {
     BASE: "/api/bookings",
-    AVAILABILITY: "/api/bookings/availability",
     STATS: "/api/bookings/stats",
     BY_ID: (id: string) => `/api/bookings/${id}`,
   },
@@ -127,23 +124,6 @@ export const API_ENDPOINTS = {
     SERVICES: (id: string) => `/api/specialties/${id}/services`,
   },
 
-  // Horarios de atención
-  BUSINESS_HOURS: {
-    BY_LOCATION: (locationId: string) =>
-      `/api/locations/${locationId}/business-hours`,
-    BY_ID: (locationId: string, id: string) =>
-      `/api/locations/${locationId}/business-hours/${id}`,
-    BY_DAY_AND_LOCATION: (locationId: string, dayOfWeek: string) =>
-      `/api/locations/${locationId}/business-hours?dayOfWeek=${dayOfWeek}`,
-  },
-  TIME_SLOTS: {
-    BASE: "/api/time-slots",
-    BY_ID: (id: string) => `/api/time-slots/${id}`,
-    BY_BUSINESS_HOURS: (businessHoursId: string) =>
-      `/api/time-slots?businessHoursId=${businessHoursId}`,
-    BY_LOCATION_AND_DAY: (locationId: string, dayOfWeek: string) =>
-      `/api/time-slots?locationId=${locationId}&dayOfWeek=${dayOfWeek}`,
-  },
   // Overrides de fechas
   OVERRIDES: {
     BASE: "/api/overrides",

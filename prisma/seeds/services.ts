@@ -2,7 +2,7 @@ import {
   PrismaClient,
   Service as PrismaService,
   Specialty as PrismaSpecialty,
-} from "@prisma/client";
+} from "@/lib/prisma-client";
 
 const DEFAULT_SERVICES = [
   {

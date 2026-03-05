@@ -4,6 +4,17 @@ import { canOperateAppointments } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSupportedCompanyTimezone } from "@/lib/constants/supported-timezones";
 import { prisma } from "@/lib/prisma";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  isValidSlugInput,
+  isValidUrlInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeSlugInput,
+  normalizeUrlInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { getPrimaryCompanyIdForUser } from "@/services";
 
 const companyProfileSelect = {
@@ -11,6 +22,7 @@ const companyProfileSelect = {
   name: true,
   slug: true,
   logo: true,
+  headerLogo: true,
   publicEmail: true,
   publicPhone: true,
   publicDescription: true,
@@ -91,6 +103,24 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    const normalizedName = normalizeWhitespace(body.name);
+    const normalizedSlug = normalizeSlugInput(body.slug);
+    const normalizedPublicEmail = normalizeEmailInput(body.publicEmail);
+    const normalizedPublicPhone = normalizePhoneInput(body.publicPhone);
+    const normalizedUrls = {
+      facebook: normalizeUrlInput(body.facebook),
+      instagram: normalizeUrlInput(body.instagram),
+      linkedin: normalizeUrlInput(body.linkedin),
+      twitter: normalizeUrlInput(body.twitter),
+      tiktok: normalizeUrlInput(body.tiktok),
+      youtube: normalizeUrlInput(body.youtube),
+      website: normalizeUrlInput(body.website),
+    };
+
+    if (!normalizedName || !normalizedSlug || !isValidSlugInput(normalizedSlug)) {
+      return NextResponse.json({ error: "Company name and slug are required." }, { status: 400 });
+    }
+
     if (
       body.defaultTimezone &&
       !isSupportedCompanyTimezone(body.defaultTimezone.trim())
@@ -101,28 +131,43 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    if (normalizedPublicEmail && !isValidEmailInput(normalizedPublicEmail)) {
+      return NextResponse.json({ error: "Please enter a valid public email address." }, { status: 400 });
+    }
+
+    if (normalizedPublicPhone && !isValidPhoneInput(normalizedPublicPhone)) {
+      return NextResponse.json({ error: "Please enter a valid public phone number." }, { status: 400 });
+    }
+
+    for (const [key, value] of Object.entries(normalizedUrls)) {
+      if (value && !isValidUrlInput(value)) {
+        return NextResponse.json({ error: `Please enter a valid URL for ${key}.` }, { status: 400 });
+      }
+    }
+
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
       data: {
-        name: body.name?.trim() || undefined,
-        slug: body.slug?.trim() || undefined,
-        logo: body.logo?.trim() || undefined,
-        publicEmail: body.publicEmail?.trim() || undefined,
-        publicPhone: body.publicPhone?.trim() || undefined,
-        publicDescription: body.publicDescription?.trim() || undefined,
-        publicSummary: body.publicSummary?.trim() || undefined,
-        publicSpecialty: body.publicSpecialty?.trim() || undefined,
+        name: normalizedName,
+        slug: normalizedSlug,
+        logo: body.logo?.trim() || null,
+        headerLogo: body.headerLogo?.trim() || null,
+        publicEmail: normalizedPublicEmail || null,
+        publicPhone: normalizedPublicPhone || null,
+        publicDescription: body.publicDescription?.trim() || null,
+        publicSummary: body.publicSummary?.trim() || null,
+        publicSpecialty: normalizeWhitespace(body.publicSpecialty) || null,
         defaultTimezone: body.defaultTimezone?.trim() || undefined,
-        weekdaysHours: body.weekdaysHours?.trim() || undefined,
-        saturdayHours: body.saturdayHours?.trim() || undefined,
-        sundayHours: body.sundayHours?.trim() || undefined,
-        facebook: body.facebook?.trim() || undefined,
-        instagram: body.instagram?.trim() || undefined,
-        linkedin: body.linkedin?.trim() || undefined,
-        twitter: body.twitter?.trim() || undefined,
-        tiktok: body.tiktok?.trim() || undefined,
-        youtube: body.youtube?.trim() || undefined,
-        website: body.website?.trim() || undefined,
+        weekdaysHours: body.weekdaysHours?.trim() || null,
+        saturdayHours: body.saturdayHours?.trim() || null,
+        sundayHours: body.sundayHours?.trim() || null,
+        facebook: normalizedUrls.facebook || null,
+        instagram: normalizedUrls.instagram || null,
+        linkedin: normalizedUrls.linkedin || null,
+        twitter: normalizedUrls.twitter || null,
+        tiktok: normalizedUrls.tiktok || null,
+        youtube: normalizedUrls.youtube || null,
+        website: normalizedUrls.website || null,
       },
       select: companyProfileSelect,
     });

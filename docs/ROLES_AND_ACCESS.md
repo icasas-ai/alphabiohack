@@ -149,17 +149,18 @@ Guarding files:
 - [app/api/availability/periods/[id]/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/availability/periods/[id]/route.ts)
 - [app/api/availability/days/[id]/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/availability/days/[id]/route.ts)
 
-### Appointment Operator API
+### Appointment Read API
 
-These routes are used by therapist-side appointment operations.
+These reads are consolidated under `/api/bookings` using `scope`.
 
 | Endpoint | Method | Patient | FrontDesk | Therapist | Admin | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `/api/therapists/bookings` | `GET` | No | Yes | Yes | Yes | Returns bookings for the managed therapist context. |
+| `/api/bookings?scope=self` | `GET` | Own bookings | No | No | No | Uses the authenticated user's email. |
+| `/api/bookings?scope=managed` | `GET` | No | Managed therapist bookings | Own therapist bookings | Yes | Uses managed therapist resolution for operator context. |
 
 Guarding file:
 
-- [app/api/therapists/bookings/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/therapists/bookings/route.ts)
+- [app/api/bookings/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/bookings/route.ts)
 
 ### Booking Detail and Update API
 

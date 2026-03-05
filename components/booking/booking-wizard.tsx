@@ -35,8 +35,14 @@ export function BookingWizard() {
 
     const requestedStep = searchParams.get("step");
     const hasPreselectedLocation = Boolean(searchParams.get("locationId"));
+    const canAutoAdvanceFromQuery =
+      requestedStep === null || requestedStep === "1";
 
-    if (step !== 0 || !hasPreselectedLocation || requestedStep !== "1") {
+    if (
+      step !== 0 ||
+      !hasPreselectedLocation ||
+      !canAutoAdvanceFromQuery
+    ) {
       return;
     }
 
@@ -95,7 +101,7 @@ export function BookingWizard() {
             </div>
           ) : null}
 
-          <Card className="w-full bg-muted">
+          <Card className="surface-panel w-full">
             <StepComponent
               onNext={() => setStep((s) => s + 1)}
               onBack={() => setStep((s) => s - 1)}

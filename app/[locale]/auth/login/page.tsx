@@ -1,6 +1,6 @@
 import { LoginForm } from "@/components/auth/login-form";
 import { getCurrentUser } from "@/lib/auth/session";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { redirect } from "next/navigation";
 
 export default async function Page() {

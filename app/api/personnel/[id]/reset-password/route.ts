@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 import { randomBytes } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";

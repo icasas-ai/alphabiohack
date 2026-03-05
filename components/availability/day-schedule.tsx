@@ -3,7 +3,7 @@ import { Calendar, Clock, Plus, Settings, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { DaySchedule } from "@/types";
-import { DaysOfWeek } from "@prisma/client";
+import { DaysOfWeek } from "@/lib/prisma-browser";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";

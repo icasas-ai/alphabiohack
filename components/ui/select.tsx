@@ -107,8 +107,8 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
-        "data-[state=checked]:bg-primary/8 data-[state=checked]:text-primary",
+        "focus:bg-[rgb(var(--interactive-selected-rgb)_/_0.14)] focus:text-[rgb(var(--interactive-selected-strong-rgb))] data-[highlighted]:bg-[rgb(var(--interactive-selected-rgb)_/_0.14)] data-[highlighted]:text-[rgb(var(--interactive-selected-strong-rgb))] [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "data-[state=checked]:bg-[rgb(var(--interactive-selected-rgb)_/_0.08)] data-[state=checked]:text-[rgb(var(--interactive-selected-rgb))] data-[state=checked]:hover:bg-[rgb(var(--interactive-selected-rgb)_/_0.16)] data-[state=checked]:hover:text-[rgb(var(--interactive-selected-strong-rgb))]",
         className
       )}
       {...props}

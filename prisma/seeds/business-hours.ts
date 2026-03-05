@@ -3,7 +3,7 @@ import {
   BusinessHours as PrismaBusinessHours,
   PrismaClient,
   Location as PrismaLocation,
-} from "@prisma/client";
+} from "@/lib/prisma-client";
 
 type DayConfig = {
   day: DaysOfWeek;

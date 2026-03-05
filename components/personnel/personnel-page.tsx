@@ -27,8 +27,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { hasSupabaseAuth } from "@/lib/auth/config";
+import { cn } from "@/lib/utils";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -68,6 +77,7 @@ export function PersonnelPage() {
   const [selectedPersonnelId, setSelectedPersonnelId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PersonnelRow | null>(null);
   const [form, setForm] = useState<PersonnelFormState>(EMPTY_FORM);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const loadPersonnel = async () => {
     try {
@@ -95,6 +105,7 @@ export function PersonnelPage() {
     setDialogMode("create");
     setSelectedPersonnelId(null);
     setForm(EMPTY_FORM);
+    setHasAttemptedSubmit(false);
     setDialogOpen(true);
   };
 
@@ -107,12 +118,29 @@ export function PersonnelPage() {
       email: item.email,
       telefono: item.telefono ?? "",
     });
+    setHasAttemptedSubmit(false);
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
     try {
+      setHasAttemptedSubmit(true);
       setSaving(true);
+      const payload = {
+        firstname: normalizeWhitespace(form.firstname),
+        lastname: normalizeWhitespace(form.lastname),
+        email: normalizeEmailInput(form.email),
+        telefono: normalizePhoneInput(form.telefono),
+      };
+
+      if (!payload.firstname || !payload.lastname || !isValidEmailInput(payload.email)) {
+        throw new Error(t("saveError"));
+      }
+
+      if (payload.telefono && !isValidPhoneInput(payload.telefono)) {
+        throw new Error(t("saveError"));
+      }
+
       const response = await fetch(
         dialogMode === "create" ? "/api/personnel" : `/api/personnel/${selectedPersonnelId}`,
         {
@@ -120,7 +148,7 @@ export function PersonnelPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         },
       );
 
@@ -129,6 +157,7 @@ export function PersonnelPage() {
         throw new Error(data.error || t("saveError"));
       }
 
+      setHasAttemptedSubmit(false);
       toast.success(dialogMode === "create" ? t("created") : t("updated"));
       setDialogOpen(false);
       setForm(EMPTY_FORM);
@@ -182,6 +211,17 @@ export function PersonnelPage() {
 
   const personnelCount = personnel.length;
   const resetCount = personnel.filter((item) => item.mustChangePassword).length;
+  const formErrors = {
+    firstname: hasAttemptedSubmit && !normalizeWhitespace(form.firstname),
+    lastname: hasAttemptedSubmit && !normalizeWhitespace(form.lastname),
+    email:
+      hasAttemptedSubmit &&
+      (!normalizeEmailInput(form.email) || !isValidEmailInput(normalizeEmailInput(form.email))),
+    telefono:
+      hasAttemptedSubmit &&
+      Boolean(normalizePhoneInput(form.telefono)) &&
+      !isValidPhoneInput(normalizePhoneInput(form.telefono)),
+  };
 
   return (
     <div className="space-y-6">
@@ -334,6 +374,11 @@ export function PersonnelPage() {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, firstname: event.target.value }))
                 }
+                autoComplete="given-name"
+                autoCapitalize="words"
+                maxLength={80}
+                aria-invalid={formErrors.firstname}
+                className={cn(formErrors.firstname && "border-red-500 ring-1 ring-red-500/20")}
               />
             </div>
             <div className="space-y-2">
@@ -344,6 +389,11 @@ export function PersonnelPage() {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, lastname: event.target.value }))
                 }
+                autoComplete="family-name"
+                autoCapitalize="words"
+                maxLength={80}
+                aria-invalid={formErrors.lastname}
+                className={cn(formErrors.lastname && "border-red-500 ring-1 ring-red-500/20")}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
@@ -355,16 +405,26 @@ export function PersonnelPage() {
                 onChange={(event) =>
                   setForm((current) => ({ ...current, email: event.target.value }))
                 }
+                autoComplete="email"
+                autoCapitalize="none"
+                inputMode="email"
+                spellCheck={false}
+                aria-invalid={formErrors.email}
+                className={cn(formErrors.email && "border-red-500 ring-1 ring-red-500/20")}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="telefono">{t("fields.phone")}</Label>
-              <Input
+              <PhoneInput
                 id="telefono"
                 value={form.telefono}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, telefono: event.target.value }))
+                onChange={(value) =>
+                  setForm((current) => ({ ...current, telefono: normalizePhoneInput(value || "") }))
                 }
+                autoComplete="tel"
+                defaultCountry="US"
+                aria-invalid={formErrors.telefono}
+                className={cn(formErrors.telefono && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
               />
             </div>
           </div>

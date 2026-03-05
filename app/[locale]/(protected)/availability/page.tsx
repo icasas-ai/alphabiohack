@@ -2,7 +2,7 @@
 
 import { AvailabilityPage } from "@/components/availability";
 import { RoleRestricted } from "@/components/auth/role-restricted";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { useTranslations } from "next-intl";
 
 export default function Page() {

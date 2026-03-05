@@ -5,8 +5,19 @@ import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { Textarea } from "@/components/ui/textarea";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { Loader2, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  isValidPhoneInput,
+  isValidUrlInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeUrlInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 
 interface UserProfile {
   id: string;
@@ -32,6 +43,7 @@ export function ProfileForm() {
   const { prismaUser, loading: userLoading, refreshPrismaUser } = useUser();
   const toast = useAppToast();
   const [saving, setSaving] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [formData, setFormData] = useState<UserProfile>({
     id: "",
     email: "",
@@ -118,15 +130,23 @@ export function ProfileForm() {
         console.error("Error converting file to base64:", error);
       }
     } else {
+      const nextValue =
+        name === "telefono"
+          ? normalizePhoneInput(value)
+          : ["facebook", "instagram", "linkedin", "twitter", "tiktok", "youtube", "website"].includes(name)
+            ? value.trim()
+            : normalizeWhitespace(value);
+
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
+        [name]: nextValue,
       }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     if (!prismaUser) {
       toast.error("User not found");
       return;
@@ -134,32 +154,51 @@ export function ProfileForm() {
 
     try {
       setSaving(true);
+      const payload = {
+        firstname: normalizeWhitespace(formData.firstname),
+        lastname: normalizeWhitespace(formData.lastname),
+        avatar: formData.avatar,
+        informacionPublica: normalizeWhitespace(formData.informacionPublica),
+        telefono: normalizePhoneInput(formData.telefono),
+        especialidad: normalizeWhitespace(formData.especialidad),
+        summary: formData.summary?.trim() || "",
+        facebook: normalizeUrlInput(formData.facebook),
+        instagram: normalizeUrlInput(formData.instagram),
+        linkedin: normalizeUrlInput(formData.linkedin),
+        twitter: normalizeUrlInput(formData.twitter),
+        tiktok: normalizeUrlInput(formData.tiktok),
+        youtube: normalizeUrlInput(formData.youtube),
+        website: normalizeUrlInput(formData.website),
+      };
+
+      if (payload.telefono && !isValidPhoneInput(payload.telefono)) {
+        toast.error("Please enter a valid phone number");
+        return;
+      }
+
+      for (const [key, value] of Object.entries(payload)) {
+        if (
+          ["facebook", "instagram", "linkedin", "twitter", "tiktok", "youtube", "website"].includes(key) &&
+          typeof value === "string" &&
+          value &&
+          !isValidUrlInput(value)
+        ) {
+          toast.error(`Please enter a valid URL for ${key}`);
+          return;
+        }
+      }
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          firstname: formData.firstname,
-          lastname: formData.lastname,
-          avatar: formData.avatar,
-          informacionPublica: formData.informacionPublica,
-          telefono: formData.telefono,
-          especialidad: formData.especialidad,
-          summary: formData.summary,
-          facebook: formData.facebook,
-          instagram: formData.instagram,
-          linkedin: formData.linkedin,
-          twitter: formData.twitter,
-          tiktok: formData.tiktok,
-          youtube: formData.youtube,
-          website: formData.website,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         toast.success("Profile updated successfully");
+        setHasAttemptedSubmit(false);
         // Refrescar los datos del usuario en el contexto
         await refreshPrismaUser();
       } else {
@@ -190,6 +229,22 @@ export function ProfileForm() {
     );
   }
 
+  const invalidUrls = {
+    facebook: Boolean(formData.facebook?.trim()) && !isValidUrlInput(formData.facebook || ""),
+    instagram: Boolean(formData.instagram?.trim()) && !isValidUrlInput(formData.instagram || ""),
+    linkedin: Boolean(formData.linkedin?.trim()) && !isValidUrlInput(formData.linkedin || ""),
+    twitter: Boolean(formData.twitter?.trim()) && !isValidUrlInput(formData.twitter || ""),
+    tiktok: Boolean(formData.tiktok?.trim()) && !isValidUrlInput(formData.tiktok || ""),
+    youtube: Boolean(formData.youtube?.trim()) && !isValidUrlInput(formData.youtube || ""),
+    website: Boolean(formData.website?.trim()) && !isValidUrlInput(formData.website || ""),
+  };
+  const invalidPhone =
+    hasAttemptedSubmit &&
+    Boolean(normalizePhoneInput(formData.telefono)) &&
+    !isValidPhoneInput(normalizePhoneInput(formData.telefono));
+  const invalidFirstname = hasAttemptedSubmit && !normalizeWhitespace(formData.firstname);
+  const invalidLastname = hasAttemptedSubmit && !normalizeWhitespace(formData.lastname);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -197,26 +252,36 @@ export function ProfileForm() {
           <label htmlFor="firstname" className="text-sm font-medium">
             {t("firstName")}
           </label>
-          <Input
+        <Input
             id="firstname"
             name="firstname"
-            value={formData.firstname}
-            onChange={handleChange}
-            placeholder={t("enterFirstName")}
-          />
+          value={formData.firstname}
+          onChange={handleChange}
+          placeholder={t("enterFirstName")}
+          aria-invalid={invalidFirstname}
+          className={cn(invalidFirstname && "border-red-500 ring-1 ring-red-500/20")}
+          autoComplete="given-name"
+          autoCapitalize="words"
+          maxLength={80}
+        />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="lastname" className="text-sm font-medium">
             {t("lastName")}
           </label>
-          <Input
+        <Input
             id="lastname"
             name="lastname"
-            value={formData.lastname}
-            onChange={handleChange}
-            placeholder={t("enterLastName")}
-          />
+          value={formData.lastname}
+          onChange={handleChange}
+          placeholder={t("enterLastName")}
+          aria-invalid={invalidLastname}
+          className={cn(invalidLastname && "border-red-500 ring-1 ring-red-500/20")}
+          autoComplete="family-name"
+          autoCapitalize="words"
+          maxLength={80}
+        />
         </div>
       </div>
 
@@ -228,9 +293,10 @@ export function ProfileForm() {
           id="email"
           name="email"
           type="email"
-          value={formData.email}
+          value={normalizeEmailInput(formData.email)}
           disabled
           className="bg-muted"
+          autoComplete="email"
         />
         <p className="text-xs text-muted-foreground">
           {t("emailCannotBeChanged")}
@@ -269,13 +335,18 @@ export function ProfileForm() {
         <label htmlFor="telefono" className="text-sm font-medium">
           {t("phone", { default: "Teléfono" })}
         </label>
-        <Input
+        <PhoneInput
           id="telefono"
           name="telefono"
-          type="tel"
           value={formData.telefono || ""}
-          onChange={handleChange}
+          onChange={(value) =>
+            setFormData((prev) => ({ ...prev, telefono: normalizePhoneInput(value || "") }))
+          }
           placeholder={t("enterPhone", { default: "Ingresa tu número de teléfono" })}
+          aria-invalid={invalidPhone}
+          className={cn(invalidPhone && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
+          autoComplete="tel"
+          defaultCountry="US"
         />
       </div>
 
@@ -290,6 +361,8 @@ export function ProfileForm() {
           value={formData.informacionPublica || ""}
           onChange={handleChange}
           placeholder={t("enterAddress", { default: "Ingresa tu dirección" })}
+          autoComplete="street-address"
+          maxLength={160}
         />
       </div>
 
@@ -304,6 +377,7 @@ export function ProfileForm() {
           value={formData.especialidad || ""}
           onChange={handleChange}
           placeholder="Ingresa tu especialidad"
+          maxLength={120}
         />
       </div>
 
@@ -311,14 +385,14 @@ export function ProfileForm() {
         <label htmlFor="summary" className="text-sm font-medium">
           Summary / Bio
         </label>
-        <textarea
+        <Textarea
           id="summary"
           name="summary"
           value={formData.summary || ""}
           onChange={(e) => setFormData((prev) => ({ ...prev, summary: e.target.value }))}
           placeholder="Breve descripción sobre ti"
-          className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           rows={4}
+          maxLength={1000}
         />
       </div>
 
@@ -336,6 +410,11 @@ export function ProfileForm() {
               value={formData.facebook || ""}
               onChange={handleChange}
               placeholder="https://facebook.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.facebook}
+              className={cn(hasAttemptedSubmit && invalidUrls.facebook && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -350,6 +429,11 @@ export function ProfileForm() {
               value={formData.instagram || ""}
               onChange={handleChange}
               placeholder="https://instagram.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.instagram}
+              className={cn(hasAttemptedSubmit && invalidUrls.instagram && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -364,6 +448,11 @@ export function ProfileForm() {
               value={formData.linkedin || ""}
               onChange={handleChange}
               placeholder="https://linkedin.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.linkedin}
+              className={cn(hasAttemptedSubmit && invalidUrls.linkedin && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -378,6 +467,11 @@ export function ProfileForm() {
               value={formData.twitter || ""}
               onChange={handleChange}
               placeholder="https://twitter.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.twitter}
+              className={cn(hasAttemptedSubmit && invalidUrls.twitter && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -392,6 +486,11 @@ export function ProfileForm() {
               value={formData.tiktok || ""}
               onChange={handleChange}
               placeholder="https://tiktok.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.tiktok}
+              className={cn(hasAttemptedSubmit && invalidUrls.tiktok && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -406,6 +505,11 @@ export function ProfileForm() {
               value={formData.youtube || ""}
               onChange={handleChange}
               placeholder="https://youtube.com/..."
+              aria-invalid={hasAttemptedSubmit && invalidUrls.youtube}
+              className={cn(hasAttemptedSubmit && invalidUrls.youtube && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
 
@@ -420,6 +524,11 @@ export function ProfileForm() {
               value={formData.website || ""}
               onChange={handleChange}
               placeholder="https://yourwebsite.com"
+              aria-invalid={hasAttemptedSubmit && invalidUrls.website}
+              className={cn(hasAttemptedSubmit && invalidUrls.website && "border-red-500 ring-1 ring-red-500/20")}
+              autoCapitalize="none"
+              spellCheck={false}
+              inputMode="url"
             />
           </div>
         </div>

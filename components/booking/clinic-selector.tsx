@@ -13,7 +13,11 @@ import { useCallback } from "react"
 import { useLocations } from "@/hooks"
 import { useTranslations } from "next-intl"
 
-export function ClinicSelector() {
+interface ClinicSelectorProps {
+  showValidation?: boolean
+}
+
+export function ClinicSelector({ showValidation = false }: ClinicSelectorProps) {
   const { data, update } = useBookingWizard()
   const { locations, loading, error } = useLocations()
   const t = useTranslations('Booking')
@@ -46,7 +50,7 @@ export function ClinicSelector() {
         variant: "card"
       }}
     >
-      <Card className="surface-panel">
+      <Card className={cn("surface-panel", showValidation && !data.locationId && "border-red-500/70 ring-1 ring-red-500/20")}>
         <CardContent className="pt-6">
           <h3 className="text-lg font-semibold text-foreground mb-4">{t('selectClinic')}</h3>
           <RadioGroup
@@ -93,6 +97,9 @@ export function ClinicSelector() {
               </div>
             ))}
           </RadioGroup>
+          {showValidation && !data.locationId ? (
+            <p className="mt-3 text-sm text-red-500">{t("selectClinic")}</p>
+          ) : null}
         </CardContent>
       </Card>
     </AsyncWrapper>

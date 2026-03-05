@@ -1,6 +1,11 @@
 import type { BookingFormData } from "@/contexts";
 import type { CreateBookingRequest } from "@/types";
 
+import {
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 
 type WizardBookingRequestSource = Pick<
@@ -55,10 +60,10 @@ export function buildCreateBookingRequestFromWizard(
     specialtyId: formData.specialtyId || undefined,
     serviceId: formData.selectedServiceIds?.[0] || undefined,
     bookedDurationMinutes: formData.sessionDurationMinutes || undefined,
-    firstname: formData.basicInfo.firstName,
-    lastname: formData.basicInfo.lastName,
-    phone: formData.basicInfo.phone,
-    email: formData.basicInfo.email,
+    firstname: normalizeWhitespace(formData.basicInfo.firstName),
+    lastname: normalizeWhitespace(formData.basicInfo.lastName),
+    phone: normalizePhoneInput(formData.basicInfo.phone),
+    email: normalizeEmailInput(formData.basicInfo.email),
     givenConsent: formData.basicInfo.givenConsent,
     therapistId: formData.therapistId || undefined,
     patientId: formData.patientId || undefined,
@@ -82,10 +87,10 @@ export function buildCreateBookingRequestFromStaff(
     specialtyId: formData.specialtyId || undefined,
     serviceId: formData.serviceId || undefined,
     bookedDurationMinutes: formData.bookedDurationMinutes || undefined,
-    firstname: formData.firstname,
-    lastname: formData.lastname,
-    phone: formData.phone,
-    email: formData.email,
+    firstname: normalizeWhitespace(formData.firstname),
+    lastname: normalizeWhitespace(formData.lastname),
+    phone: normalizePhoneInput(formData.phone),
+    email: normalizeEmailInput(formData.email),
     givenConsent: formData.givenConsent,
     therapistId: formData.therapistId || undefined,
     patientId: formData.patientId || undefined,

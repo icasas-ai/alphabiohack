@@ -1,4 +1,4 @@
-import { DaysOfWeek } from "@prisma/client";
+import { DaysOfWeek } from "@/lib/prisma-browser";
 
 // Interfaz para un slot de horario individual
 export interface TimeSlot {

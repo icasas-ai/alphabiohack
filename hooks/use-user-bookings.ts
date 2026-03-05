@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { API_ENDPOINTS } from "@/constants";
 import type { UserBooking } from "@/types";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 import { useUser } from "@/contexts/user-context";
 
 export function useUserBookings() {
@@ -26,18 +26,17 @@ export function useUserBookings() {
 
     try {
       setLoading(true);
-
-      const apiEndpoint = canManageAppointments
-        ? API_ENDPOINTS.THERAPISTS.BOOKINGS
-        : API_ENDPOINTS.USER.BOOKINGS;
-
-      const response = await fetch(apiEndpoint, {
+      const scope = canManageAppointments ? "managed" : "self";
+      const response = await fetch(
+        `${API_ENDPOINTS.BOOKINGS.BASE}?scope=${scope}`,
+        {
         cache: "no-store",
-      });
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
-        setBookings(data.bookings || []);
+        setBookings(data.data || []);
         setError(null);
       } else {
         setError("Error al cargar las citas");

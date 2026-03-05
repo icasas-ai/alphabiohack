@@ -16,11 +16,6 @@ export default function DashboardHome() {
   const router = useRouter();
   const [range, setRange] = React.useState<"last7" | "today" | "thisWeek" | "last30" | "all">("last7");
   const { data: therapistData } = useTherapistDashboard({ range });
-
-  if (loading) {
-    return <div className="p-6 text-muted-foreground">{t('loading', { default: 'Cargando…' })}</div>;
-  }
-
   const userRoles = prismaUser?.role ?? [];
   const isTherapist = userRoles.includes(UserRole.Therapist);
   const isFrontDesk = userRoles.includes(UserRole.FrontDesk);
@@ -30,6 +25,10 @@ export default function DashboardHome() {
       router.push("/bookings");
     }
   }, [isFrontDesk, loading, router]);
+
+  if (loading) {
+    return <div className="p-6 text-muted-foreground">{t('loading', { default: 'Cargando…' })}</div>;
+  }
 
   if (isFrontDesk) {
     return null;
@@ -102,4 +101,3 @@ export default function DashboardHome() {
     </div>
   );
 }
-

@@ -37,7 +37,6 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
   const {
     monthSummary,
     daySlots,
-    loading,
     monthLoading,
     dayLoading,
     error,

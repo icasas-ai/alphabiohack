@@ -8,7 +8,6 @@ import { useUser } from "@/contexts/user-context";
 export function AuthButton() {
   const { loading, isAuthenticated } = useUser();
   const t = useTranslations("Auth");
-  const tNav = useTranslations("Navigation");
 
   if (loading) {
     return (

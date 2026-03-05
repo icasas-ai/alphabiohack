@@ -184,6 +184,7 @@ export function CreateBookingDialog({
     locations.length,
     specialties.length,
     specialtyId,
+    serviceId,
     timezone,
     services.length,
     locationId,

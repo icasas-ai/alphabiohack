@@ -143,6 +143,7 @@ export function EditBookingDialog({
     setSelectedTime((current) => (current === nextTime ? current : nextTime));
     setHasAttemptedSave(false);
   }, [
+    booking,
     booking?.id,
     booking?.firstname,
     booking?.lastname,

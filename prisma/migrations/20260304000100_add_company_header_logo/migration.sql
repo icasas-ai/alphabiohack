@@ -1,2 +1,2 @@
-ALTER TABLE "public"."companies"
-ADD COLUMN "headerLogo" TEXT;
+ALTER TABLE IF EXISTS "public"."companies"
+ADD COLUMN IF NOT EXISTS "headerLogo" TEXT;

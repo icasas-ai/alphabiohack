@@ -92,7 +92,7 @@ export default function BookingsPage() {
     }
   };
 
-  const handleEventClick = (_event: CalendarEvent) => {};
+  const handleEventClick = () => {};
 
   const handleEditBooking = (booking: BookingRow) => {
     setEditingBooking(booking);

@@ -54,6 +54,7 @@ CREATE TABLE "public"."companies" (
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "logo" TEXT,
+    "headerLogo" TEXT,
     "publicEmail" TEXT,
     "publicPhone" TEXT,
     "publicDescription" TEXT,
@@ -464,4 +465,3 @@ ALTER TABLE "public"."bookings" ADD CONSTRAINT "bookings_specialtyId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "public"."bookings" ADD CONSTRAINT "bookings_therapistId_fkey" FOREIGN KEY ("therapistId") REFERENCES "public"."users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-

@@ -89,8 +89,6 @@ const EMPTY_COMPANY: CompanyProfile = {
 
 const CLOSED_HOURS_VALUE = "Closed";
 
-type DayHoursKey = "weekdaysHours" | "saturdayHours" | "sundayHours";
-
 type DayHoursState = {
   isClosed: boolean;
   startTime: string;

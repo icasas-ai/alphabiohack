@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, KeyRound, Mail, Pencil, Plus, Trash2, UserCog, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -79,7 +79,7 @@ export function PersonnelPage() {
   const [form, setForm] = useState<PersonnelFormState>(EMPTY_FORM);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const loadPersonnel = async () => {
+  const loadPersonnel = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/personnel", { cache: "no-store" });
@@ -95,11 +95,11 @@ export function PersonnelPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     loadPersonnel();
-  }, []);
+  }, [loadPersonnel]);
 
   const openCreateDialog = () => {
     setDialogMode("create");

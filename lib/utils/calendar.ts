@@ -1,4 +1,4 @@
-import { PST_TZ, dateKeyInTZ } from "./timezone";
+import { dateKeyInTZ, formatBookingToLocalStrings, resolveTimeZone } from "./timezone";
 
 import { format } from "date-fns";
 
@@ -28,6 +28,7 @@ export interface BookingData {
   bookingNotes?: string;
   bookingLocalDate?: string;
   bookingLocalTime?: string;
+  bookingTimeZone?: string;
 }
 
 export interface CalendarEvent {
@@ -76,13 +77,17 @@ export function convertBookingsToEvents(
   return bookings.map((booking) => {
     const patientName = `${booking.firstname} ${booking.lastname}`;
     const eventTime = new Date(booking.bookingSchedule);
+    const officeTimeZone = resolveTimeZone(
+      booking.bookingTimeZone || booking.location?.timezone
+    );
+    const localStrings = formatBookingToLocalStrings(eventTime, officeTimeZone);
     const timeString =
       booking.bookingLocalTime ||
       eventTime.toLocaleTimeString("es-MX", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
-        timeZone: PST_TZ,
+        timeZone: officeTimeZone,
       });
 
     // Usar el nombre completo del paciente + hora como título
@@ -93,7 +98,7 @@ export function convertBookingsToEvents(
       title: eventTitle,
       time: booking.bookingSchedule,
       displayTime: timeString,
-      dateKey: booking.bookingLocalDate,
+      dateKey: booking.bookingLocalDate || localStrings.dateString,
       locationId: booking.location?.id,
       type: "appointment" as const,
       status: normalizeBookingStatus(booking.status),
@@ -113,7 +118,7 @@ export function getEventsForDate(
   events: CalendarEvent[],
   date: Date
 ): CalendarEvent[] {
-  const dateKey = dateKeyInTZ(date);
+  const dateKey = format(date, "yyyy-MM-dd");
   return events.filter((event) => {
     const eventDate = event.dateKey || dateKeyInTZ(new Date(event.time));
     return eventDate === dateKey;
@@ -126,7 +131,8 @@ export function getEventsForMonth(
 ): CalendarEvent[] {
   const monthKey = format(date, "yyyy-MM");
   return events.filter((event) => {
-    const eventMonth = format(new Date(event.time), "yyyy-MM");
+    const eventMonth =
+      event.dateKey?.slice(0, 7) || format(new Date(event.time), "yyyy-MM");
     return eventMonth === monthKey;
   });
 }

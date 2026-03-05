@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { BookingStatus, BookingType, UserRole } from "@prisma/client";
+import { BookingStatus, BookingType, UserRole } from "@/lib/prisma-browser";
 import { AlertCircle, Loader2, MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import { useAvailabilityCalendar } from "@/hooks/use-availability-calendar";
 import { useLocations } from "@/hooks/use-locations";
 import { useServices } from "@/hooks/use-services";
 import { useSpecialties } from "@/hooks/use-specialties";
-import { useTherapistConfig } from "@/hooks/use-therapist-config";
 import { useUser } from "@/contexts/user-context";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Select,
   SelectContent,
@@ -35,10 +35,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  PST_TZ,
   parseDateStringInTimeZone,
 } from "@/lib/utils/timezone";
 import { buildCreateBookingRequestFromStaff } from "@/lib/utils/booking-request";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
+import { cn } from "@/lib/utils";
 import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note";
 
 interface CreateBookingDialogProps {
@@ -76,6 +83,7 @@ export function CreateBookingDialog({
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
 
   const therapistId = useMemo(() => {
     if (prismaUser?.role.includes(UserRole.Therapist)) {
@@ -89,11 +97,17 @@ export function CreateBookingDialog({
 
   const { services } = useServices(specialtyId || undefined);
   const selectedLocation = locations.find((location) => location.id === locationId);
-  const timezone = selectedLocation?.timezone || PST_TZ;
+  const timezone = selectedLocation?.timezone || null;
   const selectedDateKey = selectedDate ? toDateKey(selectedDate) : undefined;
   const selectedMonthKey = format(visibleMonth, "yyyy-MM");
 
-  const { monthSummary, daySlots, monthLoading, dayLoading } = useAvailabilityCalendar(
+  const {
+    monthSummary,
+    daySlots,
+    monthLoading,
+    dayLoading,
+    error: availabilityError,
+  } = useAvailabilityCalendar(
     therapistId,
     locationId || null,
     selectedMonthKey,
@@ -115,6 +129,7 @@ export function CreateBookingDialog({
     setEmail("");
     setPhone("");
     setNotes("");
+    setHasAttemptedSave(false);
   }, [initialDate, open]);
 
   useEffect(() => {
@@ -123,7 +138,7 @@ export function CreateBookingDialog({
 
   useEffect(() => {
     setSelectedDate((currentDate) => {
-      if (!currentDate || !locationId) return currentDate;
+      if (!currentDate || !locationId || !timezone) return currentDate;
       return parseDateStringInTimeZone(toDateKey(currentDate), timezone);
     });
     setSelectedTime("");
@@ -133,6 +148,56 @@ export function CreateBookingDialog({
     if (!daySlots) return [];
     return daySlots.slots.filter((slot) => slot.isAvailable);
   }, [daySlots]);
+
+  const validation = useMemo(() => {
+    const missingTherapist = !therapistId;
+    const noLocations = locations.length === 0;
+    const noSpecialties = specialties.length === 0;
+    const noServicesForSpecialty = Boolean(specialtyId) && services.length === 0;
+    const noAvailabilityConfigured =
+      Boolean(locationId) &&
+      !monthLoading &&
+      !availabilityError &&
+      (monthSummary?.availableDays ?? 0) === 0;
+
+    return {
+      missingTherapist,
+      noLocations,
+      noSpecialties,
+      noServicesForSpecialty,
+      noAvailabilityConfigured,
+      missingLocationTimezone: Boolean(locationId) && !timezone,
+      location: !locationId,
+      specialty: !specialtyId,
+      service: !serviceId,
+      date: !selectedDate,
+      time: !selectedTime || (Boolean(selectedDate) && availableTimeOptions.length === 0),
+      firstname: !firstname.trim(),
+      lastname: !lastname.trim(),
+      email: !email.trim() || !isValidEmailInput(email),
+      emailMissing: !email.trim(),
+      phone: !phone.trim() || !isValidPhoneInput(phone),
+      phoneMissing: !phone.trim(),
+    };
+  }, [
+    therapistId,
+    locations.length,
+    specialties.length,
+    specialtyId,
+    timezone,
+    services.length,
+    locationId,
+    monthLoading,
+    availabilityError,
+    monthSummary,
+    selectedDate,
+    selectedTime,
+    availableTimeOptions.length,
+    firstname,
+    lastname,
+    email,
+    phone,
+  ]);
 
   const unavailableDateKeys = useMemo(() => {
     return new Set(
@@ -166,6 +231,11 @@ export function CreateBookingDialog({
   const canSave =
     Boolean(
       therapistId &&
+        !validation.noLocations &&
+        !validation.noSpecialties &&
+        !validation.noServicesForSpecialty &&
+        !validation.noAvailabilityConfigured &&
+        !validation.missingLocationTimezone &&
         locationId &&
         specialtyId &&
         serviceId &&
@@ -173,24 +243,29 @@ export function CreateBookingDialog({
         selectedTime &&
         firstname.trim() &&
         lastname.trim() &&
-        email.trim() &&
-        phone.trim(),
+        isValidEmailInput(email) &&
+        isValidPhoneInput(phone),
     ) && !isSaving;
 
   const handleSave = async () => {
-    if (
-      !therapistId ||
-      !locationId ||
-      !specialtyId ||
-      !serviceId ||
-      !selectedDate ||
-      !selectedTime
-    ) {
+    setHasAttemptedSave(true);
+
+    if (!canSave) {
+      return;
+    }
+
+    if (!therapistId || !selectedDate || !timezone) {
       return;
     }
 
     try {
       setIsSaving(true);
+      const normalizedEmail = normalizeEmailInput(email);
+      const normalizedPhone = normalizePhoneInput(phone);
+
+      if (!isValidEmailInput(normalizedEmail) || !isValidPhoneInput(normalizedPhone)) {
+        throw new Error(t("createAppointmentError"));
+      }
 
       const response = await fetch("/api/bookings", {
         method: "POST",
@@ -204,10 +279,10 @@ export function CreateBookingDialog({
           serviceId,
           bookedDurationMinutes: services.find((service) => service.id === serviceId)?.duration,
           therapistId,
-          firstname: firstname.trim(),
-          lastname: lastname.trim(),
-          email: email.trim(),
-          phone: phone.trim(),
+          firstname: normalizeWhitespace(firstname),
+          lastname: normalizeWhitespace(lastname),
+          email: normalizedEmail,
+          phone: normalizedPhone,
           bookingNotes: notes.trim() || undefined,
           givenConsent: false,
           status,
@@ -245,11 +320,31 @@ export function CreateBookingDialog({
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_380px]">
           <div className="space-y-6">
+            {hasAttemptedSave && validation.missingTherapist ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {prismaUser?.role.includes(UserRole.FrontDesk)
+                    ? t("bookingRequirements.missingAssignedTherapist")
+                    : t("bookingRequirements.missingTherapistContext")}
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <div className="grid gap-4 xl:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="create-location">{t("location")}</Label>
                 <Select value={locationId} onValueChange={setLocationId} disabled={isSaving}>
-                  <SelectTrigger id="create-location">
+                  <SelectTrigger
+                    id="create-location"
+                    aria-invalid={hasAttemptedSave && (validation.location || validation.noLocations)}
+                    className={cn(
+                      "w-full",
+                      hasAttemptedSave &&
+                        (validation.location || validation.noLocations) &&
+                        "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                  >
                     <SelectValue placeholder={t("selectOffice")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,6 +355,11 @@ export function CreateBookingDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {hasAttemptedSave && validation.noLocations ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.missingLocations")}</p>
+                ) : hasAttemptedSave && validation.location ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.selectLocation")}</p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -269,7 +369,7 @@ export function CreateBookingDialog({
                   onValueChange={(value) => setStatus(value as BookingStatus)}
                   disabled={isSaving}
                 >
-                  <SelectTrigger id="create-status">
+                  <SelectTrigger id="create-status" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -290,7 +390,16 @@ export function CreateBookingDialog({
                   onValueChange={setSpecialtyId}
                   disabled={isSaving}
                 >
-                  <SelectTrigger id="create-specialty">
+                  <SelectTrigger
+                    id="create-specialty"
+                    aria-invalid={hasAttemptedSave && (validation.specialty || validation.noSpecialties)}
+                    className={cn(
+                      "w-full",
+                      hasAttemptedSave &&
+                        (validation.specialty || validation.noSpecialties) &&
+                        "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                  >
                     <SelectValue placeholder={t("selectSpecialty")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,6 +410,11 @@ export function CreateBookingDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {hasAttemptedSave && validation.noSpecialties ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.missingSpecialties")}</p>
+                ) : hasAttemptedSave && validation.specialty ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.selectSpecialty")}</p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -310,7 +424,16 @@ export function CreateBookingDialog({
                   onValueChange={setServiceId}
                   disabled={!specialtyId || isSaving}
                 >
-                  <SelectTrigger id="create-service">
+                  <SelectTrigger
+                    id="create-service"
+                    aria-invalid={hasAttemptedSave && (validation.service || validation.noServicesForSpecialty)}
+                    className={cn(
+                      "w-full",
+                      hasAttemptedSave &&
+                        (validation.service || validation.noServicesForSpecialty) &&
+                        "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                  >
                     <SelectValue placeholder={t("selectService")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -321,11 +444,25 @@ export function CreateBookingDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {hasAttemptedSave && validation.noServicesForSpecialty ? (
+                  <p className="text-sm text-red-500">
+                    {t("bookingRequirements.missingServicesForSpecialty")}
+                  </p>
+                ) : hasAttemptedSave && validation.service ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.selectService")}</p>
+                ) : null}
               </div>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_250px]">
-              <div className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm">
+              <div
+                className={cn(
+                  "space-y-3 rounded-2xl border bg-card p-4 shadow-sm",
+                  hasAttemptedSave &&
+                    (validation.date || validation.noAvailabilityConfigured || Boolean(availabilityError)) &&
+                    "border-red-500/70 ring-1 ring-red-500/20",
+                )}
+              >
                 {!locationId ? (
                   <Alert variant="warning">
                     <MapPin className="h-4 w-4" />
@@ -347,9 +484,21 @@ export function CreateBookingDialog({
                     className="w-full"
                   />
                 </div>
+                {hasAttemptedSave && availabilityError ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.availabilityLoadError")}</p>
+                ) : hasAttemptedSave && validation.noAvailabilityConfigured ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.missingAvailability")}</p>
+                ) : hasAttemptedSave && validation.date ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.selectDate")}</p>
+                ) : null}
               </div>
 
-              <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
+              <div
+                className={cn(
+                  "space-y-4 rounded-2xl border bg-card p-4 shadow-sm",
+                  hasAttemptedSave && validation.time && "border-red-500/70 ring-1 ring-red-500/20",
+                )}
+              >
                 <div className="space-y-2">
                   <Label>{t("time")}</Label>
                   <Select
@@ -357,7 +506,10 @@ export function CreateBookingDialog({
                     onValueChange={setSelectedTime}
                     disabled={!selectedDate || dayLoading || isSaving}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className="w-full"
+                      aria-invalid={hasAttemptedSave && validation.time}
+                    >
                       <SelectValue
                         placeholder={
                           selectedDate ? t("selectAvailableTime") : t("selectDateFirst")
@@ -378,6 +530,13 @@ export function CreateBookingDialog({
                       )}
                     </SelectContent>
                   </Select>
+                  {hasAttemptedSave && validation.time ? (
+                    <p className="text-sm text-red-500">
+                      {selectedDate && !availableTimeOptions.length
+                        ? t("bookingRequirements.noTimesForDate")
+                        : t("bookingRequirements.selectTime")}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">
@@ -390,15 +549,21 @@ export function CreateBookingDialog({
                     <div className="space-y-1">
                       <span>
                         {t("timeZoneNotice", {
-                          timezone,
+                          timezone: timezone || "Not available",
                           office: selectedLocation.title,
                         })}
                       </span>
-                      <TimeZoneDifferenceNote
-                        officeTimeZone={timezone}
-                        date={selectedDate}
-                        namespace="Bookings"
-                      />
+                      {timezone ? (
+                        <TimeZoneDifferenceNote
+                          officeTimeZone={timezone}
+                          date={selectedDate}
+                          namespace="Bookings"
+                        />
+                      ) : (
+                        <p className="text-sm text-red-500">
+                          This office is missing a timezone. Update the office before booking.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <span>{t("selectOfficeFirst")}</span>
@@ -425,7 +590,19 @@ export function CreateBookingDialog({
                   value={firstname}
                   onChange={(event) => setFirstname(event.target.value)}
                   disabled={isSaving}
+                  aria-invalid={hasAttemptedSave && validation.firstname}
+                  className={cn(
+                    hasAttemptedSave &&
+                      validation.firstname &&
+                      "border-red-500 ring-1 ring-red-500/20",
+                  )}
+                  autoComplete="given-name"
+                  autoCapitalize="words"
+                  maxLength={80}
                 />
+                {hasAttemptedSave && validation.firstname ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.firstName")}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="create-lastname">{t("lastName")}</Label>
@@ -435,7 +612,19 @@ export function CreateBookingDialog({
                   value={lastname}
                   onChange={(event) => setLastname(event.target.value)}
                   disabled={isSaving}
+                  aria-invalid={hasAttemptedSave && validation.lastname}
+                  className={cn(
+                    hasAttemptedSave &&
+                      validation.lastname &&
+                      "border-red-500 ring-1 ring-red-500/20",
+                  )}
+                  autoComplete="family-name"
+                  autoCapitalize="words"
+                  maxLength={80}
                 />
+                {hasAttemptedSave && validation.lastname ? (
+                  <p className="text-sm text-red-500">{t("bookingRequirements.lastName")}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="create-email">{t("email")}</Label>
@@ -446,17 +635,49 @@ export function CreateBookingDialog({
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   disabled={isSaving}
+                  aria-invalid={hasAttemptedSave && validation.email}
+                  className={cn(
+                    hasAttemptedSave &&
+                      validation.email &&
+                      "border-red-500 ring-1 ring-red-500/20",
+                  )}
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  inputMode="email"
+                  spellCheck={false}
                 />
+                {hasAttemptedSave && validation.email ? (
+                  <p className="text-sm text-red-500">
+                    {validation.emailMissing
+                      ? t("bookingRequirements.email")
+                      : t("bookingRequirements.validEmail")}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="create-phone">{t("phone")}</Label>
-                <Input
+                <PhoneInput
                   id="create-phone"
                   placeholder={t("phone")}
                   value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
+                  onChange={(value) => setPhone(normalizePhoneInput(value || ""))}
                   disabled={isSaving}
+                  aria-invalid={hasAttemptedSave && validation.phone}
+                  className={cn(
+                    hasAttemptedSave &&
+                      validation.phone &&
+                      "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20",
+                  )}
+                  autoComplete="tel"
+                  defaultCountry="US"
                 />
+                {hasAttemptedSave && validation.phone ? (
+                  <p className="text-sm text-red-500">
+                    {validation.phoneMissing
+                      ? t("bookingRequirements.phone")
+                      : t("bookingRequirements.validPhone")}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="create-notes">{t("notes")}</Label>
@@ -480,7 +701,7 @@ export function CreateBookingDialog({
           >
             {t("cancel")}
           </Button>
-          <Button onClick={handleSave} disabled={!canSave}>
+          <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

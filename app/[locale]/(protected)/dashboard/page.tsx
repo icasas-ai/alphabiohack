@@ -8,7 +8,7 @@ import { useTherapistDashboard } from "@/hooks/use-therapist-dashboard";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
 import { useRouter } from "@/i18n/navigation";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 
 export default function DashboardHome() {
   const { prismaUser, loading } = useUser();
@@ -51,6 +51,7 @@ export default function DashboardHome() {
           recentPatients={therapistData?.recentPatients || []}
           invoices={therapistData?.invoices || []}
           weeklyOverview={therapistData?.weeklyOverview}
+          timeZone={therapistData?.timeZone}
           range={range}
           onRangeChange={setRange}
         />
@@ -101,5 +102,4 @@ export default function DashboardHome() {
     </div>
   );
 }
-
 

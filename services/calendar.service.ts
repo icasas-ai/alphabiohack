@@ -1,7 +1,6 @@
 import { buildGoogleCalendarUrl, buildICS } from "@/lib/utils/calendar-links";
 
 import { AppointmentInviteEmail } from "@/emails/appointment-invite";
-import { PST_TZ } from "@/lib/utils/timezone";
 
 export interface TherapistInvitePayload {
   patientName: string;

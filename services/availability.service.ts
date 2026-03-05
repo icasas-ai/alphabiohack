@@ -1,6 +1,11 @@
-import { BookingStatus, Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@/lib/prisma-client";
 
-import { combineDateAndTimeToUtc, formatBookingToLocalStrings } from "@/lib/utils/timezone";
+import {
+  combineDateAndTimeToUtc,
+  formatBookingToLocalStrings,
+  parseDateStringInTimeZone,
+} from "@/lib/utils/timezone";
+import { getTimeZoneOrDefault } from "@/services/config.service";
 import { prisma } from "@/lib/prisma";
 import {
   createAvailabilityDayRecord,
@@ -154,13 +159,44 @@ function validateUniqueTimeRanges(
   }
 }
 
+function validateOrderedAndNonOverlappingTimeRanges(
+  timeRanges: AvailabilityTimeRangeInput[],
+  contextLabel = "time ranges",
+) {
+  const normalized = timeRanges
+    .filter((range) => range.isActive !== false && range.startTime && range.endTime)
+    .map((range) => ({
+      ...range,
+      startMinutes: timeToMinutes(range.startTime),
+      endMinutes: timeToMinutes(range.endTime),
+    }))
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+
+  for (const range of normalized) {
+    if (range.endMinutes <= range.startMinutes) {
+      throw new Error(`Invalid ${contextLabel}: ${range.startTime} - ${range.endTime}`);
+    }
+  }
+
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = normalized[index - 1];
+    const current = normalized[index];
+
+    if (current.startMinutes < previous.endMinutes) {
+      throw new Error(
+        `Overlapping ${contextLabel} are not allowed: ${previous.startTime} - ${previous.endTime} overlaps ${current.startTime} - ${current.endTime}`,
+      );
+    }
+  }
+}
+
 async function getLocationTimezone(locationId: string) {
   const location = await prisma.location.findUnique({
     where: { id: locationId },
     select: { timezone: true },
   });
 
-  return location?.timezone || "America/Los_Angeles";
+  return getTimeZoneOrDefault(location?.timezone || undefined);
 }
 
 async function getBookedTimesForDay(
@@ -213,10 +249,15 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
   }
 
   validateUniqueTimeRanges(input.timeRanges, "time ranges");
+  validateOrderedAndNonOverlappingTimeRanges(input.timeRanges, "time ranges");
 
   for (const override of input.dayOverrides || []) {
     if (override.timeRanges?.length) {
       validateUniqueTimeRanges(override.timeRanges, `time ranges for ${override.date}`);
+      validateOrderedAndNonOverlappingTimeRanges(
+        override.timeRanges,
+        `time ranges for ${override.date}`,
+      );
     }
   }
 
@@ -502,6 +543,7 @@ export async function updateAvailabilityDay(
   },
 ) {
   validateUniqueTimeRanges(input.timeRanges, "time ranges");
+  validateOrderedAndNonOverlappingTimeRanges(input.timeRanges, "time ranges");
 
   return prisma.$transaction(async (tx) => {
     const day = await tx.availabilityDay.update({
@@ -650,33 +692,79 @@ export async function isAvailabilitySlotBookable({
   locationId,
   date,
   time,
+  bookingSchedule,
 }: {
   therapistId: string;
   locationId: string;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
+  bookingSchedule?: Date;
 }) {
   const timezone = await getLocationTimezone(locationId);
-  const slots = await getAvailabilityDaySlots({
-    therapistId,
-    locationId,
-    date,
+  const local =
+    bookingSchedule ?
+      formatBookingToLocalStrings(bookingSchedule, timezone)
+    : null;
+  const targetDate = date || local?.dateString;
+  const targetTime = time || local?.timeString;
+
+  if (!targetDate || !targetTime) {
+    throw new Error("A booking date/time or bookingSchedule is required");
+  }
+
+  const day = await prisma.availabilityDay.findFirst({
+    where: {
+      therapistId,
+      locationId,
+      date: parseDateOnly(targetDate),
+    },
+    include: {
+      timeRanges: {
+        where: { isActive: true },
+        orderBy: { startTime: "asc" },
+      },
+    },
   });
 
-  const matched = slots.slots.find((slot) => slot.value === time);
-  if (!matched?.isAvailable) {
+  if (!day || !day.isAvailable) {
     return {
       isAvailable: false,
       reason: "slot_unavailable",
-      sessionDurationMinutes: slots.sessionDurationMinutes,
+      sessionDurationMinutes: day?.sessionDurationMinutes ?? 0,
     };
   }
 
-  const bookingSchedule = combineDateAndTimeToUtc(parseDateOnly(date), time, timezone);
+  const targetMinutes = timeToMinutes(targetTime);
+  const hasMatchingSlot = day.timeRanges.some((range) => {
+    const startMinutes = timeToMinutes(range.startTime);
+    const endMinutes = timeToMinutes(range.endTime);
+
+    if (targetMinutes < startMinutes) return false;
+    if (targetMinutes + day.sessionDurationMinutes > endMinutes) return false;
+
+    return (targetMinutes - startMinutes) % day.sessionDurationMinutes === 0;
+  });
+
+  if (!hasMatchingSlot) {
+    return {
+      isAvailable: false,
+      reason: "slot_unavailable",
+      sessionDurationMinutes: day.sessionDurationMinutes,
+    };
+  }
+
+  const normalizedBookingSchedule =
+    bookingSchedule ??
+    combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(targetDate, timezone),
+      targetTime,
+      timezone,
+    );
   const existingBooking = await prisma.booking.findFirst({
     where: {
       therapistId,
-      bookingSchedule,
+      locationId,
+      bookingSchedule: normalizedBookingSchedule,
       status: {
         not: BookingStatus.Cancelled,
       },
@@ -685,9 +773,9 @@ export async function isAvailabilitySlotBookable({
 
   return {
     isAvailable: !existingBooking,
-    bookingSchedule,
+    bookingSchedule: normalizedBookingSchedule,
     existingBooking,
     reason: existingBooking ? "booking_conflict" : null,
-    sessionDurationMinutes: slots.sessionDurationMinutes,
+    sessionDurationMinutes: day.sessionDurationMinutes,
   };
 }

@@ -13,16 +13,27 @@ import { useTranslations } from "next-intl"
 interface PublicContactData {
   name?: string | null
   logo?: string | null
+  headerLogo?: string | null
   email?: string | null
   telefono?: string | null
 }
 
-export function MedicalHeader() {
+interface MedicalHeaderProps {
+  initialPublicContact?: PublicContactData | null;
+}
+
+export function MedicalHeader({ initialPublicContact = null }: MedicalHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [publicContact, setPublicContact] = useState<PublicContactData | null>(null)
+  const [publicContact, setPublicContact] = useState<PublicContactData | null>(
+    initialPublicContact
+  )
   const t = useTranslations('Navigation')
 
   useEffect(() => {
+    if (initialPublicContact) {
+      return;
+    }
+
     const fetchPublicContact = async () => {
       try {
         const response = await fetch("/api/public/contact")
@@ -38,7 +49,7 @@ export function MedicalHeader() {
     }
 
     fetchPublicContact()
-  }, [])
+  }, [initialPublicContact])
 
   const publicEmail = publicContact?.email || CONTACT_INFO.EMAIL
   const publicPhone = publicContact?.telefono || CONTACT_INFO.PHONE
@@ -49,11 +60,12 @@ export function MedicalHeader() {
     { name: t('contact'), href: "/contact" as const },
     { name: t('booking'), href: "/booking" as const },
   ]
+  const shellClassName = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8"
 
   return (
     <header className="bg-background border-b border-border sticky top-0 z-50">
       <div className="bg-muted/30 border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={shellClassName}>
           <div className="flex justify-between items-center h-10 text-sm">
             {/* Contact Info */}
             <div className="hidden md:flex items-center space-x-6 text-muted-foreground">
@@ -77,16 +89,22 @@ export function MedicalHeader() {
       </div>
 
       {/* Main Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className={shellClassName}>
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="shrink-0">
             <LocalizedLink href="/" className="block">
-              <PublicBrandLogo
-                src={publicContact?.logo}
-                alt={`${brandName} logo`}
-                variant="header"
-              />
+              {publicContact?.headerLogo ? (
+                <PublicBrandLogo
+                  src={publicContact.headerLogo}
+                  alt={`${brandName} logo`}
+                  variant="header"
+                />
+              ) : (
+                <span className="inline-flex max-w-[240px] items-center text-lg font-semibold tracking-[0.08em] text-primary sm:text-xl">
+                  {brandName}
+                </span>
+              )}
             </LocalizedLink>
           </div>
 

@@ -15,7 +15,7 @@ export default async function HomePage() {
   ])
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="app-page-gradient flex min-h-screen flex-col">
       <MedicalHeader />
       <main className="flex flex-1 flex-col">
         <HeroSection

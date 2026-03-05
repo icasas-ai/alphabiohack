@@ -34,14 +34,19 @@ interface ContactData {
 
 interface ContactInfoProps {
   readonly className?: string;
+  readonly initialData?: ContactData | null;
 }
 
-export function ContactInfo({ className }: ContactInfoProps) {
+export function ContactInfo({ className, initialData = null }: ContactInfoProps) {
   const t = useTranslations("Contact");
-  const [publicData, setPublicData] = useState<ContactData | null>(null);
-  const [publicLoading, setPublicLoading] = useState(true);
+  const [publicData, setPublicData] = useState<ContactData | null>(initialData);
+  const [publicLoading, setPublicLoading] = useState(!initialData);
 
   useEffect(() => {
+    if (initialData) {
+      return;
+    }
+
     const fetchPublicContact = async () => {
       try {
         const response = await fetch("/api/public/contact");
@@ -56,7 +61,7 @@ export function ContactInfo({ className }: ContactInfoProps) {
       }
     };
     fetchPublicContact();
-  }, []);
+  }, [initialData]);
 
   if (publicLoading || !publicData) {
     return (

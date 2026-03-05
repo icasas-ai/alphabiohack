@@ -6,7 +6,6 @@ import { useCallback, useState } from "react";
 import { API_ENDPOINTS } from "@/constants";
 import { BookingFormData } from "@/contexts";
 import { buildCreateBookingRequestFromWizard } from "@/lib/utils/booking-request";
-import { PST_TZ } from "@/lib/utils/timezone";
 
 async function getLocationTimezone(locationId: string) {
   const response = await fetch(API_ENDPOINTS.LOCATIONS.BY_ID(locationId), {
@@ -18,7 +17,12 @@ async function getLocationTimezone(locationId: string) {
     throw new Error(result?.errorCode || "internal_error");
   }
 
-  return result?.data?.timezone || PST_TZ;
+  const timezone = result?.data?.location?.timezone || result?.data?.timezone;
+  if (!timezone || !String(timezone).trim()) {
+    throw new Error("validation.location_timezone_required");
+  }
+
+  return timezone as string;
 }
 
 export function useCreateBooking() {
@@ -53,7 +57,9 @@ export function useCreateBooking() {
       } catch (err) {
         console.error("Error creating booking:", err);
         const code =
-          (err as { errorCode?: string })?.errorCode || "internal_error";
+          (err as { errorCode?: string })?.errorCode ||
+          (err instanceof Error ? err.message : undefined) ||
+          "internal_error";
         setError(code);
         return { success: false, error: code } as CreateBookingResponse;
       } finally {

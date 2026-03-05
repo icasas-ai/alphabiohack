@@ -1,165 +1,127 @@
 # Timezone Handling
 
-This document explains how timezone works in AlphaBioHack for locations, availability, booking, and email/calendar invites.
+This document explains the current timezone model used by AlphaBioHack.
 
-## Summary
+## Source Of Truth
 
-The system treats appointment times as belonging to the selected office/location.
+Timezone belongs to the office/location, not the customer.
 
-That means:
+Rules:
 
-- each office stores its own timezone
-- customers book using the office's local time
-- bookings are saved in UTC
-- availability checks are done against the office timezone
-- confirmation emails and calendar invites use the office timezone
+- booking slot selection is always interpreted in `Location.timezone`
+- booking times are persisted in UTC (`bookingSchedule`)
+- availability checks and conflict checks are done in office-local time
+- UI must show timezone context when displaying bookable times
 
-Example:
+## Timezone Resolution
 
-- office in Chicago: `America/Chicago`
-- customer in California
-- customer selects `10:00 AM`
-
-That selection is interpreted as `10:00 AM Chicago time`, then converted to UTC for storage.
-
-## Where Timezone Is Stored
-
-Timezone is stored on the `locations` table:
-
-- [prisma/schema.prisma](../prisma/schema.prisma)
-
-Field:
+Primary field:
 
 - `Location.timezone`
 
-Current default:
+Schema defaults:
 
-- `America/Los_Angeles`
+- `Location.timezone` default: `America/Los_Angeles`
+- `Company.defaultTimezone` default: `America/Los_Angeles`
 
-## How Location Timezone Is Set
-
-Location timezone is usually derived from latitude and longitude in:
-
-- [services/location.service.ts](../services/location.service.ts)
-
-If `lat` and `lon` are present, the app uses `tz-lookup` to calculate the IANA timezone string, for example:
-
-- `America/Chicago`
-- `America/Los_Angeles`
-- `America/New_York`
-
-If timezone cannot be resolved, the app falls back to:
-
-- `America/Los_Angeles`
-
-Fallback helpers live in:
+Resolution helper:
 
 - [lib/utils/timezone.ts](../lib/utils/timezone.ts)
-- [services/config.service.ts](../services/config.service.ts)
+- `resolveTimeZone(timeZone)` returns the provided IANA timezone or app default
 
-## Booking Behavior
+App default:
 
-When a customer books:
+- `NEXT_PUBLIC_DEFAULT_TIMEZONE` (if set)
+- otherwise `America/Los_Angeles`
 
-1. they select a location
-2. the system loads availability for that therapist + location
-3. available slots are generated in the office timezone
-4. the selected local office time is converted to UTC before saving
+## Booking Pipeline
 
-Main code paths:
-
-- [services/availability.service.ts](../services/availability.service.ts)
-- [services/booking.service.ts](../services/booking.service.ts)
-- [app/api/bookings/route.ts](../app/api/bookings/route.ts)
-
-The key conversion happens in:
-
-- [lib/utils/timezone.ts](../lib/utils/timezone.ts)
-
-Function:
-
-- `combineDateAndTimeToUtc(date, timeHHmm, tz)`
-
-This means the stored booking is normalized, but the booking logic still honors the office's local time rules.
-
-## Availability Behavior
-
-Availability is calculated in the selected office timezone.
-
-This affects:
-
-- which dates are considered bookable
-- which times are generated for a day
-- whether an existing booking collides with a slot
+1. User selects office, date, and hour in office-local time.
+2. Client converts office-local `date + HH:mm` to UTC ISO.
+3. API validates slot availability in office-local context.
+4. Booking is stored in UTC.
+5. Reads return office-local fields for display.
 
 Main code:
 
+- [lib/utils/booking-request.ts](../lib/utils/booking-request.ts)
+- [app/api/bookings/route.ts](../app/api/bookings/route.ts)
+- [services/booking.service.ts](../services/booking.service.ts)
 - [services/availability.service.ts](../services/availability.service.ts)
 
-Important behavior:
+Core conversion:
 
-- booked appointments are converted back into office-local date/time strings before collision checks
-- day slot generation uses the office timezone when comparing booked times
+- `combineDateAndTimeToUtc(date, timeHHmm, timezone)`
 
-## What The Customer Sees
+## Guardrails
 
-The booking flow now shows a timezone notice in the UI so customers know all times are shown in the office's local time.
+Creating/editing booking time requires a location timezone.
+
+If office timezone is missing:
+
+- booking creation/edit is blocked in UI
+- API request building fails with `validation.location_timezone_required`
 
 Relevant UI:
 
+- [components/bookings/create-booking-dialog.tsx](../components/bookings/create-booking-dialog.tsx)
+- [components/bookings/edit-booking-dialog.tsx](../components/bookings/edit-booking-dialog.tsx)
 - [components/booking/date-time-selector.tsx](../components/booking/date-time-selector.tsx)
-- [components/booking/basic-information-form.tsx](../components/booking/basic-information-form.tsx)
-- [components/booking/booking-confirmation.tsx](../components/booking/booking-confirmation.tsx)
 
-The displayed label is based on the selected location timezone, for example:
+## Response Fields For Rendering
 
-- `Central Time (America/Chicago)`
-- `Pacific Time (America/Los_Angeles)`
+Booking read mapping includes:
 
-## Email Confirmation And Calendar Invites
+- `bookingSchedule` (UTC ISO source)
+- `bookingLocalDate` (`YYYY-MM-DD` in office timezone)
+- `bookingLocalTime` (`HH:mm` in office timezone)
+- `bookingTimeZone` (resolved office timezone)
 
-Booking confirmation emails and calendar invite artifacts also use the office timezone.
+Code:
 
-Relevant code:
+- [services/booking.service.ts](../services/booking.service.ts)
+- [lib/utils/calendar.ts](../lib/utils/calendar.ts)
 
-- [app/api/bookings/route.ts](../app/api/bookings/route.ts)
+## Dashboard Behavior
+
+Therapist dashboard range and grouping now resolve timezone context and avoid hardcoded PST.
+
+What it returns:
+
+- appointment `date` and `time` already localized to office timezone
+- `timeZone` for explicit UI labeling
+
+Code:
+
+- [app/api/dashboard/therapist/route.ts](../app/api/dashboard/therapist/route.ts)
+- [components/dashboard/therapist-dashboard.tsx](../components/dashboard/therapist-dashboard.tsx)
+- [hooks/use-therapist-dashboard.ts](../hooks/use-therapist-dashboard.ts)
+
+## Invites And Calendar Links
+
+Email/ICS/Google Calendar artifacts use the resolved office timezone for display and event metadata.
+
+Code:
+
 - [services/calendar.service.ts](../services/calendar.service.ts)
-- [emails/appointment-invite.tsx](../emails/appointment-invite.tsx)
 - [lib/utils/calendar-links.ts](../lib/utils/calendar-links.ts)
+- [app/api/bookings/route.ts](../app/api/bookings/route.ts)
 
-Current behavior:
+## Practical Example
 
-- email body shows the appointment time in the office timezone
-- email body now also explicitly shows the timezone label
-- Google Calendar link includes the office timezone
-- ICS invite is generated with the office timezone
+- Office timezone: `America/New_York`
+- Customer browser timezone: `America/Tijuana`
+- User picks `Friday, 09:00`
 
-## Data Model Rule
+System behavior:
 
-The important rule is:
+- `09:00` is interpreted as New York time
+- stored as UTC in `bookingSchedule`
+- availability/collision checks compare using New York-local date/time
+- UI and invite explicitly indicate New York timezone
 
-- timezone belongs to the office/location, not the customer
+## Future-safe Rule
 
-So the scheduling system is office-local first.
+If customer-local display is ever added, keep it secondary.
 
-This is the correct behavior for:
-
-- multi-office practices
-- traveling practitioners
-- customers booking from different states or countries
-
-## Current Limitation
-
-The system currently does not let the customer switch the booking UI into their own local timezone.
-
-That means:
-
-- slot logic is correct for the office
-- customer communication is clearer than before
-- but all displayed booking times are still office-local, not viewer-local
-
-If that becomes a future requirement, the safest product approach is:
-
-- keep booking logic in office-local time
-- optionally show a secondary viewer-local conversion for convenience
-- do not make viewer-local time the source of truth for slot selection
+Do not use viewer timezone as slot source of truth.

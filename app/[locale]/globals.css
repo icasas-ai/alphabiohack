@@ -84,6 +84,8 @@
 @layer base {
   :root {
     /* Light theme: warmer surfaces and clearer visual hierarchy */
+    --interactive-selected-rgb: 1 152 117;
+    --interactive-selected-strong-rgb: 1 125 97;
     --background: 0.975 0.007 95;
     --foreground: 0.2 0.02 258;
     --card: 0.995 0.004 84;
@@ -113,6 +115,8 @@
 
   .dark {
     /* Colores principales - Modo Oscuro */
+    --interactive-selected-rgb: 1 152 117;
+    --interactive-selected-strong-rgb: 1 125 97;
     --background: 0.15 0.01 264;
     /* Negro muy oscuro: oklch(0.15 0.01 264) */
     --foreground: 0.98 0.01 264;
@@ -205,12 +209,55 @@
   }
 
   .interactive-selected {
-    @apply border-primary/35 bg-primary/8;
-    box-shadow: 0 0 0 1px oklch(var(--primary) / 0.18);
+    border-color: rgb(var(--interactive-selected-rgb) / 0.42);
+    background-color: rgb(var(--interactive-selected-rgb) / 0.08);
+    box-shadow: 0 0 0 1px rgb(var(--interactive-selected-rgb) / 0.18);
+  }
+
+  .interactive-selected:hover {
+    border-color: rgb(var(--interactive-selected-rgb) / 0.56);
+    background-color: rgb(var(--interactive-selected-rgb) / 0.14);
+    box-shadow: 0 0 0 1px rgb(var(--interactive-selected-rgb) / 0.24);
   }
 
   .interactive-missing {
     @apply border-amber-300/70 bg-amber-50;
+  }
+
+  .app-page-gradient {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .app-page-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(circle at top right, oklch(var(--primary) / 0.12), transparent 30%),
+      radial-gradient(circle at bottom left, oklch(var(--accent) / 0.08), transparent 28%),
+      linear-gradient(to bottom, oklch(var(--background)), oklch(var(--muted) / 0.58), oklch(var(--background)));
+  }
+
+  .app-page-gradient::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.3;
+    background-image:
+      linear-gradient(90deg, oklch(var(--border) / 0.22) 1px, transparent 1px),
+      linear-gradient(180deg, oklch(var(--border) / 0.22) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+
+  .app-page-gradient > * {
+    position: relative;
+    z-index: 1;
   }
 
   /* Gradiente personalizado para accent */

@@ -74,7 +74,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
   };
   
   return (
-    <section className="flex flex-1 items-center bg-linear-to-br from-background to-muted py-20 lg:py-32" suppressHydrationWarning>
+    <section className="flex flex-1 items-center bg-transparent py-20 lg:py-32" suppressHydrationWarning>
       {loading || !heroData ? (
         <HeroSkeleton />
       ) : (

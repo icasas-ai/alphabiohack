@@ -43,7 +43,7 @@ export default async function Layout({
               <LanguageSelector />
             </div>
           </header>
-          <section className="flex flex-1 flex-col gap-4 p-4 lg:p-8 bg-background">
+          <section className="app-page-gradient flex flex-1 flex-col gap-4 p-4 lg:p-8 bg-background">
             { children }
           </section>
         </SidebarInset>

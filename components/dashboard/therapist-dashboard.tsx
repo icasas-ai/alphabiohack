@@ -11,12 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PST_TZ } from "@/lib/utils/timezone";
+import { formatTimeZoneLabel } from "@/lib/utils/timezone";
 import React from "react";
 import { WeeklyOverview } from "@/components/dashboard/weekly-overview";
 import { useTranslations } from "next-intl";
 
 type AppointmentItem = Parameters<typeof NextAppointmentsList>[0]["items"][number];
+type DashboardAppointment = AppointmentItem & {
+  status?: string;
+  timeZone?: string;
+  bookingSchedule?: string;
+};
 
 interface TherapistDashboardProps {
   kpis?: {
@@ -32,8 +37,8 @@ interface TherapistDashboardProps {
     pendingThisMonth?: { value: number; deltaPercent: number };
     usersTotalVsPrevMonth?: { value: number; deltaPercent: number };
   };
-  appointments?: AppointmentItem[];
-  upcoming?: AppointmentItem | null;
+  appointments?: DashboardAppointment[];
+  upcoming?: DashboardAppointment | null;
   recentPatients?: Array<{ id: string; name: string; lastAppointment?: string | null; code?: string }>;
   invoices?: Array<{ id: string; name: string; amount: string; paidOn: string; code?: string }>; 
   weeklyOverview?: Array<{ day: string; value: number }>; 
@@ -46,6 +51,7 @@ interface TherapistDashboardProps {
   range?: "last7" | "today" | "thisWeek" | "last30" | "all";
   onRangeChange?: (value: "last7" | "today" | "thisWeek" | "last30" | "all") => void;
   apiRange?: { from: string; to: string };
+  timeZone?: string;
 }
 
 export function TherapistDashboard({
@@ -61,6 +67,7 @@ export function TherapistDashboard({
   range = "last7",
   onRangeChange,
   apiRange,
+  timeZone,
 }: TherapistDashboardProps) {
   const t = useTranslations("Dashboard");
 
@@ -79,8 +86,8 @@ export function TherapistDashboard({
     const now = new Date();
     const copy = [...appointments];
     copy.sort((a, b) => {
-      const ad = new Date(`${a.date}T${a.time}:00`);
-      const bd = new Date(`${b.date}T${b.time}:00`);
+      const ad = new Date(a.bookingSchedule || `${a.date}T${a.time}:00`);
+      const bd = new Date(b.bookingSchedule || `${b.date}T${b.time}:00`);
       const aFuture = ad.getTime() >= now.getTime();
       const bFuture = bd.getTime() >= now.getTime();
       if (aFuture && !bFuture) return -1;
@@ -94,15 +101,28 @@ export function TherapistDashboard({
     return filtered;
   }, [appointments, statusFilter]);
 
-  type AppointmentRow = AppointmentItem & { status?: string };
+  const formatAppointmentLabel = React.useCallback((appointment: DashboardAppointment) => {
+    const tz = appointment.timeZone || timeZone;
+    const dt = new Date(appointment.bookingSchedule || `${appointment.date}T${appointment.time}:00`);
+    return dt.toLocaleString(undefined, {
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "short",
+      day: "2-digit",
+      timeZone: tz || undefined,
+    });
+  }, [timeZone]);
+
+  type AppointmentRow = DashboardAppointment;
   const appointmentsColumns = React.useMemo<ColumnDef<AppointmentRow>[]>(() => [
     {
       accessorKey: "date",
       header: t('dateAndTime', { default: 'Date and Time' }),
       cell: ({ row }) => {
         const a = row.original;
-        const dt = new Date(`${a.date}T${a.time}:00`);
-        const label = dt.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', month: 'short', day: '2-digit', timeZone: PST_TZ });
+        const dt = new Date(a.bookingSchedule || `${a.date}T${a.time}:00`);
+        const label = formatAppointmentLabel(a);
         return (
           <time dateTime={dt.toISOString()} className="text-xs text-muted-foreground">{label}</time>
         );
@@ -147,7 +167,7 @@ export function TherapistDashboard({
         );
       },
     },
-  ], [t]);
+  ], [formatAppointmentLabel, t]);
 
   const recentPatientsColumns = React.useMemo<ColumnDef<{ id: string; name: string; lastAppointment?: string | null; code?: string; }>[] >(() => [
     {
@@ -295,8 +315,13 @@ export function TherapistDashboard({
 
       {/* Columna central: Appointment list + Upcoming */}
       <div className="space-y-6 lg:col-span-2">
+        {timeZone ? (
+          <p className="text-xs text-muted-foreground">
+            Times shown in {formatTimeZoneLabel(timeZone)}.
+          </p>
+        ) : null}
         {/* Upcoming appointment highlight */}
-        <Card className="bg-accent text-accent-foreground">
+        <Card className="border-[rgb(var(--interactive-selected-rgb)_/_0.28)] bg-[rgb(var(--interactive-selected-rgb)_/_0.10)] text-foreground shadow-[0_18px_40px_-28px_rgb(var(--interactive-selected-rgb)_/_0.45)]">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">{t('upcoming.title', { default: 'Upcoming Appointment' })}</CardTitle>
           </CardHeader>
@@ -307,11 +332,16 @@ export function TherapistDashboard({
                   <h4 className="text-sm font-medium opacity-90">{upcoming.name}</h4>
                   <p className="text-xs opacity-90">{upcoming.service || 'General'}</p>
                 </div>
-                <time className="text-sm" dateTime={`${upcoming.date}T${upcoming.time}:00`}>
-                  {new Date(`${upcoming.date}T${upcoming.time}:00`).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit', month: 'short', day: '2-digit', timeZone: PST_TZ })}
+                <time
+                  className="text-sm"
+                  dateTime={new Date(
+                    upcoming.bookingSchedule || `${upcoming.date}T${upcoming.time}:00`
+                  ).toISOString()}
+                >
+                  {formatAppointmentLabel(upcoming)}
                 </time>
                 <div className="flex gap-3">
-                  <button className="px-4 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:opacity-90" type="button">{t('upcoming.start', { default: 'Start Appointment' })}</button>
+                  <button className="rounded-md bg-[rgb(var(--interactive-selected-rgb))] px-4 py-1.5 text-white hover:bg-[rgb(var(--interactive-selected-strong-rgb))]" type="button">{t('upcoming.start', { default: 'Start Appointment' })}</button>
                 </div>
               </div>
             ) : (
@@ -396,4 +426,3 @@ export function TherapistDashboard({
     </div>
   );
 }
-

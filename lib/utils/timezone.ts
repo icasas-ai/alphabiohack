@@ -1,31 +1,39 @@
 import { formatInTimeZone } from "date-fns-tz";
 
-export const PST_TZ = "America/Los_Angeles";
+export const DEFAULT_APP_TIMEZONE =
+  process.env.NEXT_PUBLIC_DEFAULT_TIMEZONE || "America/Los_Angeles";
+
+// Backward-compatible alias to avoid large churn in existing imports.
+export const PST_TZ = DEFAULT_APP_TIMEZONE;
+
+export function resolveTimeZone(timeZone?: string | null): string {
+  return timeZone && timeZone.trim() ? timeZone : DEFAULT_APP_TIMEZONE;
+}
 
 export function formatInTZ(
   date: Date,
   pattern: string,
-  tz: string = PST_TZ
+  tz: string = DEFAULT_APP_TIMEZONE
 ): string {
   return formatInTimeZone(date, tz, pattern);
 }
 
-export function dateKeyInTZ(date: Date, tz: string = PST_TZ): string {
+export function dateKeyInTZ(date: Date, tz: string = DEFAULT_APP_TIMEZONE): string {
   return formatInTimeZone(date, tz, "yyyy-MM-dd");
 }
 
-export function timeKeyInTZ(date: Date, tz: string = PST_TZ): string {
+export function timeKeyInTZ(date: Date, tz: string = DEFAULT_APP_TIMEZONE): string {
   return formatInTimeZone(date, tz, "HH:mm");
 }
 
-export function dayOfWeekInTZ(date: Date, tz: string = PST_TZ): string {
+export function dayOfWeekInTZ(date: Date, tz: string = DEFAULT_APP_TIMEZONE): string {
   return formatInTimeZone(date, tz, "EEEE");
 }
 
 export function combineDateAndTimeToUtc(
   date: Date,
   timeHHmm: string,
-  tz: string = PST_TZ
+  tz: string = DEFAULT_APP_TIMEZONE
 ): Date {
   const localDateStr = formatInTimeZone(date, tz, "yyyy-MM-dd");
   const offset = formatInTimeZone(date, tz, "XXX"); // e.g. -08:00 / -07:00
@@ -38,7 +46,7 @@ export function combineDateAndTimeToUtc(
  */
 export function parseDateStringInTimeZone(
   dateStr: string, // YYYY-MM-DD
-  tz: string = PST_TZ
+  tz: string = DEFAULT_APP_TIMEZONE
 ): Date {
   // Use noon instead of midnight so date-only values stay on the same
   // calendar day even when the viewer's browser is in a different timezone.
@@ -53,7 +61,7 @@ export function parseDateStringInTimeZone(
  */
 export function formatBookingToLocalStrings(
   date: Date,
-  tz: string = PST_TZ
+  tz: string = DEFAULT_APP_TIMEZONE
 ): { dateString: string; timeString: string } {
   return {
     dateString: formatInTimeZone(date, tz, "yyyy-MM-dd"),
@@ -62,7 +70,7 @@ export function formatBookingToLocalStrings(
 }
 
 export function getTimeZoneDisplayName(
-  tz: string = PST_TZ,
+  tz: string = DEFAULT_APP_TIMEZONE,
   locale: string = "en-US"
 ): string {
   try {
@@ -81,7 +89,7 @@ export function getTimeZoneDisplayName(
 }
 
 export function formatTimeZoneLabel(
-  tz: string = PST_TZ,
+  tz: string = DEFAULT_APP_TIMEZONE,
   locale: string = "en-US"
 ): string {
   const displayName = getTimeZoneDisplayName(tz, locale);
@@ -103,7 +111,7 @@ function parseOffsetToMinutes(offset: string): number {
 
 export function getTimeZoneOffsetMinutes(
   date: Date,
-  tz: string = PST_TZ,
+  tz: string = DEFAULT_APP_TIMEZONE,
 ): number {
   return parseOffsetToMinutes(formatInTimeZone(date, tz, "XXX"));
 }

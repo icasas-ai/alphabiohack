@@ -1,24 +1,33 @@
 import { MedicalHeader } from "@/components/layout/header"
+import { getSiteUrl } from "@/lib/config/site-url";
+import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import type { Metadata } from "next";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:9001";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
+  metadataBase: new URL(getSiteUrl()),
   title: "MyAlphaPulse",
 };
 
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const company = await getPublicCompanyProfile();
+  const headerContact = company
+    ? {
+        name: company.name,
+        logo: company.logo,
+        headerLogo: company.headerLogo,
+        email: company.publicEmail,
+        telefono: company.publicPhone,
+      }
+    : null;
+
   return (
-    <div className="min-h-screen flex flex-col bg-secondary">
-      <MedicalHeader />
+    <div className="app-page-gradient min-h-screen flex flex-col bg-secondary">
+      <MedicalHeader initialPublicContact={headerContact} />
       <main className="flex-1 flex items-center justify-center">
         {children}
       </main>

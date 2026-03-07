@@ -24,10 +24,20 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useUser } from "@/contexts/user-context";
 
+type LoginFormProps = Omit<
+  React.ComponentPropsWithoutRef<"div">,
+  | "onDrag"
+  | "onDragStart"
+  | "onDragEnd"
+  | "onAnimationStart"
+  | "onAnimationEnd"
+  | "onAnimationIteration"
+>;
+
 export function LoginForm({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

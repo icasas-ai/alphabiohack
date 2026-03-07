@@ -55,20 +55,14 @@ const serviceSchema = z.object({
   cost: z.preprocess(
     parseNumericField,
     z
-      .number({
-        required_error: 'SpecialtiesUI.validation.service.costRequired',
-        invalid_type_error: 'SpecialtiesUI.validation.service.costRequired',
-      })
+      .number({ error: 'SpecialtiesUI.validation.service.costRequired' })
       .min(0, 'SpecialtiesUI.validation.service.costMin')
       .max(10000, 'SpecialtiesUI.validation.service.costMax'),
   ),
   duration: z.preprocess(
     parseNumericField,
     z
-      .number({
-        required_error: 'SpecialtiesUI.validation.service.durationRequired',
-        invalid_type_error: 'SpecialtiesUI.validation.service.durationRequired',
-      })
+      .number({ error: 'SpecialtiesUI.validation.service.durationRequired' })
       .min(1, 'SpecialtiesUI.validation.service.durationMin')
       .max(480, 'SpecialtiesUI.validation.service.durationMax'),
   ),

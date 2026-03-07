@@ -37,8 +37,6 @@ export function StepThree({ onNext, onBack }: StepThreeProps) {
         const err = new Error('Request failed');
         throw Object.assign(err, { errorCode: res.error });
       }
-      const successKey = (res as { successCode?: string })?.successCode;
-      toast.success(successKey ? tReq(successKey) : tReq('bookings.create.success'));
       update({ createdBooking: res.data });
       setHasAttemptedSubmit(false);
       onNext();
@@ -52,11 +50,13 @@ export function StepThree({ onNext, onBack }: StepThreeProps) {
   return (
     <CardContent className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-2">{t('step4Title')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          {t('step4Description')}
-        </p>
-        
+        <>
+          <h2 className="text-lg font-semibold mb-2">{t('step4Title')}</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t('step4Description')}
+          </p>
+        </>
+
         {createError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
             <p className="text-sm text-red-800 dark:text-red-300">

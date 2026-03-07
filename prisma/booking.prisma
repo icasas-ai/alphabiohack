@@ -1,6 +1,7 @@
 model Booking {
   id                    String        @id @default(cuid())
   companyId             String
+  bookingNumber         String        @unique
   bookingType           BookingType
   locationId            String
   specialtyId           String?

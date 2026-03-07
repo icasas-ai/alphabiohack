@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, KeyRound, Mail, Pencil, Plus, Trash2, UserCog, Users } from "lucide-react";
+import { KeyRound, Loader2, Mail, Pencil, Plus, Trash2, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import {
@@ -29,7 +29,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { hasSupabaseAuth } from "@/lib/auth/config";
 import { cn } from "@/lib/utils";
 import {
   isValidEmailInput,
@@ -71,7 +70,8 @@ export function PersonnelPage() {
   const tCommon = useTranslations("Common");
   const [personnel, setPersonnel] = useState<PersonnelRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingForm, setSavingForm] = useState(false);
+  const [deletingPersonnelId, setDeletingPersonnelId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [selectedPersonnelId, setSelectedPersonnelId] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export function PersonnelPage() {
   const handleSubmit = async () => {
     try {
       setHasAttemptedSubmit(true);
-      setSaving(true);
+      setSavingForm(true);
       const payload = {
         firstname: normalizeWhitespace(form.firstname),
         lastname: normalizeWhitespace(form.lastname),
@@ -166,7 +166,7 @@ export function PersonnelPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("saveError"));
     } finally {
-      setSaving(false);
+      setSavingForm(false);
     }
   };
 
@@ -174,7 +174,7 @@ export function PersonnelPage() {
     if (!deleteTarget) return;
 
     try {
-      setSaving(true);
+      setDeletingPersonnelId(deleteTarget.id);
       const response = await fetch(`/api/personnel/${deleteTarget.id}`, {
         method: "DELETE",
       });
@@ -188,7 +188,7 @@ export function PersonnelPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("deleteError"));
     } finally {
-      setSaving(false);
+      setDeletingPersonnelId(null);
     }
   };
 
@@ -224,21 +224,11 @@ export function PersonnelPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="motion-stagger space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground">{t("description")}</p>
       </div>
-
-      {hasSupabaseAuth ? (
-        <Alert variant="warning">
-          <AlertCircle className="h-4 w-4" />
-          <div className="space-y-1">
-            <p className="font-medium">{t("localAuthRequiredTitle")}</p>
-            <AlertDescription>{t("localAuthRequiredDescription")}</AlertDescription>
-          </div>
-        </Alert>
-      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -269,7 +259,7 @@ export function PersonnelPage() {
               <p className="text-sm text-muted-foreground">{t("stats.quickAction")}</p>
               <p className="text-base font-medium">{t("stats.quickActionDescription")}</p>
             </div>
-            <Button onClick={openCreateDialog} disabled={hasSupabaseAuth}>
+            <Button onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4" />
               {t("addPersonnel")}
             </Button>
@@ -283,7 +273,7 @@ export function PersonnelPage() {
             <CardTitle>{t("listTitle")}</CardTitle>
             <CardDescription>{t("listDescription")}</CardDescription>
           </div>
-          <Button onClick={openCreateDialog} disabled={hasSupabaseAuth}>
+          <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
             {t("addPersonnel")}
           </Button>
@@ -332,15 +322,31 @@ export function PersonnelPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openEditDialog(item)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openEditDialog(item)}
+                            disabled={savingForm || Boolean(deletingPersonnelId)}
+                          >
                             <Pencil className="mr-2 h-3.5 w-3.5" />
                             {tCommon("edit")}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleResendPassword(item)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResendPassword(item)}
+                            disabled={savingForm || Boolean(deletingPersonnelId)}
+                          >
                             <Mail className="mr-2 h-3.5 w-3.5" />
                             {t("resendInvite")}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setDeleteTarget(item)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeleteTarget(item)}
+                            disabled={savingForm || Boolean(deletingPersonnelId)}
+                          >
                             <Trash2 className="mr-2 h-3.5 w-3.5" />
                             {tCommon("delete")}
                           </Button>
@@ -355,7 +361,13 @@ export function PersonnelPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (savingForm) return;
+          setDialogOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
@@ -379,6 +391,7 @@ export function PersonnelPage() {
                 maxLength={80}
                 aria-invalid={formErrors.firstname}
                 className={cn(formErrors.firstname && "border-red-500 ring-1 ring-red-500/20")}
+                disabled={savingForm}
               />
             </div>
             <div className="space-y-2">
@@ -394,6 +407,7 @@ export function PersonnelPage() {
                 maxLength={80}
                 aria-invalid={formErrors.lastname}
                 className={cn(formErrors.lastname && "border-red-500 ring-1 ring-red-500/20")}
+                disabled={savingForm}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
@@ -411,6 +425,7 @@ export function PersonnelPage() {
                 spellCheck={false}
                 aria-invalid={formErrors.email}
                 className={cn(formErrors.email && "border-red-500 ring-1 ring-red-500/20")}
+                disabled={savingForm}
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
@@ -425,6 +440,7 @@ export function PersonnelPage() {
                 defaultCountry="US"
                 aria-invalid={formErrors.telefono}
                 className={cn(formErrors.telefono && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
+                disabled={savingForm}
               />
             </div>
           </div>
@@ -438,17 +454,25 @@ export function PersonnelPage() {
             </Alert>
           ) : null}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={savingForm}>
               {tCommon("cancel")}
             </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? t("saving") : dialogMode === "create" ? t("createAction") : t("saveAction")}
+            <Button onClick={handleSubmit} disabled={savingForm}>
+              {savingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {savingForm ? t("saving") : dialogMode === "create" ? t("createAction") : t("saveAction")}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deletingPersonnelId) {
+            setDeleteTarget(null);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("deleteTitle")}</AlertDialogTitle>
@@ -459,9 +483,16 @@ export function PersonnelPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
-              {tCommon("delete")}
+            <AlertDialogCancel disabled={Boolean(deletingPersonnelId)}>
+              {tCommon("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={Boolean(deletingPersonnelId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20"
+            >
+              {deletingPersonnelId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {deletingPersonnelId ? t("deleting") : tCommon("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

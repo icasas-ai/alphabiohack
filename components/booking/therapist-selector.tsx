@@ -26,14 +26,18 @@ export function TherapistSelector({ showValidation = false }: TherapistSelectorP
 
   const handleSelect = useCallback(
     (therapistId: string) => {
+      const selectedTherapist =
+        therapists.find((therapist) => therapist.id === therapistId) || null;
+
       update({
         therapistId,
+        selectedTherapist,
         selectedDate: null,
         selectedTime: "",
         sessionDurationMinutes: null,
       })
     },
-    [update],
+    [therapists, update],
   )
 
   const handleRetry = useCallback(() => {

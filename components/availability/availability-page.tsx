@@ -5,6 +5,8 @@ import {
   CalendarIcon,
   CalendarRange,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   Info,
   MapPin,
@@ -36,6 +38,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -118,6 +121,7 @@ interface PeriodFormState {
 
 const todayKey = new Date().toISOString().slice(0, 10);
 const currentMonthKey = todayKey.slice(0, 7);
+const REVIEW_DAYS_PER_PAGE = 10;
 
 const createEmptyTimeRange = (): TimeRangeState => ({
   startTime: "09:00",
@@ -273,8 +277,57 @@ function InfoHint({
   );
 }
 
+function AvailabilityPeriodsSkeleton() {
+  return (
+    <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="rounded-lg border bg-background">
+        <div className="space-y-2 border-b px-4 py-3">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+        <div className="space-y-2 p-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={`period-skeleton-${index}`} className="space-y-2 rounded-lg border px-4 py-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-28 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-lg border bg-background p-4">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-1/2" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-28 rounded-full" />
+          <Skeleton className="h-6 w-32 rounded-full" />
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={`day-skeleton-${index}`} className="space-y-2 rounded-lg border px-3 py-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AvailabilityPage() {
   const t = useTranslations("Availability");
+  const tc = useTranslations("Common");
   const toast = useAppToast();
   const { prismaUser, loading: userLoading } = useUser();
   const { locations, loading: locationsLoading, error: locationsError } = useLocations();
@@ -294,6 +347,7 @@ export function AvailabilityPage() {
   const [restoringExcludedDateId, setRestoringExcludedDateId] = useState<string | null>(null);
   const [selectedReviewPeriodId, setSelectedReviewPeriodId] = useState<string | null>(null);
   const [selectedReviewDayId, setSelectedReviewDayId] = useState<string | null>(null);
+  const [reviewDaysPage, setReviewDaysPage] = useState(1);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [periodIdToDelete, setPeriodIdToDelete] = useState<string | null>(null);
 
@@ -706,14 +760,33 @@ export function AvailabilityPage() {
       reviewPeriods[0]
     );
   }, [reviewPeriods, selectedReviewPeriodId]);
+  const selectedReviewPeriodDays = useMemo(
+    () => selectedReviewPeriod?.visibleDays || [],
+    [selectedReviewPeriod],
+  );
+  const totalReviewDayPages = useMemo(
+    () => Math.max(1, Math.ceil(selectedReviewPeriodDays.length / REVIEW_DAYS_PER_PAGE)),
+    [selectedReviewPeriodDays.length],
+  );
+  const safeReviewDaysPage = Math.min(reviewDaysPage, totalReviewDayPages);
+  const paginatedReviewDays = useMemo(() => {
+    const start = (safeReviewDaysPage - 1) * REVIEW_DAYS_PER_PAGE;
+    return selectedReviewPeriodDays.slice(start, start + REVIEW_DAYS_PER_PAGE);
+  }, [safeReviewDaysPage, selectedReviewPeriodDays]);
+  const currentReviewRangeStart = selectedReviewPeriodDays.length
+    ? (safeReviewDaysPage - 1) * REVIEW_DAYS_PER_PAGE + 1
+    : 0;
+  const currentReviewRangeEnd = selectedReviewPeriodDays.length
+    ? Math.min(safeReviewDaysPage * REVIEW_DAYS_PER_PAGE, selectedReviewPeriodDays.length)
+    : 0;
   const selectedReviewDay = useMemo(() => {
-    if (!selectedReviewPeriod?.visibleDays.length) return null;
+    if (!paginatedReviewDays.length) return null;
 
     return (
-      selectedReviewPeriod.visibleDays.find((day) => day.id === selectedReviewDayId) ||
-      selectedReviewPeriod.visibleDays[0]
+      paginatedReviewDays.find((day) => day.id === selectedReviewDayId) ||
+      paginatedReviewDays[0]
     );
-  }, [selectedReviewDayId, selectedReviewPeriod]);
+  }, [paginatedReviewDays, selectedReviewDayId]);
   const createDisabledReason = useMemo(() => {
     if (!activeTherapistId) return t("createDisabledProfessional");
     if (!selectedLocationId) return t("createDisabledLocation");
@@ -759,7 +832,7 @@ export function AvailabilityPage() {
   }, [reviewPeriods]);
 
   useEffect(() => {
-    if (!selectedReviewPeriod?.visibleDays.length) {
+    if (!paginatedReviewDays.length) {
       setSelectedReviewDayId(null);
       return;
     }
@@ -767,18 +840,28 @@ export function AvailabilityPage() {
     setSelectedReviewDayId((current) => {
       if (
         current &&
-        selectedReviewPeriod.visibleDays.some((day) => day.id === current)
+        paginatedReviewDays.some((day) => day.id === current)
       ) {
         return current;
       }
 
-      return selectedReviewPeriod.visibleDays[0].id;
+      return paginatedReviewDays[0].id;
     });
-  }, [selectedReviewPeriod]);
+  }, [paginatedReviewDays]);
+
+  useEffect(() => {
+    setReviewDaysPage(1);
+  }, [selectedReviewPeriod?.id]);
+
+  useEffect(() => {
+    if (reviewDaysPage > totalReviewDayPages) {
+      setReviewDaysPage(totalReviewDayPages);
+    }
+  }, [reviewDaysPage, totalReviewDayPages]);
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-6">
+      <div className="motion-stagger space-y-6">
       <Card>
         <CardHeader className="space-y-2 pb-3">
           <CardTitle>{t("plannerTitle")}</CardTitle>
@@ -898,7 +981,10 @@ export function AvailabilityPage() {
                   </div>
 
                   {loadingPeriods ? (
-                    <div className="text-sm text-muted-foreground">{t("loadingAvailability")}</div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">{t("loadingAvailability")}</p>
+                      <AvailabilityPeriodsSkeleton />
+                    </div>
                   ) : reviewPeriods.length === 0 ? (
                     <div className="text-sm text-muted-foreground">{t("noPeriods")}</div>
                   ) : (
@@ -1100,18 +1186,49 @@ export function AvailabilityPage() {
                               </Alert>
                             ) : null}
 
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-medium text-foreground">{t("timeRanges")}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {selectedReviewPeriod.visibleDays.length} {t("openDays").toLowerCase()}
-                                  </p>
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="font-medium text-foreground">{t("timeRanges")}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {selectedReviewPeriod.visibleDays.length} {t("openDays").toLowerCase()}
+                                    </p>
+                                  </div>
+                                  {totalReviewDayPages > 1 ? (
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs text-muted-foreground">
+                                        {currentReviewRangeStart}-{currentReviewRangeEnd} / {selectedReviewPeriodDays.length}
+                                      </p>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setReviewDaysPage((current) => Math.max(1, current - 1))}
+                                        disabled={safeReviewDaysPage === 1}
+                                      >
+                                        <ChevronLeft className="mr-1 h-4 w-4" />
+                                        {tc("previous")}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          setReviewDaysPage((current) =>
+                                            Math.min(totalReviewDayPages, current + 1),
+                                          )
+                                        }
+                                        disabled={safeReviewDaysPage === totalReviewDayPages}
+                                      >
+                                        {tc("next")}
+                                        <ChevronRight className="ml-1 h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ) : null}
                                 </div>
-                              </div>
 
                               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                                {selectedReviewPeriod.visibleDays.map((day) => {
+                                {paginatedReviewDays.map((day) => {
                                   const isActive = selectedReviewDay?.id === day.id;
                                   const daySummary = summary?.days.find(
                                     (summaryDay) => summaryDay.id === day.id,

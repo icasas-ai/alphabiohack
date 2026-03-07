@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, MapPin, Plus, Stethoscope, User } from "lucide-react"
 import { useFormatter, useLocale, useTranslations } from "next-intl"
-import { useLocations, useServices, useSpecialties, useTherapist } from "@/hooks"
+import { useLocations, useServices, useSpecialties } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"; 
 
 import { Button } from "@/components/ui/button"
@@ -30,11 +30,10 @@ interface BasicInformationFormProps {
 }
 
 export function BasicInformationForm({ showValidation = false }: BasicInformationFormProps) {
-  const { data, update } = useBookingWizard()
+  const { data, update, publicTherapist, publicTherapistLoading, publicTherapistError } = useBookingWizard()
   const { locations } = useLocations()
   const { services } = useServices(data.specialtyId || undefined)
   const { specialties } = useSpecialties()
-  const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
   const t = useTranslations('Booking')
   const tValidation = useTranslations('Booking.Validation')
   const format = useFormatter()
@@ -93,7 +92,10 @@ export function BasicInformationForm({ showValidation = false }: BasicInformatio
     data.selectedServiceIds.includes(service.id)
   )
   const selectedService = selectedServices[0]
-  
+  const therapist = data.selectedTherapist || publicTherapist || null
+  const therapistLoading =
+    !therapist && Boolean(data.therapistId) && publicTherapistLoading
+  const therapistError = !therapist ? publicTherapistError : null
   // Calcular duración total
   //const totalDuration = selectedServices.reduce((total, service) => total + service.duration, 0)
 

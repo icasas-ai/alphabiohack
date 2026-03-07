@@ -50,6 +50,8 @@ export default function DashboardHome() {
           recentPatients={therapistData?.recentPatients || []}
           invoices={therapistData?.invoices || []}
           weeklyOverview={therapistData?.weeklyOverview}
+          series={therapistData?.series}
+          statusCounts={therapistData?.statusCounts}
           timeZone={therapistData?.timeZone}
           range={range}
           onRangeChange={setRange}

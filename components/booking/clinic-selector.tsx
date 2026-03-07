@@ -7,9 +7,11 @@ import { AsyncWrapper } from "@/components/ui/async-wrapper"
 import Image from "next/image"
 import { Label } from "@/components/ui/label"
 import { MapPin } from "lucide-react"
+import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 import { cn } from "@/lib/utils"
 import { useBookingWizard } from "@/contexts"
 import { useCallback } from "react"
+import { useLocale } from "next-intl"
 import { useLocations } from "@/hooks"
 import { useTranslations } from "next-intl"
 
@@ -20,6 +22,7 @@ interface ClinicSelectorProps {
 export function ClinicSelector({ showValidation = false }: ClinicSelectorProps) {
   const { data, update } = useBookingWizard()
   const { locations, loading, error } = useLocations()
+  const locale = useLocale()
   const t = useTranslations('Booking')
   const handleSelect = useCallback((locationId: string) => {
     update({
@@ -89,6 +92,11 @@ export function ClinicSelector({ showValidation = false }: ClinicSelectorProps) 
                       <MapPin className="h-3 w-3 text-primary" />
                       <span>{location.address}</span>
                     </div>
+                    {location.timezone ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("timeZone")}: {formatTimeZoneLabel(location.timezone, locale)}
+                      </p>
+                    ) : null}
                     {location.description && (
                       <p className="text-xs text-foreground/70 mt-1">{location.description}</p>
                     )}

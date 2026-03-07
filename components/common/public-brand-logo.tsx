@@ -6,7 +6,7 @@ import Image from "next/image";
 type PublicBrandLogoProps = {
   src?: string | null;
   alt: string;
-  variant?: "header" | "footer" | "hero";
+  variant?: "header" | "footer" | "hero" | "showcase";
   className?: string;
   imageClassName?: string;
   fallbackSrc?: string;
@@ -32,6 +32,12 @@ const variantClasses = {
       "relative h-full w-full overflow-hidden rounded-full bg-background shadow-2xl ring-1 ring-white/10",
     image: "rounded-full object-cover object-center",
     sizes: "(max-width: 640px) 220px, 320px",
+  },
+  showcase: {
+    frame: "relative flex h-24 w-full max-w-[380px] items-center sm:h-28 sm:max-w-[440px]",
+    shell: "relative h-full w-full overflow-hidden rounded-[24px] px-4 py-3 sm:px-6 sm:py-4",
+    image: "object-contain object-center",
+    sizes: "(max-width: 640px) 320px, 440px",
   },
 } as const;
 

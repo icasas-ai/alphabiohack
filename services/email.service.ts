@@ -88,6 +88,7 @@ interface SendTherapistInviteArgs {
   subject: string;
   reactProps: React.ReactElement;
   icsContent: string;
+  filename?: string;
 }
 
 export async function sendTherapistInviteEmail({
@@ -95,12 +96,13 @@ export async function sendTherapistInviteEmail({
   subject,
   reactProps,
   icsContent,
+  filename,
 }: SendTherapistInviteArgs) {
   return sendEmail({
     to,
     subject,
     react: reactProps,
-    attachments: [{ filename: "appointment.ics", content: icsContent }],
+    attachments: [{ filename: filename || "appointment.ics", content: icsContent }],
   });
 }
 
@@ -109,6 +111,7 @@ interface SendPatientInviteArgs {
   subject: string;
   reactProps: React.ReactElement;
   icsContent: string;
+  filename?: string;
 }
 
 export async function sendPatientInviteEmail({
@@ -116,11 +119,12 @@ export async function sendPatientInviteEmail({
   subject,
   reactProps,
   icsContent,
+  filename,
 }: SendPatientInviteArgs) {
   return sendEmail({
     to,
     subject,
     react: reactProps,
-    attachments: [{ filename: "appointment.ics", content: icsContent }],
+    attachments: [{ filename: filename || "appointment.ics", content: icsContent }],
   });
 }

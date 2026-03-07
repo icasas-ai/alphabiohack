@@ -17,7 +17,7 @@ export default async function Page() {
   }
 
   return (
-    <div className="w-full max-w-sm p-6 md:p-10">
+    <div className="mx-auto w-full max-w-6xl">
       <LoginForm />
     </div>
   );

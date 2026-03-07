@@ -23,7 +23,7 @@ export function ContactForm({ className }: ContactFormProps) {
     useContactForm();
 
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className || ""}`}>
+    <form onSubmit={handleSubmit} className={`space-y-5 ${className || ""}`}>
       <FormField
         id="name"
         name="name"
@@ -98,7 +98,7 @@ export function ContactForm({ className }: ContactFormProps) {
       <Button
         type="submit"
         disabled={isLoading}
-        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium py-3 px-6 rounded-lg transition-all duration-200 disabled:opacity-50"
+        className="h-12 w-full rounded-xl px-6 py-3 font-medium shadow-[0_14px_30px_-22px_rgba(13,70,115,0.45)]"
       >
         {isLoading ? (
           <>

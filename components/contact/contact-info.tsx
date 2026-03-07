@@ -14,6 +14,7 @@ import { BusinessHours } from "@/components/contact/business-hours";
 import { InfoCard } from "@/components/contact/info-card";
 import { useTranslations } from "next-intl";
 import { ContactInfoSkeleton } from "@/components/contact/contact-info-skeleton";
+import { readJsonResponse } from "@/lib/utils/read-json-response";
 import { SocialLinks } from "@/components/common/social-links";
 
 interface ContactData {
@@ -35,9 +36,14 @@ interface ContactData {
 interface ContactInfoProps {
   readonly className?: string;
   readonly initialData?: ContactData | null;
+  readonly showBusinessHours?: boolean;
 }
 
-export function ContactInfo({ className, initialData = null }: ContactInfoProps) {
+export function ContactInfo({
+  className,
+  initialData = null,
+  showBusinessHours = true,
+}: ContactInfoProps) {
   const t = useTranslations("Contact");
   const [publicData, setPublicData] = useState<ContactData | null>(initialData);
   const [publicLoading, setPublicLoading] = useState(!initialData);
@@ -51,7 +57,7 @@ export function ContactInfo({ className, initialData = null }: ContactInfoProps)
       try {
         const response = await fetch("/api/public/contact");
         if (response.ok) {
-          const data = await response.json();
+          const data = await readJsonResponse<ContactData>(response);
           setPublicData(data);
         }
       } catch (error) {
@@ -66,7 +72,7 @@ export function ContactInfo({ className, initialData = null }: ContactInfoProps)
   if (publicLoading || !publicData) {
     return (
       <div className={`${className || ""}`}>
-        <ContactInfoSkeleton />
+        <ContactInfoSkeleton showBusinessHours={showBusinessHours} />
       </div>
     );
   }
@@ -78,54 +84,67 @@ export function ContactInfo({ className, initialData = null }: ContactInfoProps)
 
   return (
     <div className={`space-y-6 ${className || ""}`}>
-      {/* Dirección */}
-      {address && (
-        <InfoCard
-          icon={<MapPin className="h-6 w-6 text-blue-600" />}
-          title={t("address")}
-        >
-          <p className="">{address}</p>
-        </InfoCard>
-      )}
-
-      {/* Teléfono */}
-      {phoneNumber && (
-        <InfoCard
-          icon={<Phone className="h-6 w-6 text-blue-600" />}
-          title={t("phone")}
-        >
-          <p className="">{phoneNumber}</p>
-        </InfoCard>
-      )}
-
-      {/* Email */}
       <InfoCard
-        icon={<Mail className="h-6 w-6 text-blue-600" />}
-        title={t("email")}
+        icon={<MapPin className="h-6 w-6" />}
+        title={t("subtitle")}
       >
         <div className="space-y-4">
-          <p className="">{email || t("emailAddress")}</p>
-          
-          {/* Social Links */}
-          <SocialLinks
-            facebook={socialData?.facebook}
-            instagram={socialData?.instagram}
-            linkedin={socialData?.linkedin}
-            twitter={socialData?.twitter}
-            tiktok={socialData?.tiktok}
-            youtube={socialData?.youtube}
-            website={socialData?.website}
-            iconSize={24}
-          />
+          {address ? (
+            <div className="flex items-start gap-3 border-b border-border/60 pb-4">
+              <MapPin className="mt-1 h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                  {t("address")}
+                </p>
+                <p>{address}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {phoneNumber ? (
+            <div className="flex items-start gap-3 border-b border-border/60 pb-4">
+              <Phone className="mt-1 h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                  {t("phone")}
+                </p>
+                <p>{phoneNumber}</p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex items-start gap-3">
+            <Mail className="mt-1 h-4 w-4 shrink-0 text-primary" />
+            <div className="space-y-1">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                {t("email")}
+              </p>
+              <p>{email || t("emailAddress")}</p>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <SocialLinks
+              facebook={socialData?.facebook}
+              instagram={socialData?.instagram}
+              linkedin={socialData?.linkedin}
+              twitter={socialData?.twitter}
+              tiktok={socialData?.tiktok}
+              youtube={socialData?.youtube}
+              website={socialData?.website}
+              iconSize={22}
+            />
+          </div>
         </div>
       </InfoCard>
 
-      {/* Horarios de Atención */}
-      <BusinessHours 
-        weekdaysHours={publicData.weekdaysHours}
-        saturdayHours={publicData.saturdayHours}
-        sundayHours={publicData.sundayHours}
-      />
+      {showBusinessHours ? (
+        <BusinessHours 
+          weekdaysHours={publicData.weekdaysHours}
+          saturdayHours={publicData.saturdayHours}
+          sundayHours={publicData.sundayHours}
+        />
+      ) : null}
     </div>
   );
 }

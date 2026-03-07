@@ -1,3 +1,4 @@
+import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
 import { getSiteUrl } from "@/lib/config/site-url";
 import type { Metadata } from "next";
@@ -17,8 +18,12 @@ export default function RootLayout({
   return (
     <div className="app-page-gradient min-h-screen flex flex-col bg-secondary">
       <MedicalHeader />
-      <main className="flex-1 flex items-center justify-center">
-        {children}
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+        <PageTransition className="w-full">
+          <div className="w-full">
+            {children}
+          </div>
+        </PageTransition>
       </main>
     </div>
   );

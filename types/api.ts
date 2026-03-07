@@ -1,14 +1,14 @@
 import { BookingStatus, BookingType } from "@/lib/prisma-browser";
 
 // Interfaz para la respuesta de creación de booking
-export interface CreateBookingResponse {
+export interface CreateBookingResponse<T = unknown> {
   success: boolean;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
 // Interfaz para la respuesta de API genérica
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -147,6 +147,7 @@ export interface Therapist {
 // Interfaz para bookings de terapeuta (respuesta de API)
 export interface TherapistBooking {
   id: string;
+  bookingNumber: string;
   firstname: string;
   lastname: string;
   email: string;
@@ -191,6 +192,7 @@ export interface TherapistBooking {
 // Interfaz para bookings de usuario (respuesta de API)
 export interface UserBooking {
   id: string;
+  bookingNumber: string;
   firstname: string;
   lastname: string;
   email: string;

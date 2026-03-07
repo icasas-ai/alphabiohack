@@ -11,12 +11,14 @@ import type { CalendarEvent } from "@/lib/utils/calendar";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertBookingsToEvents } from "@/lib/utils/calendar";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { useUserBookings } from "@/hooks/use-user-bookings";
 import type { BookingRow } from "@/components/bookings/bookings-data-table";
 
 export default function BookingsPage() {
+  const searchParams = useSearchParams();
   const {
     bookings,
     loading,
@@ -26,16 +28,23 @@ export default function BookingsPage() {
     updateBookingInState,
   } = useUserBookings();
   const t = useTranslations("Bookings");
-  const [currentView, setCurrentView] = useState<'list' | 'calendar'>('list');
+  const requestedView = searchParams.get("view") === "calendar" ? "calendar" : "list";
+  const [currentView, setCurrentView] = useState<'list' | 'calendar'>(requestedView);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
   const [editingBooking, setEditingBooking] = useState<BookingRow | null>(null);
   const [createBookingOpen, setCreateBookingOpen] = useState(false);
   const [createBookingDate, setCreateBookingDate] = useState<Date | null>(null);
 
+  React.useEffect(() => {
+    setCurrentView((prev) => (prev === requestedView ? prev : requestedView));
+  }, [requestedView]);
+
   const eventStatusToBookingStatus = (status?: CalendarEvent["status"]) => {
     switch (status) {
       case "confirmed":
         return "Confirmed";
+      case "needsattention":
+        return "NeedsAttention";
       case "inprogress":
         return "InProgress";
       case "completed":

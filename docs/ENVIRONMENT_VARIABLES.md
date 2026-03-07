@@ -15,8 +15,8 @@ Use it together with [.env.example](/Users/davidguillen/Projects/david/alphabioh
 ### `DATABASE_URL`
 
 - Public: `no`
-- Required: `yes`
-- Used for: runtime Prisma connections
+- Required: `no` (legacy compatibility fallback only)
+- Used for: fallback when DB parts are not provided
 - Example:
 
 ```env
@@ -25,14 +25,58 @@ DATABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/post
 
 Notes:
 
-- This is required by Prisma at runtime.
-- In production with Supabase Postgres, this should usually be the pooled connection string.
+- DB parts (`DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`, `DB_NAME`) are the primary configuration in this repository.
+- Keep this only for backward compatibility with older environments.
+
+### `DB_USER`
+
+- Public: `no`
+- Required: only when `DATABASE_URL` is not set
+- Used for: composing Prisma connection URL internally
+
+### `DB_PASS`
+
+- Public: `no`
+- Required: optional (required if your database user has a password)
+- Used for: composing Prisma connection URL internally
+
+### `DB_HOST`
+
+- Public: `no`
+- Required: only when `DATABASE_URL` is not set
+- Used for: composing Prisma connection URL internally
+
+### `DB_PORT`
+
+- Public: `no`
+- Required: optional
+- Used for: composing Prisma connection URL internally
+
+Notes:
+
+- Defaults to `5432` when omitted.
+
+### `DB_NAME`
+
+- Public: `no`
+- Required: only when `DATABASE_URL` is not set
+- Used for: composing Prisma connection URL internally
+
+### `DB_QUERY`
+
+- Public: `no`
+- Required: optional
+- Used for: optional query params appended when composing Prisma connection URL internally
+
+Notes:
+
+- Example: `DB_QUERY=pgbouncer=true&sslmode=require`
 
 ### `DIRECT_URL`
 
 - Public: `no`
-- Required: `recommended`, and effectively required for migrations in production
-- Used for: Prisma CLI operations such as migrations and generate
+- Required: `no` (legacy fallback only)
+- Used for: last-resort fallback only when neither DB parts nor `DATABASE_URL` are set
 - Example:
 
 ```env
@@ -41,8 +85,8 @@ DIRECT_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgr
 
 Notes:
 
-- Prisma config prefers `DIRECT_URL` over `DATABASE_URL`.
-- In production with Supabase Postgres, this should usually be the direct, non-pooled connection string.
+- Deprecated in this repository as a primary setting.
+- Keep only for backward compatibility while migrating older env files.
 
 ## Auth
 
@@ -65,6 +109,17 @@ Notes:
 Notes:
 
 - Must match the same Supabase project as `NEXT_PUBLIC_SUPABASE_URL`.
+
+### `SUPABASE_SERVICE_ROLE_KEY`
+
+- Public: `no`
+- Required: yes when using Supabase auth and you want to create personnel invites/reset temporary passwords from the app
+- Used for: server-side Supabase admin calls (`auth.admin.createUser`, `auth.admin.updateUserById`) in personnel management
+
+Notes:
+
+- Keep this as a secret variable in Netlify.
+- Never expose this key to client-side code.
 
 ### `LOCAL_AUTH_SECRET`
 
@@ -401,8 +456,12 @@ These names still appear in docs, but there is no direct `process.env` read for 
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 
 EMAIL_PROVIDER=smtp
 SMTP_HOST=localhost
@@ -414,14 +473,22 @@ DEFAULT_COMPANY_SLUG=default-company
 NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
 ```
 
+Important:
+
+- `.env.local` is sourced by local shell wrapper scripts, so assignments must use `KEY=value` with no spaces around `=`
+- if local PostgreSQL is exposed on a non-default host port such as `5433`, update `DB_PORT` to match that host port
+
 ### Minimum Netlify + Supabase Setup
 
 ```env
 SITE_URL=https://your-site.netlify.app
 NEXT_PUBLIC_SITE_URL=https://your-site.netlify.app
 
-DATABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres?pgbouncer=true
-DIRECT_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres
+DB_USER=postgres
+DB_PASS=[db-password]
+DB_HOST=[session-pooler-host]
+DB_PORT=6543
+DB_NAME=postgres
 
 NEXT_PUBLIC_SUPABASE_URL=https://[project].supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=[anon-key]
@@ -434,3 +501,47 @@ RESEND_API_KEY=[resend-api-key]
 BOOKING_FROM_EMAIL="AlphaBioHack <noreply@example.com>"
 BOOKING_REPLY_TO=support@example.com
 ```
+
+Migration note:
+
+- Keep `DB_HOST`/`DB_PORT` on session-pooler values for Netlify runtime.
+- For one-off Prisma migration commands, temporarily run with direct host/port:
+  `DB_HOST='db.[project].supabase.co' DB_PORT='5432' npx prisma migrate deploy`
+
+## Netlify Secret Scanning Guidance
+
+On Netlify, classify env vars like this to avoid false-positive build failures.
+
+### Should Be Secret
+
+- `DB_PASS`
+- `RESEND_API_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (required for Supabase-backed personnel invites/temp password reset)
+- `LOCAL_AUTH_SECRET` (if using local auth mode)
+- `SMTP_PASS` (if SMTP auth is configured)
+- `GOOGLE_MAPS_API_KEY` (optional, policy-dependent)
+
+### Should Be Non-Secret
+
+- all `NEXT_PUBLIC_*` variables
+- `SITE_URL`
+- `DB_USER`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_QUERY`
+- `DEFAULT_COMPANY_SLUG`
+- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
+- `EMAIL_PROVIDER`
+- `BOOKING_FROM_EMAIL`
+- `BOOKING_REPLY_TO`
+- `BOOKING_EMAIL_BCC`
+
+### Bootstrap-Only (Remove from Netlify after seed)
+
+- all `BOOTSTRAP_*` variables
+
+### Why `NEXT_PUBLIC_*` must be non-secret
+
+- `NEXT_PUBLIC_*` values are intentionally bundled into client/build output.
+- If marked secret in Netlify, Secrets Scanner can fail the deploy when it sees those values in `.next` output.

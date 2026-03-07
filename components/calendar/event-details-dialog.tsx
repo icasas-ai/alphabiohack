@@ -73,6 +73,8 @@ export function EventDetailsDialog({
         return 'Confirmed';
       case 'pending':
         return 'Pending';
+      case 'needsattention':
+        return 'NeedsAttention';
       case 'inprogress':
         return 'InProgress';
       case 'completed':
@@ -95,6 +97,8 @@ export function EventDetailsDialog({
         return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/40';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/40';
+      case 'needsattention':
+        return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40';
       case 'inprogress':
         return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40';
       case 'completed':
@@ -127,6 +131,8 @@ export function EventDetailsDialog({
         return t('confirmed');
       case 'pending':
         return t('pending');
+      case 'needsattention':
+        return t('needsAttention');
       case 'inprogress':
         return t('inProgress');
       case 'completed':

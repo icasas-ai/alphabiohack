@@ -8,6 +8,7 @@ interface AppointmentInviteEmailProps {
   patientEmail?: string
   therapistName: string
   locationAddress: string
+  bookingNumber: string
   notes?: string
   start: Date // Fecha/hora de inicio (Date real)
   end: Date   // Fecha/hora de fin (Date real)
@@ -22,6 +23,7 @@ export function AppointmentInviteEmail({
   patientEmail,
   therapistName,
   locationAddress,
+  bookingNumber,
   notes,
   start,
   end,
@@ -40,6 +42,7 @@ export function AppointmentInviteEmail({
       ? 'Se ha solicitado la siguiente cita:'
       : 'The following appointment has been requested:',
     patient: isSpanish ? 'Participante' : 'Participant',
+    bookingNumber: isSpanish ? 'Codigo de cita' : 'Booking number',
     email: isSpanish ? 'Correo' : 'Email',
     therapist: isSpanish ? 'Profesional' : 'Professional',
     when: isSpanish ? 'Cuándo' : 'When',
@@ -74,6 +77,10 @@ export function AppointmentInviteEmail({
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: '#374151' }}>{t.patient}:</strong>
             <span style={{ color: '#374151', marginLeft: 8 }}>{patientName}</span>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <strong style={{ color: '#374151' }}>{t.bookingNumber}:</strong>
+            <span style={{ color: '#374151', marginLeft: 8 }}>{bookingNumber}</span>
           </div>
           {patientEmail && (
             <div style={{ marginBottom: 10 }}>

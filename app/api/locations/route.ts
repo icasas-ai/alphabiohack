@@ -77,9 +77,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const normalizedTitle = normalizeWhitespace(body.title);
     const normalizedAddress = normalizeWhitespace(body.address);
+    const normalizedTimezone = typeof body.timezone === "string" ? body.timezone.trim() : "";
 
     // Validaciones básicas
-    if (!normalizedAddress || !normalizedTitle) {
+    if (!normalizedAddress || !normalizedTitle || !normalizedTimezone) {
       const { body: err, status } = errorResponse(
         "validation.required",
         null,
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
         ...body,
         title: normalizedTitle,
         address: normalizedAddress,
+        timezone: normalizedTimezone,
         description: typeof body.description === "string" ? body.description.trim() : body.description,
       },
       companyId,

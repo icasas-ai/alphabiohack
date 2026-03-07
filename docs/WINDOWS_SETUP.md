@@ -80,8 +80,12 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
 # Local PostgreSQL
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 
 # Local Mailpit
 EMAIL_PROVIDER=smtp
@@ -103,8 +107,12 @@ NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 Copy these same DB-related values into `.env`:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
 ```
 
@@ -272,9 +280,9 @@ For normal development on Windows, host-run app + Docker services is the better 
 
 ## Troubleshooting
 
-### Prisma says `DIRECT_URL` or `DATABASE_URL` is missing
+### Prisma says DB connection vars are missing
 
-Make sure those values exist in `.env`, not only `.env.local`.
+Make sure `DB_USER`, `DB_HOST`, and `DB_NAME` exist in `.env`, not only `.env.local`.
 
 ### Booking says therapist not found
 

@@ -158,8 +158,12 @@ Then open:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 
 EMAIL_PROVIDER=smtp
 SMTP_HOST=localhost
@@ -172,6 +176,7 @@ DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 
 Important:
 
+- `.env.local` is sourced by a shell wrapper, so use `KEY=value` with no spaces around `=`
 - `LOCAL_AUTH_SECRET` is required when Supabase auth is disabled
 - `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
@@ -190,6 +195,68 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 - `npm run db:reset` - reset and reseed the database
 - `npm run db:studio` - open Prisma Studio using `.env.local`
 
+## Migration Troubleshooting
+
+If `npm run db:migrate:deploy` fails locally, check these first:
+
+1. `.env.local` syntax must be valid shell syntax:
+
+```env
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
+```
+
+Bad example:
+
+```env
+DB_USER= postgres
+```
+
+2. Confirm PostgreSQL actually owns the configured host port:
+
+```bash
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+```
+
+If you see `ssh` or another process instead of PostgreSQL, stop that process or move the Docker mapping to another host port such as `5433`, then update `DB_PORT` in `.env.local`.
+
+3. Make sure the database container is healthy:
+
+```bash
+docker compose up -d db
+docker compose ps db
+docker logs alphabiohack-db --tail 50
+```
+
+4. Retry the normal flow:
+
+```bash
+npm run db:generate
+npm run db:migrate:status
+npm run db:migrate:deploy
+```
+
+Recovery options:
+
+- If Prisma marks a migration as failed and you need to retry it without wiping local data:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260312000000_add_booking_number
+npm run db:migrate:deploy
+```
+
+- If you are in local development and can safely rebuild the database:
+
+```bash
+npm run db:reset
+```
+
+Do not use `db:reset` against production data.
+
 ## Main Project Areas
 
 - [app](/Users/davidguillen/Projects/david/alphabiohack/app) - App Router pages and API routes
@@ -202,6 +269,7 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 ## Supporting Docs
 
 - [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) - local setup, Docker, Prisma commands, Mailpit
+- [docs/DEPLOY_NETLIFY_SUPABASE.md](docs/DEPLOY_NETLIFY_SUPABASE.md) - production runbook for Netlify + Supabase (env, migrations, seed, and checks)
 - [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) - complete env var reference, required modes, and deployment notes
 - [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) - Windows downloads, PowerShell commands, Prisma setup, and startup flow
 - [docs/AVAILABILITY_SYSTEM.md](docs/AVAILABILITY_SYSTEM.md) - current availability architecture

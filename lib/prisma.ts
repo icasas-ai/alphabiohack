@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
+import { resolveDatabaseUrl } from "@/lib/database-url";
 import { PrismaClient } from "@/lib/prisma-client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -9,10 +10,12 @@ const globalForPrisma = globalThis as unknown as {
   prismaPool: Pool | undefined;
 };
 
-const databaseUrl = process.env.DATABASE_URL;
+const { url: databaseUrl } = resolveDatabaseUrl();
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required to initialize Prisma");
+  throw new Error(
+    "Database connection is required. Set DB_USER/DB_PASS/DB_HOST/DB_PORT/DB_NAME.",
+  );
 }
 
 const prismaPool =

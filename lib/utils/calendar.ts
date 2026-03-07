@@ -39,7 +39,14 @@ export interface CalendarEvent {
   dateKey?: string;
   locationId?: string;
   type: "appointment" | "task" | "event";
-  status?: "pending" | "confirmed" | "inprogress" | "completed" | "cancelled" | "noshow";
+  status?:
+    | "pending"
+    | "needsattention"
+    | "confirmed"
+    | "inprogress"
+    | "completed"
+    | "cancelled"
+    | "noshow";
   color?: string;
   // Datos adicionales para appointments
   patientName?: string;
@@ -56,6 +63,8 @@ export function normalizeBookingStatus(status?: string): CalendarEvent["status"]
   switch ((status || "").toLowerCase()) {
     case "pending":
       return "pending";
+    case "needsattention":
+      return "needsattention";
     case "confirmed":
       return "confirmed";
     case "inprogress":

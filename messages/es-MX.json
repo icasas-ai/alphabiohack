@@ -37,7 +37,8 @@
     "vsPreviousMonth": "vs mes anterior",
     "charts": {
       "appointments": "Reservas",
-      "appointmentsTrend": "Tendencia de reservas"
+      "appointmentsTrend": "Tendencia de reservas",
+      "openCalendar": "Abrir calendario"
     },
     "kpiMeta": {
       "trendingUp": "Tendencia al alza",
@@ -65,6 +66,7 @@
     },
     "status": {
       "pending": "Pendiente",
+      "needsAttention": "Requiere atención",
       "confirmed": "Confirmada",
       "inProgress": "En progreso",
       "completed": "Completada",
@@ -86,6 +88,8 @@
       "title": "Próxima reserva",
       "chat": "Chatear ahora",
       "start": "Iniciar reserva",
+      "open": "Abrir reservas",
+      "timeZone": "Las horas se muestran en {timezone}.",
       "empty": "Sin próxima reserva"
     },
     "invoices": {
@@ -493,6 +497,7 @@
     "createAction": "Enviar invitación",
     "saveAction": "Guardar cambios",
     "saving": "Guardando...",
+    "deleting": "Eliminando...",
     "created": "Cuenta de personal creada y acceso enviado.",
     "updated": "Cuenta de personal actualizada.",
     "deleted": "Cuenta de personal eliminada.",
@@ -518,8 +523,11 @@
     "signUpSuccessMessage": "Por favor revisa tu correo electrónico para confirmar tu cuenta.",
     "loginSuccess": "¡Bienvenido de vuelta!",
     "logoutSuccess": "Has cerrado sesión exitosamente.",
+    "loginEyebrow": "Acceso protegido",
     "loginTitle": "Iniciar Sesión",
     "loginDescription": "Ingresa tu correo electrónico para iniciar sesión en tu cuenta",
+    "loginHeroTitle": "Vuelve a tu espacio de trabajo de reservas",
+    "loginHeroDescription": "Revisa horarios, gestiona participantes y mantén tu día en movimiento con menos fricción.",
     "signUpTitle": "Crear Cuenta",
     "signUpDescription": "Ingresa tu información para crear una nueva cuenta",
     "forgotPasswordTitle": "Recuperar Contraseña",
@@ -617,6 +625,7 @@
     "keepCurrentStatus": "Conservar estado actual",
     "statusOptions": {
       "Pending": "Pendiente",
+      "NeedsAttention": "Requiere atención",
       "Confirmed": "Confirmada",
       "InProgress": "En progreso",
       "Completed": "Completada",
@@ -625,6 +634,7 @@
     },
     "markAs": {
       "Pending": "Marcar como pendiente",
+      "NeedsAttention": "Marcar como requiere atención",
       "Confirmed": "Marcar como confirmada",
       "InProgress": "Marcar como en progreso",
       "Completed": "Marcar como completada",
@@ -737,8 +747,8 @@
     "errorLoadingLocations": "Error al cargar las ubicaciones. Por favor, intenta nuevamente.",
     "step1Title": "Paso 1: Tipo de cita y ubicación",
     "step1Description": "Selecciona el tipo de cita y la ubicación donde deseas recibir el servicio.",
-    "step2Title": "Paso 2: Especialidad y servicios",
-    "step2Description": "Selecciona la especialidad y los servicios que necesitas.",
+    "step2Title": "Paso 2: Servicios",
+    "step2Description": "Selecciona los servicios que necesitas.",
     "step3Title": "Paso 3: Fecha y hora",
     "step3Description": "Elige la fecha y hora que mejor se adapte a tu horario.",
     "step4Title": "Paso 4: Información personal",
@@ -1014,6 +1024,7 @@
     "event": "Evento",
     "confirmed": "Confirmada",
     "pending": "Pendiente",
+    "needsAttention": "Requiere atención",
     "inProgress": "En progreso",
     "completed": "Completada",
     "noShow": "No asistió",
@@ -1034,6 +1045,7 @@
     "updateStatus": "Actualizar estado",
     "statusOptions": {
       "Pending": "Pendiente",
+      "NeedsAttention": "Requiere atención",
       "Confirmed": "Confirmada",
       "InProgress": "En progreso",
       "Completed": "Completada",
@@ -1093,6 +1105,14 @@
     "title": "Hola, Soy Alberto Estrada",
     "subtitle": "Especialista Alphabiótico",
     "description": "Mi propósito es acompañarte a recordar quién eres en esencia. La Alineación Alphabiótica no es una técnica ni un remedio, sino una experiencia transformadora que abre la puerta a tu equilibrio interior: cuando mente, corazón y cuerpo se alinean, la vida fluye con claridad, paz y fortaleza.",
+    "badge": "Cuidado presencial alineado",
+    "helper": "Elige una ubicación ahora o continúa para revisar todas las visitas disponibles durante la reserva.",
+    "logoCardSpecialtyLabel": "Enfoque",
+    "logoCardBookingLabel": "Reserva",
+    "logoCardBookingValue": "Confirmacion simple en linea",
+    "showcaseSummary": "Pensado para una experiencia de reserva presencial más serena, con disponibilidad clara y una confirmación simple.",
+    "logoCardFooter": "Visitas personalizadas",
+    "locationsAvailable": "{count, plural, =1 {# ubicación disponible} other {# ubicaciones disponibles}}",
     "locationPlaceholder": "Ubicación",
     "departmentPlaceholder": "Seleccionar Departamento",
     "bookNow": "Reservar Ahora",
@@ -1114,6 +1134,44 @@
       "dentist": "Dentista",
       "urology": "Urología"
     }
+  },
+  "HomeLanding": {
+    "careEyebrow": "Una experiencia más serena",
+    "careTitle": "Un acompañamiento que se siente claro, humano y aterrizado",
+    "careDescription": "Las sesiones AlphaBiotic se presentan como una experiencia presencial más tranquila: menos ruido, menos fricción y una sensación más clara de lo que sigue.",
+    "pillars": {
+      "oneTitle": "Sesiones alineadas",
+      "oneDescription": "Las visitas están estructuradas para sentirse enfocadas y estables, de modo que la experiencia sea simple desde la llegada hasta el seguimiento.",
+      "twoTitle": "Espacio para respirar",
+      "twoDescription": "El tono de la práctica es sereno y directo, ofreciendo una forma más centrada de comenzar.",
+      "threeTitle": "Próximos pasos claros",
+      "threeDescription": "La reserva, la confirmación y los detalles de la visita se entienden fácilmente sin abrumar al participante."
+    },
+    "guideEyebrow": "Acompañado por",
+    "guideFallbackName": "Especialista AlphaBiotic",
+    "guideFallbackSpecialty": "Cuidado presencial alineado",
+    "guideFallbackBio": "Un enfoque cercano y aterrizado, centrado en el equilibrio, la claridad y una sensación más natural de alineación.",
+    "guideAppointments": "Sesiones presenciales",
+    "guideLanguages": "Inglés y español",
+    "guideLocations": "{count, plural, =1 {# ubicación} other {# ubicaciones}}",
+    "guideNote": "El perfil público, el flujo de reserva y los detalles posteriores se mantienen intencionalmente simples para que la experiencia se sienta estable desde el primer paso.",
+    "journeyEyebrow": "Cómo funciona",
+    "journeyTitle": "Del primer clic a la visita confirmada",
+    "journeyDescription": "El proceso de reserva está diseñado para ser corto y claro, de modo que las personas pasen del interés a una cita confirmada sin fricción innecesaria.",
+    "steps": {
+      "oneTitle": "Elige dónde quieres asistir",
+      "oneDescription": "Comienza con la ubicación que te resulte más cómoda, o continúa sin elegir una y revisa las opciones después.",
+      "twoTitle": "Selecciona el día y la hora que prefieras",
+      "twoDescription": "El flujo de reserva te guía por la disponibilidad sin añadir decisiones innecesarias.",
+      "threeTitle": "Recibe una confirmación clara",
+      "threeDescription": "Una vez reservada, los detalles de la cita, el número de confirmación, el correo y la invitación al calendario permanecen sincronizados."
+    },
+    "locationsEyebrow": "Ubicaciones",
+    "locationsTitle": "Elige el lugar que mejor se adapte a ti",
+    "locationsDescription": "Puedes empezar con una ubicación preferida ahora o continuar para revisar la disponibilidad durante la reserva.",
+    "locationsEmpty": "Las ubicaciones aparecerán aquí cuando se agreguen al perfil público.",
+    "bookNow": "Comenzar reserva",
+    "contactLink": "Hacer una pregunta"
   },
   "Contact": {
     "title": "¿Tienes alguna pregunta?",
@@ -1224,8 +1282,10 @@
       "service": {
         "descriptionRequired": "La descripción es requerida",
         "descriptionMax": "La descripción es muy larga",
+        "costRequired": "El costo es requerido",
         "costMin": "El costo debe ser mayor o igual a 0",
         "costMax": "El costo es muy alto",
+        "durationRequired": "La duración es requerida",
         "durationMin": "La duración debe ser al menos 1 minuto",
         "durationMax": "La duración máxima es 8 horas"
       }

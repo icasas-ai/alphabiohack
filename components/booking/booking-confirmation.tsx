@@ -1,283 +1,442 @@
 "use client"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Phone, QrCode } from "lucide-react"
+import {
+  CalendarDays,
+  CheckCircle,
+  Clock3,
+  MapPin,
+  Phone,
+  QrCode,
+  UserRound,
+} from "lucide-react"
+import Image from "next/image"
 import { useTranslations } from "next-intl"
-import { useLocations, useServices, useTherapist } from "@/hooks"
+import { useLocations, useServices } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"
 import { AddToCalendarButton } from "@/components/common/add-to-calendar-button"
 import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useBookingWizard } from "@/contexts"
+import { buildICS } from "@/lib/utils/calendar-links"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
-import { useMemo } from "react"
+import { cn } from "@/lib/utils"
+import QRCode from "qrcode"
+import { useEffect, useMemo, useState } from "react"
 import { useFormatter, useLocale } from "next-intl"
 
 export function BookingConfirmation() {
   const format = useFormatter()
   const locale = useLocale()
-  const t = useTranslations('Booking')
- 
-  const { data } = useBookingWizard()
+  const t = useTranslations("Booking")
+
+  const { data, publicTherapist, publicTherapistLoading, publicTherapistError } = useBookingWizard()
   const { locations } = useLocations()
-  const { services } = useServices(data.specialtyId || undefined)
-  const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
+  const { services } = useServices()
+  const createdBooking = data.createdBooking as { id?: string; bookingNumber?: string } | null
+  const therapist = data.selectedTherapist || publicTherapist || null
+  const therapistLoading =
+    !therapist && Boolean(data.therapistId) && publicTherapistLoading
+  const therapistError = !therapist ? publicTherapistError : null
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
 
-  // Generate booking number
-  const bookingNumber = useMemo(() => {
-    const timestamp = Date.now().toString().slice(-6)
-    const random = Math.random().toString(36).substring(2, 5).toUpperCase()
-    return `BK-${timestamp}-${random}`
-  }, [])
-
-  // Get selected location
-  const selectedLocation = locations.find(loc => loc.id === data.locationId)
+  const selectedLocation = locations.find((loc) => loc.id === data.locationId)
   const officeTimeZoneLabel = selectedLocation?.timezone
     ? formatTimeZoneLabel(selectedLocation.timezone, locale)
     : null
-  
-  // Get selected service
-  const selectedService = services.find(service => service.id === data.selectedServiceIds[0])
-
-
-
+  const selectedServices = services.filter((service) =>
+    data.selectedServiceIds.includes(service.id),
+  )
+  const selectedService = selectedServices[0]
 
   const endTimeHHmm = useMemo(() => {
     if (!data.selectedTime) return "00:00"
-    const svc = selectedService
+
     const [h, m] = data.selectedTime.split(":").map(Number)
-    const dur = data.sessionDurationMinutes ?? svc?.duration ?? 60
+    const dur = data.sessionDurationMinutes ?? selectedService?.duration ?? 60
     const endMinutes = h * 60 + m + dur
     const eh = Math.floor(endMinutes / 60)
     const em = endMinutes % 60
-    return `${eh.toString().padStart(2,'0')}:${em.toString().padStart(2,'0')}`
+
+    return `${eh.toString().padStart(2, "0")}:${em.toString().padStart(2, "0")}`
   }, [data.selectedTime, data.sessionDurationMinutes, selectedService])
+
+  const therapistName = therapist ? `${therapist.firstName} ${therapist.lastName}` : null
+  const therapistInitials = therapistName
+    ? therapistName
+        .split(" ")
+        .map((name) => name[0])
+        .join("")
+    : ""
+  const bookingNumber = createdBooking?.bookingNumber || t("notSelectedYet")
+  const contactName = `${data.basicInfo.firstName} ${data.basicInfo.lastName}`.trim() || t("notSelectedYet")
+  const appointmentDateLabel = data.selectedDate
+    ? format.dateTime(data.selectedDate, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      })
+    : t("notSelectedYet")
+  const appointmentTimeLabel = data.selectedTime ? formatTime12h(data.selectedTime) : t("notSelectedYet")
+  const serviceLabel =
+    selectedServices.length > 0
+      ? selectedServices.map((service) => service.description).join(", ")
+      : t("notSelectedYet")
+  const contactDetail =
+    [data.basicInfo.phone, data.basicInfo.email].filter(Boolean).join(" • ") || undefined
+  const summaryTileClassName =
+    "rounded-2xl border border-border/70 bg-muted/30 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]"
+  const calendarTitle = useMemo(() => {
+    const titleBase = therapistName
+      ? t("appointmentWith", { name: therapistName })
+      : t("appointmentSummary")
+
+    return createdBooking?.bookingNumber
+      ? `${titleBase} (${createdBooking.bookingNumber})`
+      : titleBase
+  }, [createdBooking?.bookingNumber, t, therapistName])
+  const calendarDescription = useMemo(() => {
+    const bookingNumberLine = createdBooking?.bookingNumber
+      ? `${t("bookingNumber")}: ${createdBooking.bookingNumber}`
+      : null
+
+    return [bookingNumberLine, data.basicInfo.bookingNotes || undefined]
+      .filter(Boolean)
+      .join("\n\n")
+  }, [createdBooking?.bookingNumber, data.basicInfo.bookingNotes, t])
+  const calendarFilename = createdBooking?.bookingNumber
+    ? `appointment-${createdBooking.bookingNumber}`
+    : undefined
+  const qrPayload = useMemo(() => {
+    if (!data.selectedDate || !data.selectedTime || !selectedLocation || !createdBooking?.bookingNumber) {
+      return null
+    }
+
+    return buildICS(
+      {
+        uid: createdBooking.id
+          ? `booking-${createdBooking.id}@booking-saas`
+          : `booking-${createdBooking.bookingNumber}@booking-saas`,
+        organizerEmail:
+          process.env.NEXT_PUBLIC_BOOKING_FROM_EMAIL || "no-reply@booking-saas.com",
+        attendeeEmail: data.basicInfo.email || undefined,
+        title: calendarTitle,
+        description: calendarDescription,
+        location: selectedLocation.address,
+        date: data.selectedDate,
+        startTimeHHmm: data.selectedTime,
+        endTimeHHmm,
+      },
+      selectedLocation.timezone,
+    )
+  }, [
+    calendarDescription,
+    calendarTitle,
+    createdBooking?.bookingNumber,
+    createdBooking?.id,
+    data.basicInfo.email,
+    data.selectedDate,
+    data.selectedTime,
+    endTimeHHmm,
+    selectedLocation,
+  ])
+
+  useEffect(() => {
+    let isActive = true
+
+    if (!qrPayload) {
+      setQrCodeDataUrl(null)
+      return () => {
+        isActive = false
+      }
+    }
+
+    void QRCode.toDataURL(qrPayload, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 384,
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((dataUrl) => {
+        if (isActive) {
+          setQrCodeDataUrl(dataUrl)
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("Error generating booking QR code:", error)
+        if (isActive) {
+          setQrCodeDataUrl(null)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [qrPayload])
+
+  const summaryItems = [
+    {
+      key: "dateTime",
+      icon: CalendarDays,
+      label: t("dateTime"),
+      value: appointmentDateLabel,
+      detail: appointmentTimeLabel,
+      accentClassName: "text-emerald-700 dark:text-emerald-300",
+    },
+    {
+      key: "service",
+      icon: CheckCircle,
+      label: t("service"),
+      value: serviceLabel,
+    },
+    {
+      key: "location",
+      icon: MapPin,
+      label: t("location"),
+      value: selectedLocation?.title || t("notSelectedYet"),
+      detail: selectedLocation?.address || undefined,
+    },
+    {
+      key: "contact",
+      icon: UserRound,
+      label: t("contactInfo"),
+      value: contactName,
+      detail: contactDetail,
+    },
+  ]
+
   return (
     <div className="w-full space-y-8">
-      {/* Header with confirmation */}
-      <div className="flex items-center gap-3">
-        <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-        <h1 className="text-2xl font-semibold text-foreground">{t('bookingSuccess')}</h1>
-      </div>
+      <Card className="overflow-hidden border-emerald-300/60 bg-gradient-to-br from-emerald-50 via-background to-background shadow-[0_20px_45px_-28px_rgba(22,163,74,0.45)] dark:border-emerald-500/30 dark:from-emerald-950/40 dark:via-background dark:to-background">
+        <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 ring-8 ring-emerald-500/8">
+              <span className="absolute inset-0 rounded-full bg-emerald-400/20 animate-ping" />
+              <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm">
+                <CheckCircle className="h-7 w-7" />
+              </span>
+            </div>
+            <div className="space-y-1">
+              <Badge className="w-fit border-emerald-500/30 bg-emerald-500/12 text-emerald-700 hover:bg-emerald-500/12 dark:text-emerald-300">
+                {t("bookingConfirmed")}
+              </Badge>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                {t("bookingSuccess")}
+              </h1>
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                {t("bookingSuccessMessage")}
+              </p>
+            </div>
+          </div>
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-8">
-        {/* Left side - Booking details */}
+          <div className="rounded-2xl border border-emerald-400/25 bg-white/70 px-4 py-3 text-sm text-emerald-800 shadow-sm dark:bg-emerald-950/20 dark:text-emerald-200">
+            <span className="block text-xs font-medium uppercase tracking-[0.18em] text-emerald-600/80 dark:text-emerald-300/80">
+              {t("bookingNumber")}
+            </span>
+            <span className="mt-1 block font-semibold">{bookingNumber}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
-          {/* Doctor info and confirmation message */}
           <Card className="flex items-start gap-4 p-6">
             {therapistLoading ? (
-              <div className="h-16 w-16 bg-muted animate-pulse rounded-full" />
+              <div className="h-16 w-16 rounded-full bg-muted animate-pulse" />
             ) : therapistError ? (
-              <div className="h-16 w-16 bg-destructive/10 rounded-full flex items-center justify-center">
-                <span className="text-destructive text-xs">Error</span>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+                <span className="text-xs text-destructive">Error</span>
               </div>
             ) : therapist ? (
               <Avatar className="h-16 w-16">
-                <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={`${therapist.firstName} ${therapist.lastName}`} />
-                <AvatarFallback>
-                  {`${therapist.firstName} ${therapist.lastName}`
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
+                <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={therapistName || ""} />
+                <AvatarFallback>{therapistInitials}</AvatarFallback>
               </Avatar>
             ) : (
-              <div className="h-16 w-16 bg-muted rounded-full" />
+              <div className="h-16 w-16 rounded-full bg-muted" />
             )}
             <div className="flex-1">
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="leading-relaxed text-muted-foreground">
                 {therapistLoading ? (
-                  <span className="animate-pulse">Cargando información del terapeuta...</span>
+                  <span className="animate-pulse">Cargando informacion del terapeuta...</span>
                 ) : therapistError ? (
-                  <span className="text-destructive">Error al cargar información del terapeuta</span>
+                  <span className="text-destructive">Error al cargar informacion del terapeuta</span>
                 ) : therapist ? (
                   <>
-                    Tu cita ha sido confirmada con {therapist.firstName} {therapist.lastName}. 
-                    Por favor llega{" "}
-                    <span className="font-medium text-foreground">15 minutos antes</span> de la hora de la cita.
+                    Tu cita ha sido confirmada con {therapistName}. Por favor llega{" "}
+                    <span className="font-medium text-foreground">15 minutos antes</span> de la hora
+                    de la cita.
                   </>
                 ) : (
-                  "Información del terapeuta no disponible"
+                  "Informacion del terapeuta no disponible"
                 )}
               </p>
             </div>
           </Card>
 
-          {/* Appointment Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{t('appointmentSummary')}</CardTitle>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-border/70 pb-4">
+              <CardTitle className="text-base">{t("appointmentSummary")}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Datos del Terapeuta */}
-              <div className="flex items-center gap-4">
-                {therapistLoading ? (
-                  <div className="h-12 w-12 bg-muted animate-pulse rounded-full" />
-                ) : therapistError ? (
-                  <div className="h-12 w-12 bg-destructive/10 rounded-full flex items-center justify-center">
-                    <span className="text-destructive text-xs">!</span>
-                  </div>
-                ) : therapist ? (
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={`${therapist.firstName} ${therapist.lastName}`} />
-                    <AvatarFallback>
-                      {`${therapist.firstName} ${therapist.lastName}`
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <div className="h-12 w-12 bg-muted rounded-full" />
-                )}
-                <div>
-                  <h4 className="font-medium text-foreground mb-1">{t('therapist')}</h4>
-                  <p className="text-muted-foreground">
-                    {therapistLoading ? (
-                      <span className="animate-pulse">Cargando...</span>
-                    ) : therapistError ? (
-                      <span className="text-destructive">Error al cargar</span>
-                    ) : therapist ? (
-                      `${therapist.firstName} ${therapist.lastName}`
-                    ) : (
-                      "No disponible"
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Especialidad */}
-              <div>
-                <h4 className="font-medium text-foreground mb-1">{t('specialty')}</h4>
-                <p className="text-muted-foreground">
+            <CardContent className="grid gap-4 pt-6 md:grid-cols-2">
+              <div className={cn(summaryTileClassName, "md:col-span-2")}>
+                <div className="flex items-center gap-4">
                   {therapistLoading ? (
-                    <span className="animate-pulse">Cargando especialidades...</span>
+                    <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
                   ) : therapistError ? (
-                    <span className="text-destructive">Error al cargar</span>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                      <span className="text-xs text-destructive">!</span>
+                    </div>
                   ) : therapist ? (
-                    therapist.specialties.join(', ')
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={therapistName || ""} />
+                      <AvatarFallback>{therapistInitials}</AvatarFallback>
+                    </Avatar>
                   ) : (
-                    "No disponible"
+                    <div className="h-12 w-12 rounded-full bg-muted" />
                   )}
-                </p>
-              </div>
-
-              {/* Servicio */}
-              <div>
-                <h4 className="font-medium text-foreground mb-1">{t('service')}</h4>
-                <p className="text-muted-foreground">
-                  {selectedService ? selectedService.description : "Servicio no seleccionado"}
-                </p>
-              </div>
-
-              {/* Fecha y hora */}
-              <div>
-                <h4 className="font-medium text-foreground mb-1">{t('dateTime')}</h4>
-                <p>
-  {data.selectedDate
-    ? format.dateTime(data.selectedDate, {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })
-    : ""}
-  <br />
-  {data.selectedTime ? formatTime12h(data.selectedTime) : ""}
-</p>
-                {officeTimeZoneLabel ? (
-                  <div className="mt-1 space-y-1">
-                    <p className="text-sm text-muted-foreground">
-                      {t("officeTimeZoneNotice", {
-                        location: selectedLocation?.title || t("location"),
-                        timezone: officeTimeZoneLabel,
-                      })}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      {t("therapist")}
                     </p>
-                    {selectedLocation?.timezone ? (
-                      <TimeZoneDifferenceNote
-                        officeTimeZone={selectedLocation.timezone}
-                        date={data.selectedDate}
-                        namespace="Booking"
-                        className="text-xs text-muted-foreground"
-                      />
-                    ) : null}
+                    <p className="mt-1 text-base font-semibold text-foreground">
+                      {therapistLoading ? (
+                        <span className="animate-pulse">Cargando...</span>
+                      ) : therapistError ? (
+                        <span className="text-destructive">Error al cargar</span>
+                      ) : therapistName ? (
+                        therapistName
+                      ) : (
+                        "No disponible"
+                      )}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {therapistLoading ? (
+                        <span className="animate-pulse">Cargando especialidades...</span>
+                      ) : therapistError ? (
+                        <span className="text-destructive">Error al cargar</span>
+                      ) : therapist ? (
+                        therapist.specialties.join(", ")
+                      ) : (
+                        "No disponible"
+                      )}
+                    </p>
                   </div>
-                ) : null}
-              </div>
-
-              {/* Ubicación */}
-              <div>
-                <h4 className="font-medium text-foreground mb-1">{t('location')}</h4>
-                <p className="text-muted-foreground">
-                  {selectedLocation ? selectedLocation.address : "Ubicación no seleccionada"}
-                </p>
-              </div>
-
-              {/* Información de contacto */}
-              <div>
-                <h4 className="font-medium text-foreground mb-1">{t('contactInfo')}</h4>
-                <div className="space-y-1">
-                  <p className="text-muted-foreground">
-                    <strong>{t('name')}:</strong> {data.basicInfo.firstName} {data.basicInfo.lastName}
-                  </p>
-                  <p className="text-muted-foreground">
-                    <strong>{t('phone')}:</strong> {data.basicInfo.phone || "No proporcionado"}
-                  </p>
-                  <p className="text-muted-foreground">
-                    <strong>{t('email')}:</strong> {data.basicInfo.email || "No proporcionado"}
-                  </p>
                 </div>
               </div>
+
+              {summaryItems.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <div key={item.key} className={summaryTileClassName}>
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 rounded-full bg-background p-2 text-emerald-600 shadow-sm dark:text-emerald-400">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          {item.label}
+                        </p>
+                        <p className={cn("mt-1 text-sm font-semibold text-foreground", item.accentClassName)}>
+                          {item.value}
+                        </p>
+                        {item.detail ? (
+                          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                            {item.detail}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {officeTimeZoneLabel ? (
+                <div className={cn(summaryTileClassName, "md:col-span-2")}>
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 rounded-full bg-background p-2 text-emerald-600 shadow-sm dark:text-emerald-400">
+                      <Clock3 className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                        {t("timeZone")}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {t("officeTimeZoneNotice", {
+                          location: selectedLocation?.title || t("location"),
+                          timezone: officeTimeZoneLabel,
+                        })}
+                      </p>
+                      {selectedLocation?.timezone ? (
+                        <TimeZoneDifferenceNote
+                          officeTimeZone={selectedLocation.timezone}
+                          date={data.selectedDate}
+                          namespace="Booking"
+                          className="mt-2 text-xs text-muted-foreground"
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
-          {/* Need Our Assistance */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">{t('needHelp')}</CardTitle>
+              <CardTitle className="text-lg">{t("needHelp")}</CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-between">
-              <p className="text-muted-foreground">{t('helpDescription')}</p>
+            <CardContent className="flex items-center justify-between gap-4">
+              <p className="text-muted-foreground">{t("helpDescription")}</p>
               <Button variant="outline" className="flex items-center gap-2 bg-transparent">
                 <Phone className="h-4 w-4" />
-                {t('callUs')}
+                {t("callUs")}
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right side - Booking number and QR code */}
         <Card className="h-fit space-y-6 p-4 xl:sticky xl:top-6">
-          <div className="text-center">
-            <h2 className="font-medium text-foreground mb-2">{t('bookingNumber')}</h2>
-            <Badge variant="outline" className="border-green-500/60 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 px-4 py-2 text-base break-normal w-full">
-              {bookingNumber}
-            </Badge>
-          </div>
-
-          <div className="text-center space-y-4">
+          <div className="space-y-4 text-center">
             <div className="flex justify-center">
-              <div className="w-48 h-48 bg-muted rounded-lg flex items-center justify-center">
-                <QrCode className="h-24 w-24 text-muted-foreground" />
+              <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-muted p-3">
+                {qrCodeDataUrl ? (
+                  <Image
+                    src={qrCodeDataUrl}
+                    alt={t("qrCodeDescription")}
+                    className="h-full w-full rounded-md bg-white object-contain"
+                    width={192}
+                    height={192}
+                    unoptimized
+                  />
+                ) : (
+                  <QrCode className="h-24 w-24 text-muted-foreground" />
+                )}
               </div>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {t('qrCodeDescription')}
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {t("qrCodeDescription")}
             </p>
           </div>
 
           <div className="space-y-3">
             {data.selectedDate && data.selectedTime && selectedLocation ? (
               <AddToCalendarButton
-                title={t('appointmentWith', { name: therapist ? `${therapist.firstName} ${therapist.lastName}` : '' })}
-                description={data.basicInfo.bookingNotes || ''}
+                title={calendarTitle}
+                description={calendarDescription}
                 location={selectedLocation.address}
                 date={data.selectedDate}
                 startTimeHHmm={data.selectedTime}
                 endTimeHHmm={endTimeHHmm}
                 organizerEmail={process.env.NEXT_PUBLIC_BOOKING_FROM_EMAIL}
                 timeZone={selectedLocation.timezone}
+                filename={calendarFilename}
               />
             ) : null}
           </div>

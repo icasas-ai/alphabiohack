@@ -202,5 +202,17 @@ export const updateUserPassword = async (password: string) => {
     throw error;
   }
 
-  return { user: null };
+  const response = await fetch("/api/auth/password/finalize", {
+    method: "POST",
+    credentials: "include",
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Unable to finalize password update");
+  }
+
+  return {
+    user: data.user ?? null,
+  };
 };

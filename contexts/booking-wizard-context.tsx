@@ -27,6 +27,7 @@ export interface BookingFormData {
   selectedDate: Date | null;
   selectedTime: string;
   therapistId: string | null;
+  selectedTherapist: Therapist | null;
   sessionDurationMinutes: number | null;
   
   // Paso 4: Información básica
@@ -71,6 +72,7 @@ const defaultFormData: BookingFormData = {
   selectedDate: null,
   selectedTime: "",
   therapistId: null, // Se establecerá automáticamente si está en modo terapeuta único
+  selectedTherapist: null,
   sessionDurationMinutes: null,
   basicInfo: {
     firstName: "",
@@ -102,11 +104,27 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const defaultTherapistId = publicTherapist?.id || getTherapistIdForBooking();
-    if (isSingleTherapistMode && defaultTherapistId && !data.therapistId) {
-      setData((prev) => ({
-        ...prev,
-        therapistId: defaultTherapistId,
-      }));
+    if (isSingleTherapistMode && defaultTherapistId) {
+      setData((prev) => {
+        const shouldKeepCurrentTherapistId = Boolean(prev.therapistId);
+        const nextTherapistId = shouldKeepCurrentTherapistId
+          ? prev.therapistId
+          : defaultTherapistId;
+        const nextSelectedTherapist = publicTherapist || prev.selectedTherapist;
+
+        if (
+          prev.therapistId === nextTherapistId &&
+          prev.selectedTherapist?.id === nextSelectedTherapist?.id
+        ) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          therapistId: nextTherapistId,
+          selectedTherapist: nextSelectedTherapist || null,
+        };
+      });
     }
   }, [
     data.therapistId,
@@ -145,6 +163,11 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       ...(updates.basicInfo && {
         basicInfo: { ...prev.basicInfo, ...updates.basicInfo }
       }),
+      ...(updates.therapistId !== undefined &&
+        updates.therapistId !== prev.therapistId &&
+        updates.selectedTherapist === undefined && {
+          selectedTherapist: null
+        }),
       // Si no se especifica therapistId y estamos en modo terapeuta único, usar el por defecto
       ...(updates.therapistId === undefined &&
         isSingleTherapistMode && {
@@ -171,14 +194,13 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
             data.locationId &&
             (isSingleTherapistMode || data.therapistId),
         );
-      case 1: // Selección de especialidad y servicios
-        return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0);
+      case 1: // Selección de servicios
+        return Boolean(data.locationId && data.selectedServiceIds.length > 0);
       case 2: // Selección de fecha y hora
-        return Boolean(data.locationId && data.specialtyId && data.selectedServiceIds.length > 0 && data.selectedDate && data.selectedTime);
+        return Boolean(data.locationId && data.selectedServiceIds.length > 0 && data.selectedDate && data.selectedTime);
       case 3: // Información básica
         return Boolean(
           data.locationId &&
-            data.specialtyId &&
             data.selectedServiceIds.length > 0 &&
             data.selectedDate &&
             data.selectedTime &&
@@ -191,7 +213,6 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       case 4: // Confirmación
         return Boolean(
           data.locationId &&
-            data.specialtyId &&
             data.selectedServiceIds.length > 0 &&
             data.selectedDate &&
             data.selectedTime &&
@@ -204,7 +225,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       default:
         return false;
     }
-  }, [data, hasValidEmail, hasValidPhone, normalizedFirstName, normalizedLastName]);
+  }, [data, hasValidEmail, hasValidPhone, isSingleTherapistMode, normalizedFirstName, normalizedLastName]);
 
   const getStepValidation = useCallback((step: number): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
@@ -217,19 +238,16 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
         break;
       case 1:
         if (!data.locationId) errors.push(t('selectLocation'));
-        if (!data.specialtyId) errors.push(t('selectSpecialty'));
         if (data.selectedServiceIds.length === 0) errors.push(t('selectAtLeastOneService'));
         break;
       case 2:
         if (!data.locationId) errors.push(t('selectLocation'));
-        if (!data.specialtyId) errors.push(t('selectSpecialty'));
         if (data.selectedServiceIds.length === 0) errors.push(t('selectAtLeastOneService'));
         if (!data.selectedDate) errors.push(t('selectDate'));
         if (!data.selectedTime) errors.push(t('selectTime'));
         break;
       case 3:
         if (!data.locationId) errors.push(t('selectLocation'));
-        if (!data.specialtyId) errors.push(t('selectSpecialty'));
         if (data.selectedServiceIds.length === 0) errors.push(t('selectAtLeastOneService'));
         if (!data.selectedDate) errors.push(t('selectDate'));
         if (!data.selectedTime) errors.push(t('selectTime'));
@@ -249,7 +267,6 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
         break;
       case 4:
         if (!data.locationId) errors.push(t('selectLocation'));
-        if (!data.specialtyId) errors.push(t('selectSpecialty'));
         if (data.selectedServiceIds.length === 0) errors.push(t('selectAtLeastOneService'));
         if (!data.selectedDate) errors.push(t('selectDate'));
         if (!data.selectedTime) errors.push(t('selectTime'));

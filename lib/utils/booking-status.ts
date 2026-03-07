@@ -1,5 +1,6 @@
 export type BookingStatusValue =
   | "Pending"
+  | "NeedsAttention"
   | "Confirmed"
   | "InProgress"
   | "Completed"
@@ -8,6 +9,7 @@ export type BookingStatusValue =
 
 export const BOOKING_STATUS_OPTIONS: BookingStatusValue[] = [
   "Pending",
+  "NeedsAttention",
   "Confirmed",
   "InProgress",
   "Completed",
@@ -25,6 +27,7 @@ export const BOOKING_STATUS_TRANSITIONS = Object.fromEntries(
 export function canCancelBookingStatus(status?: string) {
   return (
     status === "Pending" ||
+    status === "NeedsAttention" ||
     status === "Confirmed" ||
     status === "InProgress"
   );

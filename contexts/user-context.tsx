@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { User as PrismaUser } from "@/lib/prisma-browser";
 import { hasSupabaseAuth } from "@/lib/auth/config";
+import { readJsonResponse } from "@/lib/utils/read-json-response";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthUser = {
@@ -68,9 +69,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        const data = await response.json();
-        setUser(data.user);
-        setPrismaUser(data.prismaUser);
+        const data = await readJsonResponse<{
+          user?: AuthUser | null;
+          prismaUser?: PrismaUser | null;
+        }>(response);
+        setUser(data?.user ?? null);
+        setPrismaUser(data?.prismaUser ?? null);
         setError(null);
       }
     } catch (err) {
@@ -128,9 +132,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         console.log("UserContext: Fetching prisma user for supabase user:", user.id);
         const response = await fetch("/api/user");
         if (response.ok) {
-          const data = await response.json();
+          const data = await readJsonResponse<{ prismaUser?: PrismaUser | null }>(response);
           console.log("UserContext: Prisma user data received:", data);
-          setPrismaUser(data.prismaUser);
+          setPrismaUser(data?.prismaUser ?? null);
           fetchedUserId.current = user.id;
         } else {
           console.error("UserContext: Failed to fetch prisma user - Status:", response.status);
@@ -155,9 +159,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       fetchedUserId.current = null; // Resetear para forzar recarga
       const response = await fetch("/api/user");
       if (response.ok) {
-        const data = await response.json();
+        const data = await readJsonResponse<{ prismaUser?: PrismaUser | null }>(response);
         console.log("UserContext: Prisma user refreshed:", data);
-        setPrismaUser(data.prismaUser);
+        setPrismaUser(data?.prismaUser ?? null);
         fetchedUserId.current = user.id;
       }
     } catch (error) {

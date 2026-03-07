@@ -130,7 +130,7 @@ export function LocationsPage() {
         variant: "card",
       }}
     >
-      <div className="space-y-6">
+      <div className="motion-stagger space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>{t("title")}</CardTitle>

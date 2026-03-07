@@ -13,7 +13,6 @@ import {
   createAvailabilityExcludedTimeRanges,
   createAvailabilityPeriodRecord,
   createAvailabilityTimeRanges,
-  deleteAvailabilityPeriodRecord,
   findAvailabilityDayOwnership,
   findAvailabilityExcludedDateOwnership,
   findAvailabilityPeriodOwnership,
@@ -452,7 +451,73 @@ export async function listAvailabilityPeriods({
 }
 
 export async function deleteAvailabilityPeriod(id: string) {
-  return deleteAvailabilityPeriodRecord(id);
+  return prisma.$transaction(async (tx) => {
+    const period = await tx.availabilityPeriod.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        therapistId: true,
+        locationId: true,
+        startDate: true,
+        endDate: true,
+        location: {
+          select: {
+            timezone: true,
+          },
+        },
+      },
+    });
+
+    if (!period) {
+      throw new Error("Availability period not found");
+    }
+
+    const timezone = getTimeZoneOrDefault(period.location?.timezone || undefined);
+    const startDate = period.startDate.toISOString().slice(0, 10);
+    const endDate = period.endDate.toISOString().slice(0, 10);
+
+    const rangeStart = combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(startDate, timezone),
+      "00:00",
+      timezone,
+    );
+    const rangeEnd = combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(endDate, timezone),
+      "23:59",
+      timezone,
+    );
+    rangeEnd.setUTCSeconds(59, 999);
+
+    const affectedBookings = await tx.booking.updateMany({
+      where: {
+        therapistId: period.therapistId,
+        locationId: period.locationId,
+        bookingSchedule: {
+          gte: rangeStart,
+          lte: rangeEnd,
+        },
+        status: {
+          in: [
+            BookingStatus.Pending,
+            BookingStatus.Confirmed,
+            BookingStatus.InProgress,
+          ],
+        },
+      },
+      data: {
+        status: BookingStatus.NeedsAttention,
+      },
+    });
+
+    await tx.availabilityPeriod.delete({
+      where: { id },
+    });
+
+    return {
+      deletedPeriodId: id,
+      affectedBookings: affectedBookings.count,
+    };
+  });
 }
 
 export async function getAvailabilityPeriodOwnership(id: string) {

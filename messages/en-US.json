@@ -404,6 +404,7 @@
     "createAction": "Send invite",
     "saveAction": "Save changes",
     "saving": "Saving...",
+    "deleting": "Deleting...",
     "created": "Personnel account created and invite sent.",
     "updated": "Personnel account updated.",
     "deleted": "Personnel account removed.",
@@ -429,8 +430,11 @@
     "signUpSuccessMessage": "Please check your email to confirm your account.",
     "loginSuccess": "Welcome back!",
     "logoutSuccess": "You have been signed out successfully.",
+    "loginEyebrow": "Protected access",
     "loginTitle": "Sign In",
     "loginDescription": "Enter your email below to login to your account",
+    "loginHeroTitle": "Step back into your booking workspace",
+    "loginHeroDescription": "Review schedules, manage participants, and move through the day with less friction.",
     "signUpTitle": "Create Account",
     "signUpDescription": "Enter your information to create a new account",
     "forgotPasswordTitle": "Reset Password",
@@ -528,6 +532,7 @@
     "keepCurrentStatus": "Keep current status",
     "statusOptions": {
       "Pending": "Pending",
+      "NeedsAttention": "Needs attention",
       "Confirmed": "Confirmed",
       "InProgress": "In progress",
       "Completed": "Completed",
@@ -536,6 +541,7 @@
     },
     "markAs": {
       "Pending": "Mark as pending",
+      "NeedsAttention": "Mark as needs attention",
       "Confirmed": "Mark as confirmed",
       "InProgress": "Mark as in progress",
       "Completed": "Mark as completed",
@@ -636,8 +642,8 @@
     "confirmationStep": "Confirmation",
     "step1Title": "Step 1: Appointment type and location",
     "step1Description": "Select the appointment type and location where you want to receive the service.",
-    "step2Title": "Step 2: Specialty and services",
-    "step2Description": "Select the specialty and services you need.",
+    "step2Title": "Step 2: Services",
+    "step2Description": "Select the service(s) you need.",
     "step3Title": "Step 3: Date and time",
     "step3Description": "Choose the date and time that best fits your schedule.",
     "step4Title": "Step 4: Personal information",
@@ -924,6 +930,7 @@
     "event": "Event",
     "confirmed": "Confirmed",
     "pending": "Pending",
+    "needsAttention": "Needs attention",
     "inProgress": "In progress",
     "completed": "Completed",
     "noShow": "No-show",
@@ -944,6 +951,7 @@
     "updateStatus": "Update status",
     "statusOptions": {
       "Pending": "Pending",
+      "NeedsAttention": "Needs attention",
       "Confirmed": "Confirmed",
       "InProgress": "In progress",
       "Completed": "Completed",
@@ -1003,6 +1011,14 @@
     "title": "Hello, I'm Alberto Estrada",
     "subtitle": "Alphabiotic Specialist",
     "description": "My purpose is to accompany you to remember who you are in essence. Alphabiotic Alignment is not a technique or a remedy, but a transformative experience that opens the door to your inner balance: when mind, heart and body align, life flows with clarity, peace and strength.",
+    "badge": "In-person aligned care",
+    "helper": "Choose a location now or continue to explore all available visits during booking.",
+    "logoCardSpecialtyLabel": "Focus",
+    "logoCardBookingLabel": "Booking",
+    "logoCardBookingValue": "Simple online confirmation",
+    "showcaseSummary": "Built for a calmer in-person booking experience with clear availability and simple confirmation.",
+    "logoCardFooter": "Personalized visits",
+    "locationsAvailable": "{count, plural, =1 {# location available} other {# locations available}}",
     "locationPlaceholder": "Location",
     "departmentPlaceholder": "Select Department",
     "bookNow": "Book Now",
@@ -1024,6 +1040,44 @@
       "dentist": "Dentist",
       "urology": "Urology"
     }
+  },
+  "HomeLanding": {
+    "careEyebrow": "A calmer experience",
+    "careTitle": "Support that feels grounded, personal, and clear",
+    "careDescription": "AlphaBiotic sessions are presented as a calm in-person experience: less noise, less friction, and a clearer sense of what comes next.",
+    "pillars": {
+      "oneTitle": "Aligned sessions",
+      "oneDescription": "Visits are structured to feel focused and steady, so the experience stays simple from arrival to follow-up.",
+      "twoTitle": "Room to breathe",
+      "twoDescription": "The tone of the practice is quiet and direct, giving people a more centered way to begin.",
+      "threeTitle": "Clear next steps",
+      "threeDescription": "Booking, confirmation, and visit details stay easy to understand without overwhelming the patient."
+    },
+    "guideEyebrow": "Guided by",
+    "guideFallbackName": "AlphaBiotic specialist",
+    "guideFallbackSpecialty": "Aligned in-person care",
+    "guideFallbackBio": "A grounded, personal approach focused on balance, clarity, and a more natural sense of alignment.",
+    "guideAppointments": "In-person sessions",
+    "guideLanguages": "English and Spanish",
+    "guideLocations": "{count, plural, =1 {# location} other {# locations}}",
+    "guideNote": "The public profile, booking flow, and follow-up details are kept intentionally simple so the experience feels steady from the very first step.",
+    "journeyEyebrow": "How it works",
+    "journeyTitle": "From first click to confirmed visit",
+    "journeyDescription": "The booking path is designed to stay short and clear, so visitors can move from curiosity to a confirmed appointment without extra friction.",
+    "steps": {
+      "oneTitle": "Choose where you want to visit",
+      "oneDescription": "Start with the location that feels easiest for you, or continue without selecting one and review options later.",
+      "twoTitle": "Pick your preferred day and time",
+      "twoDescription": "The booking flow guides you through the available schedule without adding unnecessary decisions.",
+      "threeTitle": "Receive a clear confirmation",
+      "threeDescription": "Once booked, the appointment details, confirmation number, email, and calendar invite stay in sync."
+    },
+    "locationsEyebrow": "Locations",
+    "locationsTitle": "Choose the place that fits you best",
+    "locationsDescription": "You can start with a preferred location now or continue to review availability during booking.",
+    "locationsEmpty": "Locations will appear here as they are added to the public profile.",
+    "bookNow": "Start booking",
+    "contactLink": "Ask a question"
   },
   "Contact": {
     "title": "Do you have any questions?",
@@ -1096,7 +1150,8 @@
     "vsPreviousMonth": "vs previous month",
     "charts": {
       "appointments": "Bookings",
-      "appointmentsTrend": "Bookings Trend"
+      "appointmentsTrend": "Bookings Trend",
+      "openCalendar": "Open calendar"
     },
     "kpiMeta": {
       "trendingUp": "Trending up",
@@ -1124,6 +1179,7 @@
     },
     "status": {
       "pending": "Pending",
+      "needsAttention": "Needs attention",
       "confirmed": "Confirmed",
       "inProgress": "In Progress",
       "completed": "Completed",
@@ -1145,6 +1201,8 @@
       "title": "Upcoming Booking",
       "chat": "Chat Now",
       "start": "Start Booking",
+      "open": "Open bookings",
+      "timeZone": "Times shown in {timezone}.",
       "empty": "No upcoming booking"
     },
     "invoices": {
@@ -1235,8 +1293,10 @@
       "service": {
         "descriptionRequired": "Description is required",
         "descriptionMax": "Description is too long",
+        "costRequired": "Cost is required",
         "costMin": "Cost must be greater than or equal to 0",
         "costMax": "Cost is too high",
+        "durationRequired": "Duration is required",
         "durationMin": "Duration must be at least 1 minute",
         "durationMax": "Maximum duration is 8 hours"
       }

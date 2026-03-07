@@ -7,6 +7,7 @@ export interface TherapistInvitePayload {
   patientEmail: string;
   therapistName: string;
   locationAddress: string;
+  bookingNumber: string;
   notes?: string;
   start: Date;
   end: Date;
@@ -23,6 +24,7 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     patientEmail,
     therapistName,
     locationAddress,
+    bookingNumber,
     notes,
     start,
     end,
@@ -32,6 +34,15 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     attendeeEmail,
     timeZone,
   } = payload;
+  const bookingNumberLine =
+    language === "es" ?
+      `Codigo de cita: ${bookingNumber}`
+    : `Booking number: ${bookingNumber}`;
+  const description = [bookingNumberLine, notes].filter(Boolean).join("\n\n");
+  const title =
+    language === "es" ?
+      `Cita con ${patientName} (${bookingNumber})`
+    : `Appointment with ${patientName} (${bookingNumber})`;
 
   // Google Calendar URL necesita HH:mm en la zona horaria correcta
   const startHHmm = new Intl.DateTimeFormat("en-US", {
@@ -48,8 +59,8 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
   }).format(end);
   const googleCalendarUrl = buildGoogleCalendarUrl(
     {
-      title: `Cita con ${patientName}`,
-      description: notes || "",
+      title,
+      description,
       location: locationAddress,
       date: start,
       startTimeHHmm: startHHmm,
@@ -66,8 +77,8 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
         process.env.BOOKING_FROM_EMAIL ||
         "no-reply@booking-saas.com",
       attendeeEmail,
-      title: `Cita con ${patientName}`,
-      description: notes || "",
+      title,
+      description,
       location: locationAddress,
       date: start,
       startTimeHHmm: startHHmm,
@@ -81,6 +92,7 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     patientEmail,
     therapistName,
     locationAddress,
+    bookingNumber,
     notes,
     start,
     end,
@@ -89,9 +101,13 @@ export function buildTherapistInviteArtifacts(payload: TherapistInvitePayload) {
     timeZone,
   });
 
-  const subject = `Nueva cita: ${patientName}`;
+  const subject =
+    language === "es" ?
+      `Nueva cita ${bookingNumber}: ${patientName}`
+    : `New appointment ${bookingNumber}: ${patientName}`;
+  const icsFilename = `appointment-${bookingNumber}.ics`;
 
-  return { googleCalendarUrl, icsContent, reactProps, subject };
+  return { googleCalendarUrl, icsContent, reactProps, subject, icsFilename };
 }
 
 export interface PatientInvitePayload {
@@ -99,6 +115,7 @@ export interface PatientInvitePayload {
   patientName: string;
   patientEmail: string;
   locationAddress: string;
+  bookingNumber: string;
   notes?: string;
   start: Date;
   end: Date;
@@ -115,6 +132,7 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
     patientName,
     patientEmail,
     locationAddress,
+    bookingNumber,
     notes,
     start,
     end,
@@ -124,6 +142,15 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
     attendeeEmail,
     timeZone,
   } = payload;
+  const bookingNumberLine =
+    language === "es" ?
+      `Codigo de cita: ${bookingNumber}`
+    : `Booking number: ${bookingNumber}`;
+  const description = [bookingNumberLine, notes].filter(Boolean).join("\n\n");
+  const title =
+    language === "es" ?
+      `Tu cita con ${therapistName} (${bookingNumber})`
+    : `Your appointment with ${therapistName} (${bookingNumber})`;
 
   const startHHmm = new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
@@ -140,11 +167,8 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
 
   const googleCalendarUrl = buildGoogleCalendarUrl(
     {
-      title:
-        language === "es" ?
-          `Tu cita con ${therapistName}`
-        : `Your appointment with ${therapistName}`,
-      description: notes || "",
+      title,
+      description,
       location: locationAddress,
       date: start,
       startTimeHHmm: startHHmm,
@@ -161,11 +185,8 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
         process.env.BOOKING_FROM_EMAIL ||
         "no-reply@booking-saas.com",
       attendeeEmail,
-      title:
-        language === "es" ?
-          `Tu cita con ${therapistName}`
-        : `Your appointment with ${therapistName}`,
-      description: notes || "",
+      title,
+      description,
       location: locationAddress,
       date: start,
       startTimeHHmm: startHHmm,
@@ -179,6 +200,7 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
     patientEmail,
     therapistName,
     locationAddress,
+    bookingNumber,
     notes,
     start,
     end,
@@ -189,8 +211,9 @@ export function buildPatientInviteArtifacts(payload: PatientInvitePayload) {
 
   const subject =
     language === "es" ?
-      `Confirmación de cita: ${therapistName}`
-    : `Appointment confirmation: ${therapistName}`;
+      `Confirmacion de cita ${bookingNumber}: ${therapistName}`
+    : `Appointment confirmation ${bookingNumber}: ${therapistName}`;
+  const icsFilename = `appointment-${bookingNumber}.ics`;
 
-  return { googleCalendarUrl, icsContent, reactProps, subject };
+  return { googleCalendarUrl, icsContent, reactProps, subject, icsFilename };
 }

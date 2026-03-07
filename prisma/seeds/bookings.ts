@@ -6,7 +6,9 @@ import {
   Location as PrismaLocation,
   Service as PrismaService,
   User as PrismaUser,
+  UserRole,
 } from "@/lib/prisma-client";
+import { generateBookingNumber } from "@/lib/utils/booking-number";
 import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 
 // Fechas de ejemplo
@@ -69,19 +71,20 @@ export async function seedDefaultBookings(
     | string
     | undefined;
   const tz0 =
-    (locations.find((l) => l.id === location0) as any)?.timezone ?? PST_TZ;
+    locations.find((location) => location.id === location0)?.timezone ?? PST_TZ;
   const tz1 =
-    (locations.find((l) => l.id === location1) as any)?.timezone ?? PST_TZ;
+    locations.find((location) => location.id === location1)?.timezone ?? PST_TZ;
   const tz2 =
-    (locations.find((l) => l.id === location2) as any)?.timezone ?? PST_TZ;
-  const therapistId = (users.find((u) => (u as any).role?.includes("Therapist"))
+    locations.find((location) => location.id === location2)?.timezone ?? PST_TZ;
+  const therapistId = (users.find((user) => user.role?.includes(UserRole.Therapist))
     ?.id ?? users[0].id) as string;
-  const patientId = (users.find((u) => (u as any).role?.includes("Patient"))
+  const patientId = (users.find((user) => user.role?.includes(UserRole.Patient))
     ?.id ?? users[0].id) as string;
   const serviceId = services[0].id as string;
 
   const toCreate = [
     {
+      bookingNumber: generateBookingNumber(futureDate),
       bookingType: BookingType.DirectVisit,
       companyId: companyId as string,
       locationId: location1 as string,
@@ -102,6 +105,7 @@ export async function seedDefaultBookings(
       serviceId,
     },
     {
+      bookingNumber: generateBookingNumber(pastDate),
       bookingType: BookingType.VideoCall,
       companyId: companyId as string,
       locationId: location0 as string,
@@ -122,6 +126,7 @@ export async function seedDefaultBookings(
       serviceId,
     },
     {
+      bookingNumber: generateBookingNumber(futureDate2),
       bookingType: BookingType.HomeVisit,
       companyId: companyId as string,
       locationId: location2 as string,

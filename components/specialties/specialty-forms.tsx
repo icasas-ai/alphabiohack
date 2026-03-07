@@ -17,7 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,10 +34,44 @@ const specialtySchema = z.object({
   description: z.string().max(500, 'SpecialtiesUI.validation.specialty.descriptionMax').optional(),
 });
 
+const parseNumericField = (value: unknown) => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    return Number(value);
+  }
+
+  return value;
+};
+
 const serviceSchema = z.object({
-  description: z.string().min(1, 'SpecialtiesUI.validation.service.descriptionRequired').max(200, 'SpecialtiesUI.validation.service.descriptionMax'),
-  cost: z.coerce.number().min(0, 'SpecialtiesUI.validation.service.costMin').max(10000, 'SpecialtiesUI.validation.service.costMax'),
-  duration: z.coerce.number().min(1, 'SpecialtiesUI.validation.service.durationMin').max(480, 'SpecialtiesUI.validation.service.durationMax'),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'SpecialtiesUI.validation.service.descriptionRequired')
+    .max(200, 'SpecialtiesUI.validation.service.descriptionMax'),
+  cost: z.preprocess(
+    parseNumericField,
+    z
+      .number({
+        required_error: 'SpecialtiesUI.validation.service.costRequired',
+        invalid_type_error: 'SpecialtiesUI.validation.service.costRequired',
+      })
+      .min(0, 'SpecialtiesUI.validation.service.costMin')
+      .max(10000, 'SpecialtiesUI.validation.service.costMax'),
+  ),
+  duration: z.preprocess(
+    parseNumericField,
+    z
+      .number({
+        required_error: 'SpecialtiesUI.validation.service.durationRequired',
+        invalid_type_error: 'SpecialtiesUI.validation.service.durationRequired',
+      })
+      .min(1, 'SpecialtiesUI.validation.service.durationMin')
+      .max(480, 'SpecialtiesUI.validation.service.durationMax'),
+  ),
 });
 
 // Tipos para los formularios
@@ -124,7 +158,9 @@ export function SpecialtyForm({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('forms.specialty.nameLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('forms.specialty.nameLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       placeholder={t('forms.specialty.namePlaceholder')} 
@@ -196,12 +232,22 @@ export function ServiceForm({
   const tCommon = useTranslations('Common');
   const form = useForm<ServiceFormInput, undefined, ServiceFormData>({
     resolver: zodResolver(serviceSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ?? {
       description: '',
-      cost: 0,
-      duration: 30,
+      cost: undefined,
+      duration: undefined,
     },
   });
+
+  useEffect(() => {
+    form.reset(
+      initialData ?? {
+        description: '',
+        cost: undefined,
+        duration: undefined,
+      },
+    );
+  }, [form, initialData, open]);
 
   const handleSubmit = async (data: ServiceFormData) => {
     try {
@@ -246,7 +292,9 @@ export function ServiceForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('forms.service.descriptionLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('forms.service.descriptionLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       placeholder={t('forms.service.descriptionPlaceholder')} 
@@ -264,7 +312,9 @@ export function ServiceForm({
                 name="cost"
                 render={({ field }) => (
                   <FormItem className="self-start">
-                    <FormLabel>{t('forms.service.costLabel')}</FormLabel>
+                    <FormLabel>
+                      {t('forms.service.costLabel')} <span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input 
                         type="number"
@@ -286,7 +336,9 @@ export function ServiceForm({
                 render={({ field }) => (
                   <FormItem className="self-start">
                     <div className="flex items-center justify-between gap-3">
-                      <FormLabel>{t('forms.service.durationLabel')}</FormLabel>
+                      <FormLabel>
+                        {t('forms.service.durationLabel')} <span className="text-destructive">*</span>
+                      </FormLabel>
                       <span className="text-xs text-muted-foreground">{formatDuration}</span>
                     </div>
                     <FormControl>

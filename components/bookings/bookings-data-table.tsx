@@ -107,6 +107,8 @@ function getStatusTone(status: string) {
       return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-900/40";
     case "Pending":
       return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/40";
+    case "NeedsAttention":
+      return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40";
     case "InProgress":
       return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40";
     case "Completed":
@@ -126,6 +128,8 @@ function getStatusDot(status: string) {
       return "bg-green-500";
     case "Pending":
       return "bg-yellow-500";
+    case "NeedsAttention":
+      return "bg-rose-500";
     case "InProgress":
       return "bg-blue-500";
     case "Completed":
@@ -236,6 +240,24 @@ export function BookingsDataTable({
         cell: ({ row }) => <div>{row.original.phone}</div>,
       },
       {
+        accessorKey: "status",
+        header: t("status"),
+        cell: ({ row }) => (
+          <Badge variant="outline" className={getStatusTone(row.original.status)}>
+            <span
+              className={`h-2 w-2 rounded-full ${getStatusDot(row.original.status)}`}
+              aria-hidden="true"
+            />
+            {t(`statusOptions.${row.original.status}`)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "location",
+        header: t("location"),
+        cell: ({ row }) => <div>{row.original.location?.title || "-"}</div>,
+      },
+      {
         accessorKey: "bookingSchedule",
         header: ({ column }) => (
           <Button
@@ -294,24 +316,6 @@ export function BookingsDataTable({
         cell: ({ row }) => <div>{row.original.specialty?.name || "-"}</div>,
       },
       {
-        accessorKey: "location",
-        header: t("location"),
-        cell: ({ row }) => <div>{row.original.location?.title || "-"}</div>,
-      },
-      {
-        accessorKey: "status",
-        header: t("status"),
-        cell: ({ row }) => (
-          <Badge variant="outline" className={getStatusTone(row.original.status)}>
-            <span
-              className={`h-2 w-2 rounded-full ${getStatusDot(row.original.status)}`}
-              aria-hidden="true"
-            />
-            {t(`statusOptions.${row.original.status}`)}
-          </Badge>
-        ),
-      },
-      {
         id: "actions",
         enableHiding: false,
         cell: ({ row }) => {
@@ -323,7 +327,11 @@ export function BookingsDataTable({
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <span className="sr-only">{t("openMenu")}</span>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -405,7 +413,7 @@ export function BookingsDataTable({
     statusFilter !== "all";
 
   return (
-    <div className="w-full space-y-4">
+    <div className="motion-stagger w-full space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <Input
           placeholder={t("searchPlaceholder")}
@@ -500,9 +508,21 @@ export function BookingsDataTable({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className={onEditBooking ? "cursor-pointer hover:bg-muted/40" : undefined}
+                  onClick={() => onEditBooking?.(row.original)}
+                >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      onClick={
+                        cell.column.id === "actions"
+                          ? (event) => event.stopPropagation()
+                          : undefined
+                      }
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

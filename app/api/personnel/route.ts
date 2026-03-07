@@ -9,6 +9,7 @@ import { getCurrentUser, hashPassword } from "@/lib/auth/session";
 import { canManagePersonnel } from "@/lib/auth/authorization";
 import { hasSupabaseAuth } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
+import { createSupabaseAdminClient, hasSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   isValidEmailInput,
   isValidPhoneInput,
@@ -80,13 +81,6 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (hasSupabaseAuth) {
-    return NextResponse.json(
-      { error: "Personnel invitations are only supported when local auth is enabled." },
-      { status: 409 },
-    );
-  }
-
   const context = await getPersonnelContext();
   if (!context.therapistId || !context.prismaUser) {
     return NextResponse.json({ error: context.error }, { status: context.status });
@@ -141,36 +135,80 @@ export async function POST(request: NextRequest) {
     }
 
     const temporaryPassword = generateTemporaryPassword();
-    const user = await prisma.user.create({
-      data: {
-        firstname: normalizedFirstname,
-        lastname: normalizedLastname,
-        email: normalizedEmail,
-        telefono: normalizedPhone || null,
-        supabaseId: `local-frontdesk-${randomUUID()}`,
-        role: [UserRole.FrontDesk],
-        passwordHash: hashPassword(temporaryPassword),
-        mustChangePassword: true,
-        managedByTherapistId: context.therapistId,
-        companyMemberships: {
-          create: {
-            companyId,
-            role: CompanyMembershipRole.FrontDesk,
+    let supabaseId = `local-frontdesk-${randomUUID()}`;
+    let passwordHash: string | null = hashPassword(temporaryPassword);
+    let createdSupabaseAuthUserId: string | null = null;
+
+    if (hasSupabaseAuth) {
+      if (!hasSupabaseAdmin()) {
+        return NextResponse.json(
+          {
+            error:
+              "SUPABASE_SERVICE_ROLE_KEY is required to invite personnel when Supabase auth is enabled.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const adminClient = createSupabaseAdminClient();
+      const { data: createdAuthUser, error: createAuthError } =
+        await adminClient.auth.admin.createUser({
+          email: normalizedEmail,
+          password: temporaryPassword,
+          email_confirm: true,
+        });
+
+      if (createAuthError || !createdAuthUser.user?.id) {
+        const message = createAuthError?.message || "Unable to create Supabase auth user.";
+        const alreadyExists =
+          /already exists|already registered|duplicate/i.test(message);
+        return NextResponse.json({ error: message }, { status: alreadyExists ? 409 : 500 });
+      }
+
+      supabaseId = createdAuthUser.user.id;
+      passwordHash = null;
+      createdSupabaseAuthUserId = createdAuthUser.user.id;
+    }
+
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          firstname: normalizedFirstname,
+          lastname: normalizedLastname,
+          email: normalizedEmail,
+          telefono: normalizedPhone || null,
+          supabaseId,
+          role: [UserRole.FrontDesk],
+          passwordHash,
+          mustChangePassword: true,
+          managedByTherapistId: context.therapistId,
+          companyMemberships: {
+            create: {
+              companyId,
+              role: CompanyMembershipRole.FrontDesk,
+            },
           },
         },
-      },
-      select: {
-        id: true,
-        firstname: true,
-        lastname: true,
-        email: true,
-        telefono: true,
-        role: true,
-        mustChangePassword: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+        select: {
+          id: true,
+          firstname: true,
+          lastname: true,
+          email: true,
+          telefono: true,
+          role: true,
+          mustChangePassword: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    } catch (dbError) {
+      if (createdSupabaseAuthUserId && hasSupabaseAdmin()) {
+        const adminClient = createSupabaseAdminClient();
+        await adminClient.auth.admin.deleteUser(createdSupabaseAuthUserId).catch(() => null);
+      }
+      throw dbError;
+    }
 
     const therapistName =
       `${context.prismaUser.firstname} ${context.prismaUser.lastname}`.trim() || context.prismaUser.email;

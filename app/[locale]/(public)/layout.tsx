@@ -1,7 +1,11 @@
+import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
+import { MedicalFooter } from "@/components/layout/footer"
 import { getSiteUrl } from "@/lib/config/site-url";
 import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -14,7 +18,7 @@ export default async function PublicLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const company = await getPublicCompanyProfile();
+  const company = await getPublicCompanyProfile().catch(() => null);
   const headerContact = company
     ? {
         name: company.name,
@@ -26,11 +30,16 @@ export default async function PublicLayout({
     : null;
 
   return (
-    <div className="app-page-gradient min-h-screen flex flex-col bg-secondary">
+    <div className="app-page-gradient min-h-screen flex flex-col bg-background text-foreground">
       <MedicalHeader initialPublicContact={headerContact} />
-      <main className="flex-1 flex items-center justify-center">
-        {children}
+      <main className="flex-1">
+        <PageTransition className="flex min-h-full flex-col">
+          <div className="flex min-h-full flex-col">
+            {children}
+          </div>
+        </PageTransition>
       </main>
+      <MedicalFooter />
     </div>
   );
 }

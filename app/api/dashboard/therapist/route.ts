@@ -229,17 +229,20 @@ export async function GET(req: Request) {
       month: "2-digit",
       day: "2-digit",
     });
-    const countsByLabel: Record<string, number> = {};
-    const pendingByLabel: Record<string, number> = {};
-    const completedByLabel: Record<string, number> = {};
+    const countsByDateKey: Record<string, number> = {};
+    const pendingByDateKey: Record<string, number> = {};
+    const completedByDateKey: Record<string, number> = {};
     for (const b of bookingsInRange) {
-      const label = dayFormatter.format(b.bookingSchedule as unknown as Date);
-      countsByLabel[label] = (countsByLabel[label] || 0) + 1;
+      const dateKey = dateKeyInTZ(
+        b.bookingSchedule as unknown as Date,
+        dashboardTimeZone,
+      );
+      countsByDateKey[dateKey] = (countsByDateKey[dateKey] || 0) + 1;
       const status = (b.status || "").toLowerCase();
       if (status === "pending")
-        pendingByLabel[label] = (pendingByLabel[label] || 0) + 1;
+        pendingByDateKey[dateKey] = (pendingByDateKey[dateKey] || 0) + 1;
       if (status === "completed")
-        completedByLabel[label] = (completedByLabel[label] || 0) + 1;
+        completedByDateKey[dateKey] = (completedByDateKey[dateKey] || 0) + 1;
     }
     const daily: Array<{ day: string; value: number }> = [];
     const isoForDay = (d: Date) =>
@@ -253,16 +256,16 @@ export async function GET(req: Request) {
       d = new Date(d.getTime() + 24 * 60 * 60 * 1000)
     ) {
       const label = dayFormatter.format(d);
-      daily.push({ day: label, value: countsByLabel[label] || 0 });
       const iso = isoForDay(d);
+      daily.push({ day: label, value: countsByDateKey[iso] || 0 });
       seriesAppointmentsDaily.push({
         date: iso,
-        value: countsByLabel[label] || 0,
+        value: countsByDateKey[iso] || 0,
       });
-      seriesPendingDaily.push({ date: iso, value: pendingByLabel[label] || 0 });
+      seriesPendingDaily.push({ date: iso, value: pendingByDateKey[iso] || 0 });
       seriesCompletedDaily.push({
         date: iso,
-        value: completedByLabel[label] || 0,
+        value: completedByDateKey[iso] || 0,
       });
     }
     const weeklyOverview = daily;
@@ -379,16 +382,6 @@ export async function GET(req: Request) {
     const totalAllTime = await prisma.booking.count({ where: { therapistId } });
     const now = new Date();
     const currentMonth = monthRangeInTimeZone(now, dashboardTimeZone);
-    const currentMonthStartKey = `${formatInTZ(now, "yyyy-MM", dashboardTimeZone)}-01`;
-    const previousMonthAnchorKey = addDaysToDateKey(
-      currentMonthStartKey,
-      -1,
-      dashboardTimeZone,
-    );
-    const previousMonth = monthRangeInTimeZone(
-      parseDateStringInTimeZone(previousMonthAnchorKey, dashboardTimeZone),
-      dashboardTimeZone,
-    );
     const pendingThisMonth = await prisma.booking.count({
       where: {
         therapistId,
@@ -396,29 +389,32 @@ export async function GET(req: Request) {
         bookingSchedule: { gte: currentMonth.start, lte: currentMonth.end },
       },
     });
-    const usersAllTime = (
-      await prisma.booking.groupBy({
-        by: ["email"],
-        where: { therapistId },
-        _count: { email: true },
-      })
-    ).length;
-    const usersPrevMonth = (
+    const usersCurrentTotal = (
       await prisma.booking.groupBy({
         by: ["email"],
         where: {
           therapistId,
-          bookingSchedule: { gte: previousMonth.start, lte: previousMonth.end },
+          bookingSchedule: { lte: ws.end },
+        },
+        _count: { email: true },
+      })
+    ).length;
+    const usersPreviousTotal = (
+      await prisma.booking.groupBy({
+        by: ["email"],
+        where: {
+          therapistId,
+          bookingSchedule: { lte: prevEnd },
         },
         _count: { email: true },
       })
     ).length;
     const usersDeltaVsPrevMonth =
-      usersPrevMonth === 0 ?
-        usersAllTime > 0 ?
+      usersPreviousTotal === 0 ?
+        usersCurrentTotal > 0 ?
           100
         : 0
-      : Math.round(((usersAllTime - usersPrevMonth) / usersPrevMonth) * 1000) /
+      : Math.round(((usersCurrentTotal - usersPreviousTotal) / usersPreviousTotal) * 1000) /
         10;
 
     return NextResponse.json({
@@ -438,7 +434,7 @@ export async function GET(req: Request) {
           totals: { value: totalAllTime, deltaPercent: 0 },
           pendingThisMonth: { value: pendingThisMonth, deltaPercent: 0 },
           usersTotalVsPrevMonth: {
-            value: usersAllTime,
+            value: usersCurrentTotal,
             deltaPercent: usersDeltaVsPrevMonth,
           },
         },

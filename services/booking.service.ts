@@ -4,6 +4,7 @@ import { formatBookingToLocalStrings, resolveTimeZone } from "@/lib/utils/timezo
 
 import { prisma } from "@/lib/prisma";
 import { createBookingRecord, findLocationByIdWithSelect } from "@/repositories";
+import { generateBookingNumber } from "@/lib/utils/booking-number";
 
 const bookingCreateInclude = {
   location: {
@@ -85,24 +86,50 @@ export const createBooking = async (data: CreateBookingData) => {
       bookedDurationMinutes = service?.duration;
     }
 
-    const booking = await createBookingRecord({
-        companyId,
-        bookingType: data.bookingType,
-        locationId: data.locationId,
-        specialtyId: data.specialtyId,
-        serviceId: data.serviceId,
-        bookedDurationMinutes,
-        firstname: data.firstname,
-        lastname: data.lastname,
-        phone: data.phone,
-        email: data.email,
-        givenConsent: data.givenConsent,
-        therapistId: data.therapistId,
-        patientId: data.patientId,
-        bookingNotes: data.bookingNotes,
-        bookingSchedule: data.bookingSchedule,
-        status: data.status || "Pending",
-    });
+    let booking = null;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        booking = await createBookingRecord({
+          companyId,
+          bookingNumber: generateBookingNumber(data.bookingSchedule),
+          bookingType: data.bookingType,
+          locationId: data.locationId,
+          specialtyId: data.specialtyId,
+          serviceId: data.serviceId,
+          bookedDurationMinutes,
+          firstname: data.firstname,
+          lastname: data.lastname,
+          phone: data.phone,
+          email: data.email,
+          givenConsent: data.givenConsent,
+          therapistId: data.therapistId,
+          patientId: data.patientId,
+          bookingNotes: data.bookingNotes,
+          bookingSchedule: data.bookingSchedule,
+          status: data.status || "Pending",
+        });
+        break;
+      } catch (error) {
+        const conflictTarget = error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.meta?.target
+          : null
+        const isBookingNumberConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          (Array.isArray(conflictTarget)
+            ? conflictTarget.includes("bookingNumber")
+            : conflictTarget === "bookingNumber");
+
+        if (!isBookingNumberConflict) {
+          throw error;
+        }
+      }
+    }
+
+    if (!booking) {
+      throw new Error("Could not generate a unique booking number.");
+    }
     // Email/invitación se envía desde /api/bookings tras crear la cita
 
     const fullBooking = await prisma.booking.findUnique({

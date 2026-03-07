@@ -258,12 +258,13 @@ export async function POST(request: NextRequest) {
       const inviteTasks: Promise<unknown>[] = [];
 
       if (therapistEmail) {
-        const { icsContent, reactProps, subject } =
+        const { icsContent, reactProps, subject, icsFilename } =
           buildTherapistInviteArtifacts({
             patientName,
             patientEmail: booking.email,
             therapistName,
             locationAddress,
+            bookingNumber: booking.bookingNumber,
             notes: booking.bookingNotes || undefined,
             start,
             end,
@@ -278,17 +279,19 @@ export async function POST(request: NextRequest) {
             subject,
             reactProps,
             icsContent,
+            filename: icsFilename,
           }),
         );
       }
 
       if (booking.email) {
-        const { icsContent, reactProps, subject } = buildPatientInviteArtifacts(
+        const { icsContent, reactProps, subject, icsFilename } = buildPatientInviteArtifacts(
           {
             therapistName,
             patientName,
             patientEmail: booking.email,
             locationAddress,
+            bookingNumber: booking.bookingNumber,
             notes: booking.bookingNotes || undefined,
             start,
             end,
@@ -304,6 +307,7 @@ export async function POST(request: NextRequest) {
             subject,
             reactProps,
             icsContent,
+            filename: icsFilename,
           }),
         );
       }

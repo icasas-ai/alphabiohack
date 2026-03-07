@@ -164,6 +164,7 @@ export function LocationForm({
   const parsedLat = Number(formData.lat);
   const parsedLon = Number(formData.lon);
   const timezoneMissing = !formData.timezone.trim();
+  const timezoneRequired = isNew && timezoneMissing;
   const coordinatesTouched = formData.lat.trim() !== "" || formData.lon.trim() !== "";
   const coordinatesIncomplete = coordinatesTouched && (!formData.lat.trim() || !formData.lon.trim());
   const coordinatesInvalid =
@@ -174,11 +175,13 @@ export function LocationForm({
     loading ||
     !formData.title.trim() ||
     !formData.address.trim() ||
+    timezoneRequired ||
     coordinatesIncomplete ||
     coordinatesInvalid;
   const fieldErrors = {
     title: hasAttemptedSubmit && !formData.title.trim(),
     address: hasAttemptedSubmit && !formData.address.trim(),
+    timezone: hasAttemptedSubmit && timezoneRequired,
     lat: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
     lon: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
   };
@@ -244,11 +247,13 @@ export function LocationForm({
           </div>
         </div>
 
-        {(timezoneMissing || coordinatesIncomplete || coordinatesInvalid) && (
+        {(timezoneRequired || timezoneMissing || coordinatesIncomplete || coordinatesInvalid) && (
           <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
-              {timezoneMissing
+              {timezoneRequired
+                ? t("timezoneRequired")
+                : timezoneMissing
                 ? t("timezoneAutodetectNotice")
                 : coordinatesIncomplete
                   ? t("coordinatesOptionalIncomplete")
@@ -315,7 +320,10 @@ export function LocationForm({
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label>{t("timeZoneField")}</Label>
+                  <Label>
+                    {t("timeZoneField")}
+                    {isNew ? <span className="text-destructive"> *</span> : null}
+                  </Label>
                   <InfoHint label={t("timeZoneField")} content={t("help.timeZone")} />
                 </div>
                 <Popover
@@ -329,7 +337,11 @@ export function LocationForm({
                       variant="outline"
                       role="combobox"
                       aria-expanded={timeZoneOpen}
-                      className="w-full justify-between font-normal"
+                      aria-invalid={fieldErrors.timezone}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        fieldErrors.timezone && "border-red-500 ring-1 ring-red-500/20",
+                      )}
                     >
                       <span className="truncate text-left">
                         {formData.timezone || t("timeZonePlaceholderShort")}
@@ -369,6 +381,9 @@ export function LocationForm({
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">{t("timeZoneHelp")}</p>
+                {fieldErrors.timezone ? (
+                  <p className="text-xs text-red-600">{t("timezoneRequired")}</p>
+                ) : null}
               </div>
             </section>
 

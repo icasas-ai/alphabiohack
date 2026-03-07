@@ -6,6 +6,7 @@ import {
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { PageTransition } from "@/components/common/page-transition"
 import { getCurrentUser } from "@/lib/auth/session"
 import { LanguageSelector } from "@/components/common/language-selector"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -44,7 +45,9 @@ export default async function Layout({
             </div>
           </header>
           <section className="app-page-gradient flex flex-1 flex-col gap-4 p-4 lg:p-8 bg-background">
-            { children }
+            <PageTransition className="motion-enter">
+              {children}
+            </PageTransition>
           </section>
         </SidebarInset>
       </SidebarProvider>

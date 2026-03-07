@@ -31,6 +31,7 @@ enum CompanyMembershipRole {
 
 enum BookingStatus {
   Pending
+  NeedsAttention
   Confirmed
   InProgress
   Completed

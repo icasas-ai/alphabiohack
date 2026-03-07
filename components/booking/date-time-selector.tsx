@@ -13,6 +13,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
 import { cn } from "@/lib/utils"
+import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone"
 import { formatTimeZoneLabel } from "@/lib/utils/timezone"
 
 const calendarDateKey = (d: Date) =>
@@ -27,7 +28,7 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
   const t = useTranslations('Booking')
   const format = useFormatter()
   const locale = useLocale()
-  const now = useNow()
+  const now = useNow({ updateInterval: 60_000 })
   const [month, setMonth] = useState<Date>((data.selectedDate as Date) || (now as Date))
   const { services } = useServices(data.specialtyId || undefined)
   const { locations } = useLocations()
@@ -56,6 +57,28 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
   const officeTimeZoneLabel = officeTimeZone
     ? formatTimeZoneLabel(officeTimeZone, locale)
     : null
+  const selectedDayKeyRaw = daySlots?.date || selectedDateKey
+  const selectedDayKey = selectedDayKeyRaw ? selectedDayKeyRaw.slice(0, 10) : undefined
+  const visibleDaySlots = useMemo(() => {
+    if (!daySlots?.slots?.length) return []
+    if (!selectedDayKey) {
+      return daySlots.slots
+    }
+    const nowDate = now as Date
+
+    return daySlots.slots.filter((slot) => {
+      if (officeTimeZone) {
+        const selectedDateInOfficeTZ = parseDateStringInTimeZone(selectedDayKey, officeTimeZone)
+        const slotDateTime = combineDateAndTimeToUtc(selectedDateInOfficeTZ, slot.value, officeTimeZone)
+        return slotDateTime.getTime() > nowDate.getTime()
+      }
+
+      const [hours, minutes] = slot.value.split(":").map(Number)
+      const slotDateTime = new Date(data.selectedDate || nowDate)
+      slotDateTime.setHours(hours, minutes, 0, 0)
+      return slotDateTime.getTime() > nowDate.getTime()
+    })
+  }, [data.selectedDate, daySlots?.slots, now, officeTimeZone, selectedDayKey])
 
   const availableDateKeys = useMemo(
     () => new Set((monthSummary?.days || []).filter((day) => day.hasAvailability).map((day) => day.date)),
@@ -67,8 +90,8 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
       update({ sessionDurationMinutes: daySlots.sessionDurationMinutes })
     }
 
-    if (daySlots && data.selectedTime) {
-      const stillAvailable = daySlots.slots.some(
+    if (data.selectedTime) {
+      const stillAvailable = visibleDaySlots.some(
         (slot) => slot.value === data.selectedTime && slot.isAvailable,
       )
 
@@ -76,7 +99,7 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
         update({ selectedTime: "" })
       }
     }
-  }, [data.selectedTime, data.sessionDurationMinutes, daySlots, update])
+  }, [data.selectedTime, data.sessionDurationMinutes, daySlots, update, visibleDaySlots])
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return
@@ -215,8 +238,8 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
                             <Skeleton key={index} className="h-10 w-full rounded-lg sm:h-12" />
                           ))}
                         </div>
-                      ) : daySlots?.slots?.length ? (
-                        daySlots.slots.map((timeSlot) => (
+                      ) : visibleDaySlots.length ? (
+                        visibleDaySlots.map((timeSlot) => (
                           <Button
                             key={timeSlot.value}
                             variant={data.selectedTime === timeSlot.value ? "default" : "outline"}

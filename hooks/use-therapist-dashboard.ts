@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readJsonResponse } from "@/lib/utils/read-json-response";
 
 interface TherapistDashboardData {
   kpis: {
@@ -48,7 +49,7 @@ interface TherapistDashboardData {
     completedDaily: Array<{ date: string; value: number }>;
   };
   statusCounts?: Record<string, number>;
-  invoices: Array<any>;
+  invoices: Array<Record<string, unknown>>;
 }
 
 type RangeKey = "last7" | "today" | "thisWeek" | "last30" | "all";
@@ -70,8 +71,16 @@ export function useTherapistDashboard(opts?: { range?: RangeKey }) {
           qs.toString() ? `?${qs.toString()}` : ""
         }`;
         const res = await fetch(url);
-        const json = await res.json();
-        if (!res.ok || !json.success) throw new Error(json.error || "Failed");
+        const json = await readJsonResponse<{
+          success?: boolean;
+          error?: string;
+          data?: TherapistDashboardData;
+        }>(res);
+
+        if (!res.ok || !json?.success || !json.data) {
+          throw new Error(json?.error || "Failed");
+        }
+
         setData(json.data);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown error");

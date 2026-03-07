@@ -13,7 +13,7 @@ interface StepFourProps {
   readonly isFirst: boolean;
 }
 
-export function StepFour({ onBack }: StepFourProps) {
+export function StepFour({}: StepFourProps) {
   const { reset } = useBookingWizard();
   const router = useRouter();
   const t = useTranslations('Booking');
@@ -25,12 +25,16 @@ export function StepFour({ onBack }: StepFourProps) {
 
   return (
     <CardContent className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold mb-2">{t('step5Title')}</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          {t('step5Description')}
+        </p>
+      </div>
+
       <BookingConfirmation />
 
-      <div className="flex justify-between items-center space-x-2 pt-4">
-        <Button onClick={onBack} variant="outline" className="cursor-pointer">
-          {t('back')}
-        </Button>
+      <div className="flex justify-end items-center pt-4">
         <Button
           onClick={handleNext}
           className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"

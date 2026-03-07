@@ -52,8 +52,12 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
 # Local PostgreSQL
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 
 # Local Mailpit
 EMAIL_PROVIDER=smtp
@@ -74,6 +78,7 @@ DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 
 Notes:
 
+- `.env.local` is sourced by `sh`, so every assignment must use `KEY=value` with no spaces around `=`
 - `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
 - `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
 - `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
@@ -200,6 +205,70 @@ Reset the database:
 npm run db:reset
 ```
 
+## Migration troubleshooting and recovery
+
+If `npm run db:migrate:deploy` fails locally, use this checklist.
+
+### 1. Validate `.env.local` formatting
+
+The Prisma wrapper script sources `.env.local` directly:
+
+- valid: `DB_USER=postgres`
+- invalid: `DB_USER= postgres`
+
+If there is a space around `=`, shell sourcing can fail before Prisma starts.
+
+### 2. Check for a host port conflict
+
+Confirm that PostgreSQL, not another process, owns your configured port:
+
+```bash
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+```
+
+If the listener is `ssh` or some other service:
+
+- stop that process, or
+- change the Docker host mapping from `5432:5432` to `5433:5432`
+- then set `DB_PORT=5433` in `.env.local`
+
+### 3. Confirm the DB container is healthy
+
+```bash
+docker compose up -d db
+docker compose ps db
+docker logs alphabiohack-db --tail 50
+```
+
+### 4. Retry the normal migration flow
+
+```bash
+npm run db:generate
+npm run db:migrate:status
+npm run db:migrate:deploy
+```
+
+### 5. Recover from a failed migration state
+
+If Prisma reports that a migration exists but is marked as failed, resolve it and retry:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260312000000_add_booking_number
+npm run db:migrate:deploy
+```
+
+Use that only when Prisma explicitly shows the migration in a failed state.
+
+### 6. Local-only reset option
+
+If you do not need to preserve local data:
+
+```bash
+npm run db:reset
+```
+
+This is the fastest recovery path in local development. Do not use it for production databases.
+
 ## Local auth behavior
 
 When Supabase env vars are empty:
@@ -233,7 +302,7 @@ That starts:
 
 In the full Docker flow:
 
-- the app container injects `DATABASE_URL` and `DIRECT_URL` using the `db` hostname
+- the app container injects DB parts (`DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`, `DB_NAME`)
 - the app container injects Mailpit SMTP settings
 - migrations and seed run automatically through `npm run dev:docker`
 
@@ -269,7 +338,7 @@ You do not need rebuilds for:
 
 If Prisma commands fail with missing env vars:
 
-- make sure `.env.local` contains `DATABASE_URL` and `DIRECT_URL`
+- make sure `.env.local` contains `DB_USER`, `DB_HOST`, and `DB_NAME` (plus `DB_PASS` when required)
 - use the local wrapper commands like `npm run db:migrate:deploy`
 
 If booking fails with therapist errors:

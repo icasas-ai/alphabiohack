@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@/i18n/navigation"
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { getAuthCapabilities, requestPasswordReset } from "@/services/auth.service";
+import { isValidEmailInput, normalizeEmailInput } from "@/lib/validation/form-fields";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -25,20 +27,30 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const t = useTranslations('Auth');
+  const authCapabilities = getAuthCapabilities();
+  const normalizedEmail = normalizeEmailInput(email);
+  const emailError =
+    hasAttemptedSubmit && (!normalizedEmail ? t("emailRequired") : !isValidEmailInput(normalizedEmail) ? t("emailInvalid") : null);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
     setError(null);
 
     try {
-      // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-      if (error) throw error;
+      if (!normalizedEmail || !isValidEmailInput(normalizedEmail)) {
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await requestPasswordReset(normalizedEmail);
+      if (!result.supported) {
+        setError(t("passwordResetUnavailableLocal"));
+        return;
+      }
       setSuccess(true);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));
@@ -72,6 +84,11 @@ export function ForgotPasswordForm({
           <CardContent>
             <form onSubmit={handleForgotPassword}>
               <div className="flex flex-col gap-6">
+                {!authCapabilities.supportsPasswordResetByEmail && (
+                  <Alert variant="warning">
+                    <AlertDescription>{t("passwordResetUnavailableLocal")}</AlertDescription>
+                  </Alert>
+                )}
                 <div className="grid gap-2">
                   <Label htmlFor="email">{t('email')}</Label>
                   <Input
@@ -81,10 +98,21 @@ export function ForgotPasswordForm({
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={Boolean(emailError)}
+                    className={cn(emailError && "border-red-500 ring-1 ring-red-500/20")}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    inputMode="email"
+                    spellCheck={false}
                   />
+                  {emailError ? <p className="text-sm text-red-500">{emailError}</p> : null}
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading || !authCapabilities.supportsPasswordResetByEmail}
+                >
                   {isLoading ? t('sending') : t('sendResetEmail')}
                 </Button>
               </div>

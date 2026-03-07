@@ -19,6 +19,7 @@ interface CreateLocationData {
   title: string;
   address: string;
   description?: string;
+  timezone: string;
   logo?: string;
   lat?: number;
   lon?: number;
@@ -28,6 +29,7 @@ interface UpdateLocationData {
   title?: string;
   address?: string;
   description?: string;
+  timezone?: string;
   logo?: string;
   lat?: number;
   lon?: number;

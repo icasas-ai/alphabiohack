@@ -6,16 +6,25 @@ import {
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { PageTransition } from "@/components/common/page-transition"
+import { getCurrentUser } from "@/lib/auth/session"
 import { LanguageSelector } from "@/components/common/language-selector"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/common/theme-toggle"
+import { redirect } from "next/navigation"
 
-export default function Layout({
+export default async function Layout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { prismaUser } = await getCurrentUser();
+
+  if (prismaUser?.mustChangePassword) {
+    redirect("/auth/update-password");
+  }
+
   return (
     <ProtectedRoute>
       <SidebarProvider>
@@ -35,8 +44,10 @@ export default function Layout({
               <LanguageSelector />
             </div>
           </header>
-          <section className="flex flex-1 flex-col gap-4 p-4 lg:p-8 bg-background">
-            { children }
+          <section className="app-page-gradient flex flex-1 flex-col gap-4 p-4 lg:p-8 bg-background">
+            <PageTransition className="motion-enter">
+              {children}
+            </PageTransition>
           </section>
         </SidebarInset>
       </SidebarProvider>

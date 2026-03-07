@@ -1,7 +1,23 @@
-import { BookingStatus, Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@/lib/prisma-client";
 
-import { combineDateAndTimeToUtc, formatBookingToLocalStrings } from "@/lib/utils/timezone";
+import {
+  combineDateAndTimeToUtc,
+  formatBookingToLocalStrings,
+  parseDateStringInTimeZone,
+} from "@/lib/utils/timezone";
+import { getTimeZoneOrDefault } from "@/services/config.service";
 import { prisma } from "@/lib/prisma";
+import {
+  createAvailabilityDayRecord,
+  createAvailabilityExcludedDateRecord,
+  createAvailabilityExcludedTimeRanges,
+  createAvailabilityPeriodRecord,
+  createAvailabilityTimeRanges,
+  findAvailabilityDayOwnership,
+  findAvailabilityExcludedDateOwnership,
+  findAvailabilityPeriodOwnership,
+  findLocationByIdWithSelect,
+} from "@/repositories";
 
 export interface AvailabilityTimeRangeInput {
   startTime: string;
@@ -142,13 +158,44 @@ function validateUniqueTimeRanges(
   }
 }
 
+function validateOrderedAndNonOverlappingTimeRanges(
+  timeRanges: AvailabilityTimeRangeInput[],
+  contextLabel = "time ranges",
+) {
+  const normalized = timeRanges
+    .filter((range) => range.isActive !== false && range.startTime && range.endTime)
+    .map((range) => ({
+      ...range,
+      startMinutes: timeToMinutes(range.startTime),
+      endMinutes: timeToMinutes(range.endTime),
+    }))
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+
+  for (const range of normalized) {
+    if (range.endMinutes <= range.startMinutes) {
+      throw new Error(`Invalid ${contextLabel}: ${range.startTime} - ${range.endTime}`);
+    }
+  }
+
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = normalized[index - 1];
+    const current = normalized[index];
+
+    if (current.startMinutes < previous.endMinutes) {
+      throw new Error(
+        `Overlapping ${contextLabel} are not allowed: ${previous.startTime} - ${previous.endTime} overlaps ${current.startTime} - ${current.endTime}`,
+      );
+    }
+  }
+}
+
 async function getLocationTimezone(locationId: string) {
   const location = await prisma.location.findUnique({
     where: { id: locationId },
     select: { timezone: true },
   });
 
-  return location?.timezone || "America/Los_Angeles";
+  return getTimeZoneOrDefault(location?.timezone || undefined);
 }
 
 async function getBookedTimesForDay(
@@ -201,10 +248,15 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
   }
 
   validateUniqueTimeRanges(input.timeRanges, "time ranges");
+  validateOrderedAndNonOverlappingTimeRanges(input.timeRanges, "time ranges");
 
   for (const override of input.dayOverrides || []) {
     if (override.timeRanges?.length) {
       validateUniqueTimeRanges(override.timeRanges, `time ranges for ${override.date}`);
+      validateOrderedAndNonOverlappingTimeRanges(
+        override.timeRanges,
+        `time ranges for ${override.date}`,
+      );
     }
   }
 
@@ -233,13 +285,17 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
   }
 
   return prisma.$transaction(async (tx) => {
-    const location = await tx.location.findUnique({
-      where: { id: input.locationId },
-      select: { title: true },
+    const location = await findLocationByIdWithSelect(input.locationId, {
+      title: true,
+      companyId: true,
     });
 
-    const period = await tx.availabilityPeriod.create({
-      data: {
+    if (!location?.companyId) {
+      throw new Error("Location is missing a company assignment.");
+    }
+
+    const period = await createAvailabilityPeriodRecord(tx, {
+        companyId: location.companyId,
         therapistId: input.therapistId,
         locationId: input.locationId,
         title:
@@ -252,33 +308,32 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
         notes: input.notes,
         startDate: parseDateOnly(input.startDate),
         endDate: parseDateOnly(input.endDate),
-      },
     });
 
     for (const date of candidateDates) {
       const template = mapDayTemplate(date, input, overridesByDate);
 
-      const day = await tx.availabilityDay.create({
-        data: {
+      const day = await createAvailabilityDayRecord(tx, {
           availabilityPeriodId: period.id,
+          companyId: location.companyId,
           therapistId: input.therapistId,
           locationId: input.locationId,
           date: parseDateOnly(date),
           isAvailable: template.isAvailable,
           sessionDurationMinutes: template.sessionDurationMinutes,
           notes: template.notes,
-        },
       });
 
       if (template.isAvailable) {
-        await tx.availabilityTimeRange.createMany({
-          data: template.timeRanges.map((range) => ({
+        await createAvailabilityTimeRanges(
+          tx,
+          template.timeRanges.map((range) => ({
             availabilityDayId: day.id,
             startTime: range.startTime,
             endTime: range.endTime,
             isActive: range.isActive ?? true,
           })),
-        });
+        );
       }
     }
 
@@ -286,26 +341,26 @@ export async function createAvailabilityPeriod(input: CreateAvailabilityPeriodIn
       if (!allDates.includes(date)) continue;
 
       const template = mapDayTemplate(date, input, overridesByDate);
-      const excludedDate = await tx.availabilityExcludedDate.create({
-        data: {
+      const excludedDate = await createAvailabilityExcludedDateRecord(tx, {
           availabilityPeriodId: period.id,
+          companyId: location.companyId,
           therapistId: input.therapistId,
           locationId: input.locationId,
           date: parseDateOnly(date),
           sessionDurationMinutes: template.sessionDurationMinutes,
           notes: template.notes,
-        },
       });
 
       if (template.timeRanges.length) {
-        await tx.availabilityExcludedTimeRange.createMany({
-          data: template.timeRanges.map((range) => ({
+        await createAvailabilityExcludedTimeRanges(
+          tx,
+          template.timeRanges.map((range) => ({
             availabilityExcludedDateId: excludedDate.id,
             startTime: range.startTime,
             endTime: range.endTime,
             isActive: range.isActive ?? true,
           })),
-        });
+        );
       }
     }
 
@@ -396,30 +451,81 @@ export async function listAvailabilityPeriods({
 }
 
 export async function deleteAvailabilityPeriod(id: string) {
-  return prisma.availabilityPeriod.delete({
-    where: { id },
+  return prisma.$transaction(async (tx) => {
+    const period = await tx.availabilityPeriod.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        therapistId: true,
+        locationId: true,
+        startDate: true,
+        endDate: true,
+        location: {
+          select: {
+            timezone: true,
+          },
+        },
+      },
+    });
+
+    if (!period) {
+      throw new Error("Availability period not found");
+    }
+
+    const timezone = getTimeZoneOrDefault(period.location?.timezone || undefined);
+    const startDate = period.startDate.toISOString().slice(0, 10);
+    const endDate = period.endDate.toISOString().slice(0, 10);
+
+    const rangeStart = combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(startDate, timezone),
+      "00:00",
+      timezone,
+    );
+    const rangeEnd = combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(endDate, timezone),
+      "23:59",
+      timezone,
+    );
+    rangeEnd.setUTCSeconds(59, 999);
+
+    const affectedBookings = await tx.booking.updateMany({
+      where: {
+        therapistId: period.therapistId,
+        locationId: period.locationId,
+        bookingSchedule: {
+          gte: rangeStart,
+          lte: rangeEnd,
+        },
+        status: {
+          in: [
+            BookingStatus.Pending,
+            BookingStatus.Confirmed,
+            BookingStatus.InProgress,
+          ],
+        },
+      },
+      data: {
+        status: BookingStatus.NeedsAttention,
+      },
+    });
+
+    await tx.availabilityPeriod.delete({
+      where: { id },
+    });
+
+    return {
+      deletedPeriodId: id,
+      affectedBookings: affectedBookings.count,
+    };
   });
 }
 
 export async function getAvailabilityPeriodOwnership(id: string) {
-  return prisma.availabilityPeriod.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-    },
-  });
+  return findAvailabilityPeriodOwnership(id);
 }
 
 export async function getAvailabilityExcludedDateOwnership(id: string) {
-  return prisma.availabilityExcludedDate.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-      availabilityPeriodId: true,
-    },
-  });
+  return findAvailabilityExcludedDateOwnership(id);
 }
 
 export async function restoreAvailabilityExcludedDate(id: string) {
@@ -450,27 +556,27 @@ export async function restoreAvailabilityExcludedDate(id: string) {
       throw new Error("Availability already exists for this date");
     }
 
-    const day = await tx.availabilityDay.create({
-      data: {
+    const day = await createAvailabilityDayRecord(tx, {
         availabilityPeriodId: excludedDate.availabilityPeriodId,
+        companyId: excludedDate.companyId,
         therapistId: excludedDate.therapistId,
         locationId: excludedDate.locationId,
         date: excludedDate.date,
         isAvailable: true,
         sessionDurationMinutes: excludedDate.sessionDurationMinutes,
         notes: excludedDate.notes,
-      },
     });
 
     if (excludedDate.timeRanges.length) {
-      await tx.availabilityTimeRange.createMany({
-        data: excludedDate.timeRanges.map((range) => ({
+      await createAvailabilityTimeRanges(
+        tx,
+        excludedDate.timeRanges.map((range) => ({
           availabilityDayId: day.id,
           startTime: range.startTime,
           endTime: range.endTime,
           isActive: range.isActive,
         })),
-      });
+      );
     }
 
     await tx.availabilityExcludedDate.delete({
@@ -489,13 +595,7 @@ export async function restoreAvailabilityExcludedDate(id: string) {
 }
 
 export async function getAvailabilityDayOwnership(id: string) {
-  return prisma.availabilityDay.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      therapistId: true,
-    },
-  });
+  return findAvailabilityDayOwnership(id);
 }
 
 export async function updateAvailabilityDay(
@@ -508,6 +608,7 @@ export async function updateAvailabilityDay(
   },
 ) {
   validateUniqueTimeRanges(input.timeRanges, "time ranges");
+  validateOrderedAndNonOverlappingTimeRanges(input.timeRanges, "time ranges");
 
   return prisma.$transaction(async (tx) => {
     const day = await tx.availabilityDay.update({
@@ -656,33 +757,79 @@ export async function isAvailabilitySlotBookable({
   locationId,
   date,
   time,
+  bookingSchedule,
 }: {
   therapistId: string;
   locationId: string;
-  date: string;
-  time: string;
+  date?: string;
+  time?: string;
+  bookingSchedule?: Date;
 }) {
   const timezone = await getLocationTimezone(locationId);
-  const slots = await getAvailabilityDaySlots({
-    therapistId,
-    locationId,
-    date,
+  const local =
+    bookingSchedule ?
+      formatBookingToLocalStrings(bookingSchedule, timezone)
+    : null;
+  const targetDate = date || local?.dateString;
+  const targetTime = time || local?.timeString;
+
+  if (!targetDate || !targetTime) {
+    throw new Error("A booking date/time or bookingSchedule is required");
+  }
+
+  const day = await prisma.availabilityDay.findFirst({
+    where: {
+      therapistId,
+      locationId,
+      date: parseDateOnly(targetDate),
+    },
+    include: {
+      timeRanges: {
+        where: { isActive: true },
+        orderBy: { startTime: "asc" },
+      },
+    },
   });
 
-  const matched = slots.slots.find((slot) => slot.value === time);
-  if (!matched?.isAvailable) {
+  if (!day || !day.isAvailable) {
     return {
       isAvailable: false,
       reason: "slot_unavailable",
-      sessionDurationMinutes: slots.sessionDurationMinutes,
+      sessionDurationMinutes: day?.sessionDurationMinutes ?? 0,
     };
   }
 
-  const bookingSchedule = combineDateAndTimeToUtc(parseDateOnly(date), time, timezone);
+  const targetMinutes = timeToMinutes(targetTime);
+  const hasMatchingSlot = day.timeRanges.some((range) => {
+    const startMinutes = timeToMinutes(range.startTime);
+    const endMinutes = timeToMinutes(range.endTime);
+
+    if (targetMinutes < startMinutes) return false;
+    if (targetMinutes + day.sessionDurationMinutes > endMinutes) return false;
+
+    return (targetMinutes - startMinutes) % day.sessionDurationMinutes === 0;
+  });
+
+  if (!hasMatchingSlot) {
+    return {
+      isAvailable: false,
+      reason: "slot_unavailable",
+      sessionDurationMinutes: day.sessionDurationMinutes,
+    };
+  }
+
+  const normalizedBookingSchedule =
+    bookingSchedule ??
+    combineDateAndTimeToUtc(
+      parseDateStringInTimeZone(targetDate, timezone),
+      targetTime,
+      timezone,
+    );
   const existingBooking = await prisma.booking.findFirst({
     where: {
       therapistId,
-      bookingSchedule,
+      locationId,
+      bookingSchedule: normalizedBookingSchedule,
       status: {
         not: BookingStatus.Cancelled,
       },
@@ -691,9 +838,9 @@ export async function isAvailabilitySlotBookable({
 
   return {
     isAvailable: !existingBooking,
-    bookingSchedule,
+    bookingSchedule: normalizedBookingSchedule,
     existingBooking,
     reason: existingBooking ? "booking_conflict" : null,
-    sessionDurationMinutes: slots.sessionDurationMinutes,
+    sessionDurationMinutes: day.sessionDurationMinutes,
   };
 }

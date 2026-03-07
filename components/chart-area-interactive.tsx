@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import {
@@ -37,6 +37,7 @@ interface ChartAreaInteractiveProps {
   data: Array<{ date: string; value: number }>
   range?: RangeKey
   onRangeChange?: (value: RangeKey) => void
+  headerAction?: React.ReactNode
   labels?: {
     last7?: string
     last30?: string
@@ -60,6 +61,7 @@ export function ChartAreaInteractive({
   data,
   range,
   onRangeChange,
+  headerAction,
   labels,
 }: ChartAreaInteractiveProps) {
   const isMobile = useIsMobile()
@@ -81,6 +83,7 @@ export function ChartAreaInteractive({
   // El dataset ya viene filtrado desde el servidor según el rango actual.
   const filteredData = React.useMemo(() => {
     if (!data?.length) return []
+    if (range) return data
     // Si el componente controla el rango internamente, filtrar aquí por conveniencia visual
     const now = new Date()
     let days = 7
@@ -101,16 +104,19 @@ export function ChartAreaInteractive({
     const start = new Date(now)
     start.setDate(now.getDate() - (days - 1))
     return data.filter(d => new Date(d.date) >= start)
-  }, [data, effectiveRange])
+  }, [data, effectiveRange, range])
 
   return (
     <Card className="@container/card">
-      <CardHeader className="relative">
-        <CardTitle>{title}</CardTitle>
-        {subtitle ? (
-          <CardDescription>{subtitle}</CardDescription>
-        ) : null}
-        <div className="absolute right-4 top-4">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <CardTitle>{title}</CardTitle>
+          {subtitle ? (
+            <CardDescription>{subtitle}</CardDescription>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          {headerAction}
           <ToggleGroup
             type="single"
             value={effectiveRange}
@@ -171,6 +177,7 @@ export function ChartAreaInteractive({
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} />
+            <YAxis hide domain={[0, (dataMax: number) => Math.max(1, Math.ceil(dataMax))]} allowDecimals={false} />
             <XAxis
               dataKey="date"
               tickLine={false}
@@ -201,7 +208,7 @@ export function ChartAreaInteractive({
             />
             <Area
               dataKey="value"
-              type="natural"
+              type="linear"
               fill="url(#fillAppointments)"
               stroke="var(--color-appointments)"
             />

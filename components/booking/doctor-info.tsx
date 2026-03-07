@@ -3,16 +3,20 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useBookingWizard } from "@/contexts"
 import { useTherapist, useTherapistConfig } from "@/hooks"
 
-import { Badge } from "@/components/ui/badge"
 import { Fingerprint } from "lucide-react"
 
 export function DoctorInfo() {
-  const { defaultTherapistId } = useTherapistConfig()
-  const { data } = useBookingWizard()
-  const { therapist, loading, error } = useTherapist(data.therapistId || defaultTherapistId || undefined)
+  const { data, publicTherapist, publicTherapistLoading, publicTherapistError } = useBookingWizard()
+  const { isSingleTherapistMode } = useTherapistConfig()
+  const { therapist, loading, error } = useTherapist(
+    !isSingleTherapistMode ? (data.therapistId || undefined) : undefined
+  )
+  const sourceTherapist = isSingleTherapistMode ? publicTherapist : therapist
+  const sourceLoading = isSingleTherapistMode ? publicTherapistLoading : loading
+  const sourceError = isSingleTherapistMode ? publicTherapistError : error
 
   // Si está cargando, mostrar skeleton
-  if (loading) {
+  if (sourceLoading) {
     return (
       <Card className="mb-6">
         <CardContent className="flex items-center gap-4 pt-6">
@@ -28,20 +32,19 @@ export function DoctorInfo() {
   }
 
   // Si hay error o no hay terapeuta, no mostrar nada
-  if (error || !therapist) {
+  if (sourceError || !sourceTherapist) {
     return null
   }
 
   // Crear el objeto doctor con los datos del terapeuta de la API
   const doctor = {
-    name: `${therapist.firstName} ${therapist.lastName}`,
-    specialty: therapist.specialties[0] || "Especialista",
-    rating: therapist.rating,
-    image: therapist.profileImage,
-    bio: therapist.bio,
+    name: `${sourceTherapist.firstName} ${sourceTherapist.lastName}`,
+    specialty: sourceTherapist.specialties[0] || "Especialista",
+    image: sourceTherapist.profileImage,
+    bio: sourceTherapist.bio,
   }
   return (
-    <Card className="mb-6 bg-muted">
+    <Card className="surface-panel mb-6">
       <CardContent className="flex items-center gap-4 ">
         <Avatar className="h-16 w-16">
           <AvatarImage src={doctor.image || "/placeholder.svg"} alt={doctor.name} />
@@ -54,11 +57,8 @@ export function DoctorInfo() {
         </Avatar>
 
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="mb-1">
             <h3 className="text-lg font-semibold text-foreground">{doctor.name}</h3>
-            <Badge variant="default" className="bg-accent">
-              ⭐ {doctor.rating}
-            </Badge>
           </div>
           <p className="text-sm text-primary font-medium mb-2">{doctor.specialty}</p>
           <div className="flex items-center gap-1 text-sm text-muted-foreground">

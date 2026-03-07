@@ -11,23 +11,41 @@ interface Step {
 
 interface BookingStepperProps {
   steps: Step[]
+  compact?: boolean
 }
 
-export function BookingStepper({ steps }: BookingStepperProps) {
+export function BookingStepper({ steps, compact = false }: BookingStepperProps) {
+  const currentStepIndex = useMemo(
+    () => steps.findIndex((step) => step.status === "current"),
+    [steps],
+  )
+  const isSuccessState = currentStepIndex === steps.length - 1
   const progressValue = useMemo(() => {
-    const currentStepIndex = steps.findIndex((step) => step.status === "current")
     const completedSteps = steps.filter((step) => step.status === "complete").length
     
     // Mostrar progreso completo si el paso actual es el 5
-    return currentStepIndex === 4
+    return currentStepIndex === steps.length - 1
       ? 100
       : ((completedSteps + (currentStepIndex >= 0 ? 0.5 : 0)) / steps.length) * 100
-  }, [steps])
+  }, [currentStepIndex, steps])
 
   return (
-    <nav aria-label="Progress" className="mb-8">
-      <div className="mb-6">
-        <Progress value={progressValue} className="h-2" />
+    <nav
+      aria-label="Progress"
+      className={cn(
+        "rounded-[1.75rem] border border-border/70 bg-background/95 shadow-[0_18px_40px_-24px_rgba(15,23,42,0.35)] ring-1 ring-black/5 backdrop-blur transition-[padding,border-radius,box-shadow,background-color] duration-200 ease-out",
+        compact ? "py-2.5" : "py-3.5",
+      )}
+    >
+      <div className={cn("transition-[margin] duration-200 ease-out", compact ? "mb-2.5" : "mb-3.5")}>
+        <Progress
+          value={progressValue}
+          className={cn(
+            "h-2",
+            isSuccessState &&
+              "bg-emerald-500/15 [&_[data-slot=progress-indicator]]:bg-emerald-500",
+          )}
+        />
       </div>
 
       <ol className="flex items-start justify-center space-x-4 md:space-x-8">
@@ -38,9 +56,13 @@ export function BookingStepper({ steps }: BookingStepperProps) {
                 className={cn(
                   "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors text-center",
                   step.status === "complete"
-                    ? "bg-primary border-primary text-primary-foreground"
+                    ? isSuccessState
+                      ? "bg-emerald-500 border-emerald-500 text-white"
+                      : "bg-primary border-primary text-primary-foreground"
                     : step.status === "current"
-                      ? "border-primary text-primary bg-background"
+                      ? isSuccessState
+                        ? "bg-emerald-500 border-emerald-500 text-white shadow-[0_10px_25px_-14px_rgba(34,197,94,0.85)]"
+                        : "border-primary text-primary bg-background"
                       : "border-muted-foreground/30 text-muted-foreground bg-background",
                 )}
               >
@@ -48,12 +70,26 @@ export function BookingStepper({ steps }: BookingStepperProps) {
               </div>
               <span
                 className={cn(
-                  "mt-2 text-xs font-medium text-center",
+                  "mt-2 max-w-[4.75rem] text-center leading-tight transition-[font-size,line-height,color,transform,opacity] duration-200 ease-out sm:max-w-[5.5rem]",
                   step.status === "current"
-                    ? "text-primary"
+                    ? compact
+                      ? isSuccessState
+                        ? "text-[12px] font-semibold text-emerald-600 sm:text-[13px] dark:text-emerald-400"
+                        : "text-[12px] font-semibold text-primary sm:text-[13px]"
+                      : isSuccessState
+                        ? "text-[13px] font-semibold text-emerald-600 sm:text-[15px] dark:text-emerald-400"
+                        : "text-[13px] font-semibold text-primary sm:text-[15px]"
                     : step.status === "complete"
-                      ? "text-foreground"
-                      : "text-muted-foreground",
+                      ? compact
+                        ? isSuccessState
+                          ? "text-[9px] font-medium text-emerald-700 sm:text-[10px] dark:text-emerald-300"
+                          : "text-[9px] font-medium text-foreground sm:text-[10px]"
+                        : isSuccessState
+                          ? "text-[10px] font-medium text-emerald-700 sm:text-[12px] dark:text-emerald-300"
+                          : "text-[10px] font-medium text-foreground sm:text-[12px]"
+                      : compact
+                        ? "text-[9px] font-medium text-muted-foreground sm:text-[10px]"
+                        : "text-[10px] font-medium text-muted-foreground sm:text-[12px]",
                 )}
               >
                 {step.name}

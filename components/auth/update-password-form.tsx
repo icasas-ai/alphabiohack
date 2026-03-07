@@ -11,11 +11,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useUser } from "@/contexts/user-context";
+import { UserRole } from "@/lib/prisma-browser";
+import { updateUserPassword } from "@/services/auth.service";
 
 export function UpdatePasswordForm({
   className,
@@ -24,20 +27,38 @@ export function UpdatePasswordForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const router = useRouter();
   const t = useTranslations('Auth');
+  const { refreshAuthState } = useUser();
+  const passwordError =
+    hasAttemptedSubmit && (!password ? t("passwordRequired") : password.length < 8 ? t("passwordTooShort") : null);
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
     setError(null);
 
+    if (!password || password.length < 8) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      const data = await updateUserPassword(password);
+      if (data.user) {
+        await refreshAuthState();
+        const roles = Array.isArray(data.user?.role) ? data.user.role : [];
+        if (roles.includes(UserRole.FrontDesk)) {
+          router.push("/bookings");
+          return;
+        }
+
+        router.push("/dashboard");
+        return;
+      }
+      router.push("/dashboard");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t('errorOccurred'));
     } finally {
@@ -64,13 +85,24 @@ export function UpdatePasswordForm({
                   type="password"
                   placeholder={t('newPasswordPlaceholder')}
                   required
+                  minLength={8}
+                  disabled={isLoading}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-invalid={Boolean(passwordError)}
+                  className={cn(passwordError && "border-red-500 ring-1 ring-red-500/20")}
+                  autoComplete="new-password"
                 />
+                {passwordError ? <p className="text-sm text-red-500">{passwordError}</p> : null}
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? t('saving') : t('saveNewPassword')}
+                {isLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('saving')}
+                  </span>
+                ) : t('saveNewPassword')}
               </Button>
             </div>
           </form>

@@ -68,7 +68,7 @@ export function SpecialtiesSection() {
   const visibleSpecialties = specialties.slice(currentIndex, currentIndex + itemsPerView)
 
   return (
-    <section className="py-16 bg-background">
+    <section className="py-16 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
           <div>

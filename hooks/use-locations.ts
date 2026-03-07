@@ -5,27 +5,57 @@ import { useCallback, useEffect, useState } from "react";
 import { API_ENDPOINTS } from "@/constants";
 import type { Location } from "@/types";
 
+let locationsCache: Location[] | null = null;
+let locationsPromise: Promise<Location[]> | null = null;
+const locationByIdCache = new Map<string, Location>();
+
 export function useLocations() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null); // almacena errorCode cuando exista
 
-  const fetchLocations = useCallback(async () => {
+  const fetchLocations = useCallback(async (force = false) => {
+    if (!force && locationsCache) {
+      setLocations(locationsCache);
+      setError(null);
+      return locationsCache;
+    }
+
+    if (!force && locationsPromise) {
+      setLoading(true);
+      try {
+        const pending = await locationsPromise;
+        setLocations(pending);
+        setError(null);
+        return pending;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(API_ENDPOINTS.LOCATIONS.BASE);
-      const result = await response.json();
+      locationsPromise = (async () => {
+        const response = await fetch(API_ENDPOINTS.LOCATIONS.BASE);
+        const result = await response.json();
 
-      if (!response.ok) {
-        const code: string | undefined = result?.errorCode;
-        setError(code || "internal_error");
-        return [] as Location[];
-      }
+        if (!response.ok) {
+          const code: string | undefined = result?.errorCode;
+          setError(code || "internal_error");
+          return [] as Location[];
+        }
 
-      setLocations(result.data);
-      return result.data as Location[];
+        return result.data as Location[];
+      })();
+
+      const data = await locationsPromise;
+      locationsCache = data;
+      locationByIdCache.clear();
+      data.forEach((location) => locationByIdCache.set(location.id, location));
+      setLocations(data);
+      return data;
     } catch (err) {
       const code =
         (err as { errorCode?: string })?.errorCode || "internal_error";
@@ -33,6 +63,7 @@ export function useLocations() {
       console.error("Error fetching locations:", err);
       return [];
     } finally {
+      locationsPromise = null;
       setLoading(false);
     }
   }, []);
@@ -43,6 +74,10 @@ export function useLocations() {
         setLoading(true);
         setError(null);
 
+        if (locationByIdCache.has(id)) {
+          return locationByIdCache.get(id) || null;
+        }
+
         const response = await fetch(API_ENDPOINTS.LOCATIONS.BY_ID(id));
         const result = await response.json();
 
@@ -52,7 +87,9 @@ export function useLocations() {
           return null;
         }
 
-        return result.data as Location;
+        const location = result.data as Location;
+        locationByIdCache.set(location.id, location);
+        return location;
       } catch (err) {
         const code =
           (err as { errorCode?: string })?.errorCode || "internal_error";
@@ -145,6 +182,6 @@ export function useLocations() {
     fetchLocationById,
     searchLocations,
     getLocationsNearby,
-    refetch: fetchLocations,
+    refetch: () => fetchLocations(true),
   };
 }

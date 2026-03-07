@@ -2,20 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createLocalSession, verifyPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { isValidEmailInput, normalizeEmailInput } from "@/lib/validation/form-fields";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
+    const normalizedEmail = normalizeEmailInput(email);
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 },
       );
     }
 
+    if (!isValidEmailInput(normalizedEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address" },
+        { status: 400 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
@@ -32,6 +41,8 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
       },
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
     });
   } catch (error) {
     console.error("Local login failed:", error);

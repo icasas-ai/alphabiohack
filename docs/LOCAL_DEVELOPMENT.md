@@ -52,8 +52,12 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
 # Local PostgreSQL
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
-DIRECT_URL=postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphabiohack
+DB_QUERY=schema=public
 
 # Local Mailpit
 EMAIL_PROVIDER=smtp
@@ -64,24 +68,27 @@ SMTP_SECURE=false
 # Local auth cookie signing
 LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
-# Seed / single-therapist config
-SINGLE_THERAPIST=true
-SINGLE_THERAPIST_EMAIL=therapist@example.com
-SINGLE_THERAPIST_SUPABASE_ID=local-seed-therapist
-SINGLE_THERAPIST_FIRSTNAME=John
-SINGLE_THERAPIST_LASTNAME=Doe
-SINGLE_THERAPIST_AVATAR=https://example.com/avatar.jpg
-NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+# Optional: derive location coordinates/timezone from full address
+GOOGLE_MAPS_API_KEY=
+
+NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
+
+DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
 ```
 
 Notes:
 
+- `.env.local` is sourced by `sh`, so every assignment must use `KEY=value` with no spaces around `=`
 - `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
+- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
+- `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
 - that user must include `Therapist` in `role`
 - local sign-up creates `Patient`, not `Therapist`
-- `SINGLE_THERAPIST_SUPABASE_ID` is still required by the current seed shape
 - `RESEND_API_KEY` is not needed for local Mailpit testing
+- `GOOGLE_MAPS_API_KEY` is optional; if set, location save can try to derive coordinates and timezone from the full office address
+- default local seed users now live in [prisma/seeds/config/default-users.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-users.ts)
+- the default local company profile lives in [prisma/seeds/config/default-company.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-company.ts)
+- if you want a different seeded therapist profile, edit that file instead of setting env vars
 
 ## 2. Start local services in Docker
 
@@ -137,7 +144,7 @@ npm run dev
 
 The app will run at:
 
-- `http://localhost:3000`
+- `http://localhost:9001`
 
 ## Day-to-day workflow
 
@@ -198,6 +205,70 @@ Reset the database:
 npm run db:reset
 ```
 
+## Migration troubleshooting and recovery
+
+If `npm run db:migrate:deploy` fails locally, use this checklist.
+
+### 1. Validate `.env.local` formatting
+
+The Prisma wrapper script sources `.env.local` directly:
+
+- valid: `DB_USER=postgres`
+- invalid: `DB_USER= postgres`
+
+If there is a space around `=`, shell sourcing can fail before Prisma starts.
+
+### 2. Check for a host port conflict
+
+Confirm that PostgreSQL, not another process, owns your configured port:
+
+```bash
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+```
+
+If the listener is `ssh` or some other service:
+
+- stop that process, or
+- change the Docker host mapping from `5432:5432` to `5433:5432`
+- then set `DB_PORT=5433` in `.env.local`
+
+### 3. Confirm the DB container is healthy
+
+```bash
+docker compose up -d db
+docker compose ps db
+docker logs alphabiohack-db --tail 50
+```
+
+### 4. Retry the normal migration flow
+
+```bash
+npm run db:generate
+npm run db:migrate:status
+npm run db:migrate:deploy
+```
+
+### 5. Recover from a failed migration state
+
+If Prisma reports that a migration exists but is marked as failed, resolve it and retry:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260312000000_add_booking_number
+npm run db:migrate:deploy
+```
+
+Use that only when Prisma explicitly shows the migration in a failed state.
+
+### 6. Local-only reset option
+
+If you do not need to preserve local data:
+
+```bash
+npm run db:reset
+```
+
+This is the fastest recovery path in local development. Do not use it for production databases.
+
 ## Local auth behavior
 
 When Supabase env vars are empty:
@@ -210,8 +281,8 @@ When Supabase env vars are empty:
 Important:
 
 - local sign-up creates `Patient` users
-- public booking uses `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-- that env var must point to a therapist-role user
+- public booking uses the company's `publicTherapistId`, with `DEFAULT_THERAPIST_ID` as a server-side fallback
+- if you set `DEFAULT_THERAPIST_ID`, it must point to a therapist-role user
 
 For more detail, see [USER_IDENTITY_MODEL.md](./USER_IDENTITY_MODEL.md).
 
@@ -231,7 +302,7 @@ That starts:
 
 In the full Docker flow:
 
-- the app container injects `DATABASE_URL` and `DIRECT_URL` using the `db` hostname
+- the app container injects DB parts (`DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`, `DB_NAME`)
 - the app container injects Mailpit SMTP settings
 - migrations and seed run automatically through `npm run dev:docker`
 
@@ -267,7 +338,7 @@ You do not need rebuilds for:
 
 If Prisma commands fail with missing env vars:
 
-- make sure `.env.local` contains `DATABASE_URL` and `DIRECT_URL`
+- make sure `.env.local` contains `DB_USER`, `DB_HOST`, and `DB_NAME` (plus `DB_PASS` when required)
 - use the local wrapper commands like `npm run db:migrate:deploy`
 
 If booking fails with therapist errors:

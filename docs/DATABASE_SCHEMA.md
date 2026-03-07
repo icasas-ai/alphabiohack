@@ -241,6 +241,6 @@ erDiagram
 
 ## Notes
 
-- The schema is multi-user but not yet a true tenant model.
-- Public booking currently resolves the active therapist from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`.
+- The schema now has a foundational `Company` + `CompanyMembership` tenant model, but not every route is fully membership-scoped yet.
+- Public booking can resolve the active company from `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`, with therapist fallback compatibility through `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`.
 - The new booking flow uses dated availability, while legacy weekly availability tables still remain in the schema for compatibility.

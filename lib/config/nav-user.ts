@@ -33,7 +33,7 @@ export const getNavUserConfig = (
     },
     accountItems: [
       {
-        label: t("account"),
+        label: t("profile"),
         icon: BadgeCheck,
         url: "/profile",
       },

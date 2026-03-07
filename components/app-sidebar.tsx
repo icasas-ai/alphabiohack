@@ -18,26 +18,35 @@ import { NavProjects } from "@/components/nav-projects"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import { SITE_DATA } from "@/constants"
-import { getSidebarConfig } from "@/lib/config/sidebar";
-import { useTherapistConfig } from "@/hooks"
+import { getSidebarConfig, type SidebarRoleMode } from "@/lib/config/sidebar";
+import { useUser } from "@/contexts/user-context";
+import { UserRole } from "@/lib/prisma-browser";
 import { useTranslations } from "next-intl"
 
-// Hook para determinar el rol del usuario
-function useUserRole() {
-  const { isSingleTherapistMode } = useTherapistConfig()
-  
-  return {
-    isTherapist: isSingleTherapistMode, // Therapist = Admin
-    isRegularUser: !isSingleTherapistMode, // Usuario regular
+function useSidebarRoleMode(): SidebarRoleMode {
+  const { prismaUser } = useUser();
+  const roles = prismaUser?.role ?? [];
+
+  if (
+    roles.includes(UserRole.Admin) ||
+    roles.includes(UserRole.Therapist)
+  ) {
+    return "therapist";
   }
+
+  if (roles.includes(UserRole.FrontDesk)) {
+    return "frontDesk";
+  }
+
+  return "patient";
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const t = useTranslations("Sidebar");
-  const { isTherapist } = useUserRole();
+  const roleMode = useSidebarRoleMode();
 
   // Función para generar la data del sidebar basada en el rol del usuario
-  const data = getSidebarConfig(t, isTherapist);
+  const data = getSidebarConfig(t, roleMode);
 
   return (
     <Sidebar variant="inset" {...props}>

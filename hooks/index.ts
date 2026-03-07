@@ -4,8 +4,6 @@ export { useSpecialties } from "./use-specialties";
 
 export { useServices } from "./use-services";
 
-export { useBusinessHours } from "./use-business-hours";
-
 export { useCreateBooking } from "./use-create-booking";
 
 export {
@@ -20,8 +18,8 @@ export type { DefaultTherapist } from "./use-therapist-config";
 
 export { useTherapist } from "./use-therapist";
 export { useTherapists } from "./use-therapists";
+export { usePublicTherapist } from "./use-public-therapist";
 
-export { useTherapistBookings } from "./use-therapist-bookings";
 export { useAvailabilityCalendar } from "./use-availability-calendar";
 
 export { useUserBookings } from "./use-user-bookings";
@@ -33,7 +31,5 @@ export type {
   UseSupabaseUploadReturn,
 } from "./use-supabase-upload";
 
-export { useAvailabilityForm } from "./use-availability-form";
-export { useAvailabilityOperations } from "./use-availability-operations";
 export { useLocationOperations } from "./use-location-operations";
 export { useOverrides } from "./use-overrides";

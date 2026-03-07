@@ -1,5 +1,15 @@
 // Exportar todas las funciones de servicios CRUD
 export {
+  getCompanyContextForUser,
+  getPrimaryCompanyForUser,
+  getPrimaryCompanyIdForUser,
+  getPublicCompany,
+  getPublicTherapistForCompany,
+  resolveManagedTherapistIdForUser,
+  resolveScopedCompanyId,
+} from "./company.service";
+
+export {
   createUser,
   deleteUser,
   getAllUsers,
@@ -24,21 +34,6 @@ export {
   searchLocationsByTitle,
   updateLocation,
 } from "./location.service";
-
-export {
-  createBusinessHours,
-  createMultipleBusinessHours,
-  deleteBusinessHours,
-  deleteBusinessHoursByLocation,
-  getAllBusinessHours,
-  getAvailableHours,
-  getBusinessHoursByDayAndLocation,
-  getBusinessHoursById,
-  getBusinessHoursByLocation,
-  getCurrentWeekHours,
-  isLocationOpen,
-  updateBusinessHours,
-} from "./business-hours.service";
 
 export {
   createSpecialty,
@@ -77,16 +72,12 @@ export {
 
 export {
   assignTherapistToBooking,
-  checkTherapistAvailability,
-  checkTimeSlotAvailability,
   createBooking,
-  createBookingFromForm,
   deleteBooking,
   deleteBookingsByLocation,
   deleteBookingsByPatient,
   deleteBookingsByTherapist,
   getAllBookings,
-  getAvailableTimeSlots,
   getBookingById,
   getBookingsByDate,
   getBookingsByDateRange,
@@ -103,7 +94,6 @@ export {
   getBookingStatsByTherapist,
   getPendingBookings,
   getRecentBookings,
-  mapBookingFormDataToCreateData,
   updateBooking,
   updateBookingStatus,
 } from "./booking.service";
@@ -126,13 +116,11 @@ export {
 export type {
   BookingFormData,
   CreateBookingData,
-  CreateBusinessHoursData,
   CreateLocationData,
   CreateServiceData,
   CreateSpecialtyData,
   CreateUserData,
   UpdateBookingData,
-  UpdateBusinessHoursData,
   UpdateLocationData,
   UpdateServiceData,
   UpdateSpecialtyData,

@@ -3,13 +3,11 @@ import {
   BookOpen,
   Clock,
   Cog,
-  Globe,
   LayoutDashboard,
-  LifeBuoy,
   LucideIcon,
-  Send,
   User,
   Users,
+  Monitor,
 } from "lucide-react";
 
 export interface SidebarNavItem {
@@ -35,32 +33,13 @@ export interface SidebarConfig {
   projects: SidebarProject[];
 }
 
+export type SidebarRoleMode = "therapist" | "frontDesk" | "patient";
+
 export const getSidebarConfig = (
   t: (key: string) => string,
-  isTherapist: boolean
+  roleMode: SidebarRoleMode
 ): SidebarConfig => {
-  const baseNavMain: SidebarNavItem[] = [
-    {
-      title: t("website"),
-      url: "#",
-      icon: Globe,
-      isActive: true,
-      items: [
-        {
-          title: t("home"),
-          url: "/",
-        },
-        {
-          title: t("booking"),
-          url: "/booking",
-        },
-        {
-          title: t("contact"),
-          url: "/contact",
-        },
-      ],
-    },
-  ];
+  const baseNavMain: SidebarNavItem[] = [];
 
   // Navegación para Therapist (que también es Admin)
   const therapistNavMain: SidebarNavItem[] = [
@@ -77,13 +56,13 @@ export const getSidebarConfig = (
         },
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
     {
       title: t("management"),
-      url: "#",
+      url: "/specialties",
       icon: Cog,
       isActive: true,
       items: [
@@ -99,6 +78,25 @@ export const getSidebarConfig = (
           title: t("availability"),
           url: "/availability",
         },
+        {
+          title: t("personnel"),
+          url: "/personnel",
+        },
+      ],
+    },
+  ];
+
+  const frontDeskNavMain: SidebarNavItem[] = [
+    ...baseNavMain,
+    {
+      title: t("myDashboard"),
+      url: "/bookings",
+      icon: LayoutDashboard,
+      items: [
+        {
+          title: t("myAppointments"),
+          url: "/bookings",
+        },
       ],
     },
   ];
@@ -108,12 +106,12 @@ export const getSidebarConfig = (
     ...baseNavMain,
     {
       title: t("myAccount"),
-      url: "#",
+      url: "/bookings",
       icon: BookOpen,
       items: [
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
@@ -133,6 +131,8 @@ export const getSidebarConfig = (
     },
   ];
 
+  const frontDeskProjects: SidebarProject[] = [];
+
   const regularUserProjects: SidebarProject[] = [
     {
       name: t("myHistory"),
@@ -147,24 +147,29 @@ export const getSidebarConfig = (
   ];
 
   return {
-    navMain: isTherapist ? therapistNavMain : regularUserNavMain,
+    navMain:
+      roleMode === "therapist"
+        ? therapistNavMain
+        : roleMode === "frontDesk"
+          ? frontDeskNavMain
+          : regularUserNavMain,
     navSecondary: [
       {
-        title: t("profile"),
-        url: "/profile",
+        title: t("company"),
+        url: "/company",
         icon: User,
       },
       {
-        title: t("support"),
-        url: "#",
-        icon: LifeBuoy,
-      },
-      {
-        title: t("feedback"),
-        url: "#",
-        icon: Send,
+        title: t("publicView"),
+        url: "/",
+        icon: Monitor,
       },
     ],
-    projects: isTherapist ? therapistProjects : regularUserProjects,
+    projects:
+      roleMode === "therapist"
+        ? therapistProjects
+        : roleMode === "frontDesk"
+          ? frontDeskProjects
+          : regularUserProjects,
   };
 };

@@ -1,114 +1,126 @@
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Twitter } from "lucide-react"
+import { ArrowRight, Globe, Mail } from "lucide-react"
 
-import { CONTACT_INFO } from "@/constants"
-import Image from "next/image"
+import { PLATFORM_INFO } from "@/constants"
+import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import Link from "next/link"
 import { Link as LocalizedLink } from "@/i18n/navigation"
-import { useTranslations } from "next-intl"
+import { getSiteUrl } from "@/lib/config/site-url"
+import { getTranslations } from "next-intl/server"
+import { getDefaultEmailConfig } from "@/services/config.service"
 
-export function MedicalFooter() {
-  const t = useTranslations('Footer')
+function extractEmailAddress(value: string) {
+  const match = value.match(/<([^>]+)>/)
+  return match?.[1] ?? value
+}
+
+export async function MedicalFooter() {
+  const t = await getTranslations("Footer")
+
+  const brandName = PLATFORM_INFO.BRAND_NAME
+  const footerLogo = PLATFORM_INFO.LOGO
+  const platformSummary = t("description")
+  const siteUrl = getSiteUrl()
+  const siteHost = new URL(siteUrl).host
+  const supportEmail =
+    process.env.BOOKING_REPLY_TO || extractEmailAddress(getDefaultEmailConfig().from)
+
   return (
-    <footer className="bg-secondary text-secondary-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Company Info */}
+    <footer className="mt-16 border-t border-border/60 bg-[linear-gradient(180deg,oklch(var(--accent)/0.08)_0%,oklch(var(--background))_100%)]">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+        <div className="grid gap-12 lg:grid-cols-[1.25fr_0.72fr_0.95fr]">
+          <div className="space-y-5">
+            <LocalizedLink href="/" className="block">
+              <PublicBrandLogo
+                src={footerLogo}
+                alt={`${brandName} logo`}
+                variant="footer"
+              />
+            </LocalizedLink>
+            <div className="max-w-xl space-y-3">
+              <p className="text-xl font-semibold tracking-tight text-foreground">
+                {brandName}
+              </p>
+              <p className="text-sm leading-7 text-muted-foreground">
+                {platformSummary}
+              </p>
+            </div>
+          </div>
+
           <div className="space-y-4">
-            <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
-              <LocalizedLink href="/" className="block w-full">
-                <Image 
-                  src="/images/logo.png" 
-                  alt="MyAlphaPulse Logo" 
-                  width={200} 
-                  height={200} 
-                  className="w-full h-auto object-contain"
-                />
+            <h4 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/72">
+              {t("forDoctors")}
+            </h4>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p className="leading-7">{t("therapistAccessDescription")}</p>
+              <LocalizedLink
+                href="/auth/login"
+                className="inline-flex items-center gap-2 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                {t("therapistSignIn")}
+                <ArrowRight className="h-4 w-4" />
               </LocalizedLink>
-            </div>
-            <p className="text-secondary-foreground/80 text-sm leading-relaxed">
-              {t('description')}
-            </p>
-            <div className="flex space-x-4">
-              <Link href="https://www.facebook.com/profile.php?id=61575723443538&locale=es_LA" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                <Facebook className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                <Twitter className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                <Linkedin className="h-5 w-5" />
-              </Link>
-              <Link href="https://www.instagram.com/tenma_control/" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                <Instagram className="h-5 w-5" />
-              </Link>
+              <div className="space-y-2 pt-2">
+                <LocalizedLink href="/booking" className="block transition-colors hover:text-primary">
+                  {t("booking")}
+                </LocalizedLink>
+                <LocalizedLink href="/contact" className="block transition-colors hover:text-primary">
+                  {t("contactUs")}
+                </LocalizedLink>
+              </div>
             </div>
           </div>
 
-          
-
-          {/* For Doctors */}
-          <div className="space-y-4 md:mx-auto">
-            <h4 className="text-lg font-semibold">{t('forDoctors')}</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('appointments')}
-                </Link>
-              </li>
-              <li>
-                <LocalizedLink href="/auth/login" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('login')}
-                </LocalizedLink>
-              </li>
-              <li>
-                <LocalizedLink href="/auth/sign-up" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('register')}
-                </LocalizedLink>
-              </li>
-              <li>
-                <Link href="#" className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                  {t('doctorDashboard')}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Contact Us */}
           <div className="space-y-4">
-            <h4 className="text-lg font-semibold">{t('contactUs')}</h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start space-x-3">
-                <MapPin className="h-4 w-4 mt-1 shrink-0" />
-                <span className="text-secondary-foreground/80">
-                  {t('address')}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Phone className="h-4 w-4 shrink-0" />
-                <span className="text-secondary-foreground/80">{CONTACT_INFO.PHONE}</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Mail className="h-4 w-4 shrink-0" />
-                <span className="text-secondary-foreground/80">{CONTACT_INFO.EMAIL}</span>
-              </div>
+            <h4 className="text-sm font-semibold uppercase tracking-[0.22em] text-primary/72">
+              {t("contactUs")}
+            </h4>
+            <div className="space-y-4 text-sm text-muted-foreground">
+              {supportEmail ? (
+                <Link
+                  href={`mailto:${supportEmail}`}
+                  className="flex items-center gap-3 transition-colors hover:text-primary"
+                >
+                  <Mail className="h-4 w-4 shrink-0 text-primary" />
+                  <span>{supportEmail}</span>
+                </Link>
+              ) : null}
+              <Link
+                href={siteUrl}
+                className="flex items-center gap-3 transition-colors hover:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Globe className="h-4 w-4 shrink-0 text-primary" />
+                <span>{siteHost}</span>
+              </Link>
+              <LocalizedLink
+                href="/contact"
+                className="inline-flex items-center gap-2 font-medium text-foreground transition-colors hover:text-primary"
+              >
+                {t("contactUs")}
+                <ArrowRight className="h-4 w-4" />
+              </LocalizedLink>
+              <p className="text-xs leading-6 text-muted-foreground/85">
+                {t("therapistAccessDescription")}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-secondary-foreground/20 mt-12 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-secondary-foreground/80 text-sm">
-              © {new Date().getFullYear()} MyAlphaPulse. {t('copyright')}
-            </p>
-            <div className="flex space-x-6 text-sm">
-              <Link href={CONTACT_INFO.TERMS_AND_CONDITIONS} className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                {t('termsAndConditions')}
-              </Link>
-              <Link href={CONTACT_INFO.PRIVACY_POLICY} className="text-secondary-foreground/80 hover:text-primary transition-colors">
-                {t('privacyPolicy')}
-              </Link>
-            </div>
+        <div className="mt-10 flex flex-col gap-4 border-t border-border/60 pt-6 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <p>
+            © {new Date().getFullYear()} {brandName}. {t("copyright")}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <LocalizedLink href="/booking" className="transition-colors hover:text-primary">
+              {t("booking")}
+            </LocalizedLink>
+            <LocalizedLink href="/contact" className="transition-colors hover:text-primary">
+              {t("contactUs")}
+            </LocalizedLink>
+            <LocalizedLink href="/auth/login" className="transition-colors hover:text-primary">
+              {t("therapistSignIn")}
+            </LocalizedLink>
           </div>
         </div>
       </div>

@@ -1,10 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  checkTimeSlotAvailability,
   deleteBooking,
   getBookingById,
+  isAvailabilitySlotBookable,
   updateBooking,
 } from "@/services";
+import { UserRole } from "@/lib/prisma-client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { canManageBookingAsOperator } from "@/lib/auth/authorization";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
+
+async function canAccessBooking(bookingId: string) {
+  const { prismaUser } = await getCurrentUser();
+  if (!prismaUser) {
+    return { prismaUser: null, booking: null, allowed: false, status: 401 };
+  }
+
+  const booking = await getBookingById(bookingId);
+  if (!booking) {
+    return { prismaUser, booking: null, allowed: false, status: 404 as const };
+  }
+
+  const isAdmin = prismaUser.role.includes(UserRole.Admin);
+  const isOperatorOwner = canManageBookingAsOperator(
+    prismaUser,
+    booking.therapistId
+  );
+  const isPatientOwner = prismaUser.email.toLowerCase() === booking.email.toLowerCase();
+
+  return {
+    prismaUser,
+    booking,
+    allowed: isAdmin || isOperatorOwner || isPatientOwner,
+    status: isAdmin || isOperatorOwner || isPatientOwner ? 200 : 403,
+  };
+}
 
 // GET /api/bookings/[id] - Obtener cita por ID
 export async function GET(
@@ -13,17 +49,24 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const access = await canAccessBooking(id);
 
-    const booking = await getBookingById(id);
-
-    if (!booking) {
+    if (!access.allowed) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
     }
 
-    return NextResponse.json({ success: true, data: booking });
+    return NextResponse.json({ success: true, data: access.booking });
   } catch (error) {
     console.error("Error getting booking:", error);
     return NextResponse.json(
@@ -41,14 +84,74 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-
-    // Verificar que la cita existe
-    const existingBooking = await getBookingById(id);
-    if (!existingBooking) {
+    const access = await canAccessBooking(id);
+    if (!access.allowed || !access.booking) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
+    }
+
+    const existingBooking = access.booking;
+    const nextEmail =
+      body.email !== undefined ? normalizeEmailInput(body.email) : undefined;
+    const nextPhone =
+      body.phone !== undefined ? normalizePhoneInput(body.phone) : undefined;
+
+    if (nextEmail !== undefined && (!nextEmail || !isValidEmailInput(nextEmail))) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    if (nextPhone !== undefined && (!nextPhone || !isValidPhoneInput(nextPhone))) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid phone number." },
+        { status: 400 }
+      );
+    }
+
+    if (body.bookingSchedule) {
+      const parsedBookingSchedule = new Date(body.bookingSchedule);
+      if (Number.isNaN(parsedBookingSchedule.getTime())) {
+        return NextResponse.json(
+          { success: false, error: "Please enter a valid booking schedule." },
+          { status: 400 }
+        );
+      }
+      body.bookingSchedule = parsedBookingSchedule;
+    }
+
+    if (body.firstname !== undefined) {
+      body.firstname = normalizeWhitespace(body.firstname);
+    }
+
+    if (body.lastname !== undefined) {
+      body.lastname = normalizeWhitespace(body.lastname);
+    }
+
+    if (nextEmail !== undefined) {
+      body.email = nextEmail;
+    }
+
+    if (nextPhone !== undefined) {
+      body.phone = nextPhone;
+    }
+
+    if (body.bookingNotes !== undefined) {
+      body.bookingNotes =
+        typeof body.bookingNotes === "string"
+          ? body.bookingNotes.trim() || undefined
+          : undefined;
     }
 
     // Si se está cambiando el terapeuta o el horario, verificar disponibilidad
@@ -56,12 +159,14 @@ export async function PUT(
       const therapistId = body.therapistId || existingBooking.therapistId;
       const bookingSchedule =
         body.bookingSchedule || existingBooking.bookingSchedule;
+      const locationId = body.locationId || existingBooking.locationId;
 
       if (therapistId) {
-        const availability = await checkTimeSlotAvailability(
+        const availability = await isAvailabilitySlotBookable({
           therapistId,
-          new Date(bookingSchedule)
-        );
+          locationId,
+          bookingSchedule: new Date(bookingSchedule),
+        });
 
         if (
           !availability.isAvailable &&
@@ -93,13 +198,19 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
-    // Verificar que la cita existe
-    const existingBooking = await getBookingById(id);
-    if (!existingBooking) {
+    const access = await canAccessBooking(id);
+    if (!access.allowed) {
       return NextResponse.json(
-        { success: false, error: "Booking not found" },
-        { status: 404 }
+        {
+          success: false,
+          error:
+            access.status === 401
+              ? "Unauthorized"
+              : access.status === 404
+                ? "Booking not found"
+                : "Forbidden",
+        },
+        { status: access.status }
       );
     }
 

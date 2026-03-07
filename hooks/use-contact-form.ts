@@ -7,6 +7,13 @@
 
 import { useApiI18n } from "./use-api-i18n";
 import { useAppToast } from "@/hooks/use-app-toast";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -22,6 +29,7 @@ export interface UseContactFormReturn {
   // Estado
   formData: ContactFormData;
   isLoading: boolean;
+  fieldErrors: Partial<Record<keyof ContactFormData, string>>;
 
   // Acciones
   handleInputChange: (
@@ -50,25 +58,69 @@ export function useContactForm(): UseContactFormReturn {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const fieldErrors: Partial<Record<keyof ContactFormData, string>> = {
+    name:
+      hasAttemptedSubmit && !formData.name.trim()
+        ? tReq("contact.validation.nameRequired")
+        : undefined,
+    email:
+      hasAttemptedSubmit && !formData.email.trim()
+        ? tReq("contact.validation.emailRequired")
+        : hasAttemptedSubmit && !isValidEmailInput(formData.email)
+          ? tReq("contact.validation.invalidEmail")
+          : undefined,
+    phone:
+      hasAttemptedSubmit && formData.phone.trim() && !isValidPhoneInput(formData.phone)
+        ? tReq("contact.validation.invalidPhone")
+        : undefined,
+    message:
+      hasAttemptedSubmit && !formData.message.trim()
+        ? tReq("contact.validation.messageRequired")
+        : undefined,
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    const nextValue =
+      name === "email"
+        ? normalizeEmailInput(value)
+        : name === "phone"
+          ? normalizePhoneInput(value)
+          : name === "name" || name === "services"
+            ? normalizeWhitespace(value)
+            : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: nextValue,
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHasAttemptedSubmit(true);
     setIsLoading(true);
+
+    if (!isFormValid) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const result = await apiCall<unknown>("/api/contact", {
         method: "POST",
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          name: normalizeWhitespace(formData.name),
+          email: normalizeEmailInput(formData.email),
+          phone: normalizePhoneInput(formData.phone),
+          services: normalizeWhitespace(formData.services),
+          message: formData.message.trim(),
+        }),
       });
 
       if (result.success) {
@@ -96,11 +148,15 @@ export function useContactForm(): UseContactFormReturn {
       services: "",
       message: "",
     });
+    setHasAttemptedSubmit(false);
   };
 
   // Validaciones computadas
   const isFormValid = Boolean(
-    formData.name.trim() && formData.email.trim() && formData.message.trim()
+    formData.name.trim() &&
+      isValidEmailInput(formData.email) &&
+      (!formData.phone.trim() || isValidPhoneInput(formData.phone)) &&
+      formData.message.trim()
   );
 
   const hasUnsavedChanges = Boolean(
@@ -115,6 +171,7 @@ export function useContactForm(): UseContactFormReturn {
     // Estado
     formData,
     isLoading,
+    fieldErrors,
 
     // Acciones
     handleInputChange,

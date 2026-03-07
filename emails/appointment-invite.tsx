@@ -1,13 +1,14 @@
 import * as React from 'react'
 
 // Importamos solo formatInTZ; PST_TZ ya no se usa aquí
-import { formatInTZ } from '@/lib/utils/timezone'
+import { formatInTZ, formatTimeZoneLabel } from '@/lib/utils/timezone'
 
 interface AppointmentInviteEmailProps {
   patientName: string
   patientEmail?: string
   therapistName: string
   locationAddress: string
+  bookingNumber: string
   notes?: string
   start: Date // Fecha/hora de inicio (Date real)
   end: Date   // Fecha/hora de fin (Date real)
@@ -22,6 +23,7 @@ export function AppointmentInviteEmail({
   patientEmail,
   therapistName,
   locationAddress,
+  bookingNumber,
   notes,
   start,
   end,
@@ -31,6 +33,7 @@ export function AppointmentInviteEmail({
   timeZone,
 }: AppointmentInviteEmailProps) {
   const isSpanish = language === 'es'
+  const locale = isSpanish ? 'es-MX' : 'en-US'
 
   const t = {
     title: isSpanish ? 'Solicitud de Cita' : 'Appointment Request',
@@ -39,9 +42,11 @@ export function AppointmentInviteEmail({
       ? 'Se ha solicitado la siguiente cita:'
       : 'The following appointment has been requested:',
     patient: isSpanish ? 'Participante' : 'Participant',
+    bookingNumber: isSpanish ? 'Codigo de cita' : 'Booking number',
     email: isSpanish ? 'Correo' : 'Email',
     therapist: isSpanish ? 'Profesional' : 'Professional',
     when: isSpanish ? 'Cuándo' : 'When',
+    timeZone: isSpanish ? 'Zona horaria' : 'Time zone',
     where: isSpanish ? 'Dónde' : 'Where',
     notesLabel: isSpanish ? 'Notas' : 'Notes',
     addToCalendar: isSpanish ? 'Añadir a Calendario' : 'Add to Calendar',
@@ -53,6 +58,7 @@ export function AppointmentInviteEmail({
   // Formatear fecha y hora usando la zona horaria proporcionada
   const dateLine = `${formatInTZ(start, 'EEEE dd MMMM yyyy', timeZone)}`
   const timeLine = `${formatInTZ(start, 'hh:mm a', timeZone)} – ${formatInTZ(end, 'hh:mm a', timeZone)}`
+  const timeZoneLine = formatTimeZoneLabel(timeZone, locale)
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff' }}>
@@ -72,6 +78,10 @@ export function AppointmentInviteEmail({
             <strong style={{ color: '#374151' }}>{t.patient}:</strong>
             <span style={{ color: '#374151', marginLeft: 8 }}>{patientName}</span>
           </div>
+          <div style={{ marginBottom: 10 }}>
+            <strong style={{ color: '#374151' }}>{t.bookingNumber}:</strong>
+            <span style={{ color: '#374151', marginLeft: 8 }}>{bookingNumber}</span>
+          </div>
           {patientEmail && (
             <div style={{ marginBottom: 10 }}>
               <strong style={{ color: '#374151' }}>{t.email}:</strong>
@@ -87,6 +97,10 @@ export function AppointmentInviteEmail({
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: '#374151' }}>{t.when}:</strong>
             <span style={{ color: '#374151', marginLeft: 8 }}>{dateLine} · {timeLine}</span>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <strong style={{ color: '#374151' }}>{t.timeZone}:</strong>
+            <span style={{ color: '#374151', marginLeft: 8 }}>{timeZoneLine}</span>
           </div>
           <div style={{ marginBottom: 10 }}>
             <strong style={{ color: '#374151' }}>{t.where}:</strong>

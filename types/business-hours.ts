@@ -1,4 +1,4 @@
-import { DaysOfWeek } from "@prisma/client";
+import { DaysOfWeek } from "@/lib/prisma-browser";
 
 // Interfaz para crear nuevas horas de negocio
 export interface CreateBusinessHoursData {

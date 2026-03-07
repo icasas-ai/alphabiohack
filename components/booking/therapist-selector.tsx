@@ -12,29 +12,39 @@ import { cn } from "@/lib/utils"
 import { useCallback } from "react"
 import { useTranslations } from "next-intl"
 
-export function TherapistSelector() {
+interface TherapistSelectorProps {
+  showValidation?: boolean
+}
+
+export function TherapistSelector({ showValidation = false }: TherapistSelectorProps) {
   const { data, update } = useBookingWizard()
-  const { therapists, loading, error } = useTherapists()
-  const { isSingleTherapistMode, defaultTherapistId } = useTherapistConfig()
+  const { isSingleTherapistMode } = useTherapistConfig()
+  const { therapists, loading, error } = useTherapists({
+    enabled: !isSingleTherapistMode,
+  })
   const t = useTranslations("Booking")
 
   const handleSelect = useCallback(
     (therapistId: string) => {
+      const selectedTherapist =
+        therapists.find((therapist) => therapist.id === therapistId) || null;
+
       update({
         therapistId,
+        selectedTherapist,
         selectedDate: null,
         selectedTime: "",
         sessionDurationMinutes: null,
       })
     },
-    [update],
+    [therapists, update],
   )
 
   const handleRetry = useCallback(() => {
     window.location.reload()
   }, [])
 
-  if (isSingleTherapistMode && defaultTherapistId) {
+  if (isSingleTherapistMode) {
     return null
   }
 
@@ -54,7 +64,7 @@ export function TherapistSelector() {
         variant: "card",
       }}
     >
-      <Card>
+      <Card className={cn("surface-panel", showValidation && !data.therapistId && "border-red-500/70 ring-1 ring-red-500/20")}>
         <CardContent className="pt-6">
           <h3 className="mb-4 text-lg font-semibold text-foreground">{t("selectDoctor")}</h3>
           <RadioGroup
@@ -71,10 +81,10 @@ export function TherapistSelector() {
                   <Label
                     htmlFor={therapist.id}
                     className={cn(
-                      "flex w-full cursor-pointer items-start gap-3 rounded-lg border-2 p-4 transition-all hover:bg-accent/30",
+                      "flex w-full cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition-all duration-200 hover:border-primary/25 hover:bg-primary/6",
                       data.therapistId === therapist.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-border/80",
+                        ? "interactive-selected"
+                        : "border-border/80 bg-card/70",
                     )}
                   >
                     <Avatar className="h-12 w-12 border">
@@ -106,6 +116,9 @@ export function TherapistSelector() {
               )
             })}
           </RadioGroup>
+          {showValidation && !data.therapistId ? (
+            <p className="mt-3 text-sm text-red-500">{t("selectDoctor")}</p>
+          ) : null}
         </CardContent>
       </Card>
     </AsyncWrapper>

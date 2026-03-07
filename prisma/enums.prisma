@@ -1,0 +1,40 @@
+enum BookingType {
+  DirectVisit
+  VideoCall
+  PhoneCall
+  HomeVisit
+}
+
+enum DaysOfWeek {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
+
+enum UserRole {
+  Therapist
+  Admin
+  FrontDesk
+  Patient
+}
+
+enum CompanyMembershipRole {
+  Owner
+  Therapist
+  FrontDesk
+  Patient
+}
+
+enum BookingStatus {
+  Pending
+  NeedsAttention
+  Confirmed
+  InProgress
+  Completed
+  Cancelled
+  NoShow
+}

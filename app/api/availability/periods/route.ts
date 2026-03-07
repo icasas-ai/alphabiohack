@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 import { createAvailabilityPeriod, listAvailabilityPeriods } from "@/services";
 import { canAccessAvailability, canManageTherapistData, hasRole } from "@/lib/auth/authorization";

@@ -6,6 +6,13 @@ import { ContactEmail } from "@/emails/contact-email";
 import { NextResponse } from "next/server";
 import { PROFESSIONAL_INFO } from "@/constants";
 import { getServerLanguage } from "@/services/i18n.service";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
 import { sendEmail } from "@/services/email.service";
 
 interface ContactFormData {
@@ -21,7 +28,11 @@ export async function POST(request: Request) {
 
   try {
     const body: ContactFormData = await request.json();
-    const { name, email, phone, services, message } = body;
+    const name = normalizeWhitespace(body.name);
+    const email = normalizeEmailInput(body.email);
+    const phone = normalizePhoneInput(body.phone);
+    const services = normalizeWhitespace(body.services);
+    const message = typeof body.message === "string" ? body.message.trim() : "";
 
     // Validaciones básicas
     if (!name || !email || !message) {
@@ -34,10 +45,18 @@ export async function POST(request: Request) {
     }
 
     // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmailInput(email)) {
       const { body, status } = errorResponse(
         "validation.invalidEmail",
+        language,
+        400
+      );
+      return NextResponse.json(body, { status });
+    }
+
+    if (phone && !isValidPhoneInput(phone)) {
+      const { body, status } = errorResponse(
+        "validation.invalidPhone",
         language,
         400
       );

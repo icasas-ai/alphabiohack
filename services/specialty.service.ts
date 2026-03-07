@@ -1,20 +1,29 @@
 import type { CreateSpecialtyData, UpdateSpecialtyData } from "@/types";
 
-import { prisma } from "@/lib/prisma";
+import {
+  countSpecialties,
+  createSpecialtyRecord,
+  deleteSpecialtyRecord,
+  findFirstSpecialty,
+  findSpecialties,
+  findSpecialtyByIdWithInclude,
+  updateSpecialtyRecord,
+} from "@/repositories";
 
 // Crear especialidad
-export const createSpecialty = async (data: CreateSpecialtyData) => {
+export const createSpecialty = async (
+  data: CreateSpecialtyData,
+  companyId: string,
+) => {
   try {
-    const specialty = await prisma.specialty.create({
-      data: {
+    const specialty = await createSpecialtyRecord({
+        companyId,
         name: data.name,
         description: data.description,
-      },
-      include: {
+      });
+    return findSpecialtyByIdWithInclude(specialty.id, {
         services: true,
-      },
     });
-    return specialty;
   } catch (error) {
     console.error("Error creating specialty:", error);
     throw error;
@@ -24,13 +33,10 @@ export const createSpecialty = async (data: CreateSpecialtyData) => {
 // Obtener especialidad por ID
 export const getSpecialtyById = async (id: string) => {
   try {
-    const specialty = await prisma.specialty.findUnique({
-      where: { id },
-      include: {
+    const specialty = await findSpecialtyByIdWithInclude(id, {
         services: {
           orderBy: { createdAt: "desc" },
         },
-      },
     });
     return specialty;
   } catch (error) {
@@ -40,21 +46,26 @@ export const getSpecialtyById = async (id: string) => {
 };
 
 // Obtener especialidad por nombre
-export const getSpecialtyByName = async (name: string) => {
+export const getSpecialtyByName = async (name: string, companyId?: string) => {
   try {
-    const specialty = await prisma.specialty.findFirst({
-      where: {
-        name: {
-          equals: name,
-          mode: "insensitive",
-        },
+    const specialty = await findFirstSpecialty(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            name: {
+              equals: name,
+              mode: "insensitive",
+            },
+          },
+        ],
       },
-      include: {
+      {
         services: {
           orderBy: { createdAt: "desc" },
         },
       },
-    });
+    );
     return specialty;
   } catch (error) {
     console.error("Error getting specialty by name:", error);
@@ -63,16 +74,17 @@ export const getSpecialtyByName = async (name: string) => {
 };
 
 // Obtener todas las especialidades
-export const getAllSpecialties = async () => {
+export const getAllSpecialties = async (companyId?: string) => {
   try {
-    const specialties = await prisma.specialty.findMany({
-      include: {
+    const specialties = await findSpecialties(
+      companyId ? { companyId } : undefined,
+      {
         services: {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { name: "asc" },
-    });
+      { name: "asc" },
+    );
     return specialties;
   } catch (error) {
     console.error("Error getting all specialties:", error);
@@ -81,32 +93,37 @@ export const getAllSpecialties = async () => {
 };
 
 // Buscar especialidades por nombre
-export const searchSpecialtiesByName = async (searchTerm: string) => {
+export const searchSpecialtiesByName = async (searchTerm: string, companyId?: string) => {
   try {
-    const specialties = await prisma.specialty.findMany({
-      where: {
-        OR: [
+    const specialties = await findSpecialties(
+      {
+        AND: [
+          companyId ? { companyId } : {},
           {
-            name: {
-              contains: searchTerm,
-              mode: "insensitive",
-            },
-          },
-          {
-            description: {
-              contains: searchTerm,
-              mode: "insensitive",
-            },
+            OR: [
+              {
+                name: {
+                  contains: searchTerm,
+                  mode: "insensitive",
+                },
+              },
+              {
+                description: {
+                  contains: searchTerm,
+                  mode: "insensitive",
+                },
+              },
+            ],
           },
         ],
       },
-      include: {
+      {
         services: {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { name: "asc" },
-    });
+      { name: "asc" },
+    );
     return specialties;
   } catch (error) {
     console.error("Error searching specialties:", error);
@@ -115,21 +132,26 @@ export const searchSpecialtiesByName = async (searchTerm: string) => {
 };
 
 // Obtener especialidades con servicios
-export const getSpecialtiesWithServices = async () => {
+export const getSpecialtiesWithServices = async (companyId?: string) => {
   try {
-    const specialties = await prisma.specialty.findMany({
-      where: {
-        services: {
-          some: {},
-        },
+    const specialties = await findSpecialties(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            services: {
+              some: {},
+            },
+          },
+        ],
       },
-      include: {
+      {
         services: {
           orderBy: { createdAt: "desc" },
         },
       },
-      orderBy: { name: "asc" },
-    });
+      { name: "asc" },
+    );
     return specialties;
   } catch (error) {
     console.error("Error getting specialties with services:", error);
@@ -138,10 +160,11 @@ export const getSpecialtiesWithServices = async () => {
 };
 
 // Obtener especialidades populares (con más servicios)
-export const getPopularSpecialties = async (limit: number = 10) => {
+export const getPopularSpecialties = async (limit: number = 10, companyId?: string) => {
   try {
-    const specialties = await prisma.specialty.findMany({
-      include: {
+    const specialties = await findSpecialties(
+      companyId ? { companyId } : undefined,
+      {
         services: true,
         _count: {
           select: {
@@ -149,13 +172,13 @@ export const getPopularSpecialties = async (limit: number = 10) => {
           },
         },
       },
-      orderBy: {
+      {
         services: {
           _count: "desc",
         },
       },
-      take: limit,
-    });
+      limit,
+    );
     return specialties;
   } catch (error) {
     console.error("Error getting popular specialties:", error);
@@ -169,17 +192,14 @@ export const updateSpecialty = async (
   data: UpdateSpecialtyData
 ) => {
   try {
-    const specialty = await prisma.specialty.update({
-      where: { id },
-      data: {
+    await updateSpecialtyRecord(id, {
         name: data.name,
         description: data.description,
-      },
-      include: {
+      });
+    const specialty = await findSpecialtyByIdWithInclude(id, {
         services: {
           orderBy: { createdAt: "desc" },
         },
-      },
     });
     return specialty;
   } catch (error) {
@@ -191,9 +211,7 @@ export const updateSpecialty = async (
 // Eliminar especialidad
 export const deleteSpecialty = async (id: string) => {
   try {
-    const specialty = await prisma.specialty.delete({
-      where: { id },
-    });
+    const specialty = await deleteSpecialtyRecord(id);
     return specialty;
   } catch (error) {
     console.error("Error deleting specialty:", error);
@@ -204,11 +222,8 @@ export const deleteSpecialty = async (id: string) => {
 // Obtener estadísticas de especialidad
 export const getSpecialtyStats = async (id: string) => {
   try {
-    const specialty = await prisma.specialty.findUnique({
-      where: { id },
-      include: {
-        services: true,
-      },
+    const specialty = await findSpecialtyByIdWithInclude(id, {
+      services: true,
     });
 
     if (!specialty) return null;
@@ -243,15 +258,18 @@ export const getSpecialtyStats = async (id: string) => {
 };
 
 // Verificar si una especialidad existe
-export const specialtyExists = async (name: string) => {
+export const specialtyExists = async (name: string, companyId?: string) => {
   try {
-    const count = await prisma.specialty.count({
-      where: {
-        name: {
-          equals: name,
-          mode: "insensitive",
-        },
-      },
+    const count = await countSpecialties({
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            name: {
+              equals: name,
+              mode: "insensitive",
+            },
+          },
+        ],
     });
     return count > 0;
   } catch (error) {

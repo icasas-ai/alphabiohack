@@ -2,8 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, MapPin, Plus, Stethoscope, User } from "lucide-react"
-import { useFormatter, useTranslations } from "next-intl"
-import { useLocations, useServices, useSpecialties, useTherapist } from "@/hooks"
+import { useFormatter, useLocale, useTranslations } from "next-intl"
+import { useLocations, useServices, useSpecialties } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"; 
 
 import { Button } from "@/components/ui/button"
@@ -12,25 +12,49 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
+import { TimeZoneDifferenceNote } from "@/components/common/timezone-difference-note"
 import { useBookingWizard } from "@/contexts"
+import { cn } from "@/lib/utils"
+import { formatTimeZoneLabel } from "@/lib/utils/timezone"
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields"
 import { useState } from "react"
 
-export function BasicInformationForm() {
-  const { data, update } = useBookingWizard()
+interface BasicInformationFormProps {
+  showValidation?: boolean
+}
+
+export function BasicInformationForm({ showValidation = false }: BasicInformationFormProps) {
+  const { data, update, publicTherapist, publicTherapistLoading, publicTherapistError } = useBookingWizard()
   const { locations } = useLocations()
   const { services } = useServices(data.specialtyId || undefined)
   const { specialties } = useSpecialties()
-  const { therapist, loading: therapistLoading, error: therapistError } = useTherapist(data.therapistId || undefined)
   const t = useTranslations('Booking')
+  const tValidation = useTranslations('Booking.Validation')
   const format = useFormatter()
+  const locale = useLocale()
   
   const [showNoteField, setShowNoteField] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
+    const normalizedValue =
+      typeof value === "string"
+        ? field === "email"
+          ? normalizeEmailInput(value)
+          : field === "firstName" || field === "lastName"
+            ? normalizeWhitespace(value)
+            : value
+        : value
+
     update({
       basicInfo: {
         ...data.basicInfo,
-        [field]: value
+        [field]: normalizedValue
       }
     })
   }
@@ -39,13 +63,26 @@ export function BasicInformationForm() {
     update({
       basicInfo: {
         ...data.basicInfo,
-        phone: value || ""
+        phone: normalizePhoneInput(value || "")
       }
     })
   }
 
+  const invalidFirstName = showValidation && !normalizeWhitespace(data.basicInfo.firstName)
+  const invalidLastName = showValidation && !normalizeWhitespace(data.basicInfo.lastName)
+  const invalidEmail =
+    showValidation &&
+    (!data.basicInfo.email.trim() || !isValidEmailInput(data.basicInfo.email))
+  const invalidPhone =
+    showValidation &&
+    (!data.basicInfo.phone.trim() || !isValidPhoneInput(data.basicInfo.phone))
+  const invalidConsent = showValidation && !data.basicInfo.givenConsent
+
   // Obtener información de la ubicación seleccionada
   const selectedLocation = locations.find(loc => loc.id === data.locationId)
+  const officeTimeZoneLabel = selectedLocation?.timezone
+    ? formatTimeZoneLabel(selectedLocation.timezone, locale)
+    : null
   
   // Obtener información de la especialidad seleccionada
   const selectedSpecialty = specialties.find(spec => spec.id === data.specialtyId)
@@ -55,7 +92,10 @@ export function BasicInformationForm() {
     data.selectedServiceIds.includes(service.id)
   )
   const selectedService = selectedServices[0]
-  
+  const therapist = data.selectedTherapist || publicTherapist || null
+  const therapistLoading =
+    !therapist && Boolean(data.therapistId) && publicTherapistLoading
+  const therapistError = !therapist ? publicTherapistError : null
   // Calcular duración total
   //const totalDuration = selectedServices.reduce((total, service) => total + service.duration, 0)
 
@@ -93,16 +133,37 @@ export function BasicInformationForm() {
       {/* Contact Information Form */}
       <div className="flex-1 lg:flex-[2] space-y-6 bg-card p-6 rounded-lg">
         <div>
-          <h2 className="text-xl font-semibold text-foreground mb-6">{t('enterPersonalInfo')}</h2>
+          <div className="mb-6 space-y-1">
+            <h2 className="text-xl font-semibold text-foreground">{t('enterPersonalInfo')}</h2>
+            <p className="text-sm text-muted-foreground">{t('requiredFieldsHint')}</p>
+          </div>
 
           {/* Phone Number */}
           <div className="space-y-2 mb-6">
+            <Label htmlFor="booking-phone" className="text-sm font-medium">
+              {t('phone')} <span className="text-destructive">*</span>
+            </Label>
             <PhoneInput
+              id="booking-phone"
               value={data.basicInfo.phone}
               onChange={handlePhoneChange}
               placeholder={t('phone')}
               defaultCountry="US"
+              aria-required="true"
+              aria-invalid={invalidPhone}
+              className={cn(
+                invalidPhone &&
+                  "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20",
+              )}
+              autoComplete="tel"
             />
+            {invalidPhone ? (
+              <p className="text-sm text-red-500">
+                {data.basicInfo.phone.trim()
+                  ? tValidation('invalidPhone')
+                  : tValidation('enterPhone')}
+              </p>
+            ) : null}
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t('phoneConsentText')}
             </p>
@@ -110,44 +171,106 @@ export function BasicInformationForm() {
 
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <Input
-              placeholder={t('firstName')}
-              value={data.basicInfo.firstName}
-              onChange={(e) => handleInputChange("firstName", e.target.value)}
-            />
-            <Input
-              placeholder={t('lastName')}
-              value={data.basicInfo.lastName}
-              onChange={(e) => handleInputChange("lastName", e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="booking-first-name" className="text-sm font-medium">
+                {t('firstName')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="booking-first-name"
+                placeholder={t('firstName')}
+                value={data.basicInfo.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
+                aria-required="true"
+                aria-invalid={invalidFirstName}
+                className={cn(invalidFirstName && "border-red-500 ring-1 ring-red-500/20")}
+                autoComplete="given-name"
+                autoCapitalize="words"
+                maxLength={80}
+              />
+              {invalidFirstName ? (
+                <p className="text-sm text-red-500">{tValidation('enterFirstName')}</p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="booking-last-name" className="text-sm font-medium">
+                {t('lastName')} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="booking-last-name"
+                placeholder={t('lastName')}
+                value={data.basicInfo.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
+                aria-required="true"
+                aria-invalid={invalidLastName}
+                className={cn(invalidLastName && "border-red-500 ring-1 ring-red-500/20")}
+                autoComplete="family-name"
+                autoCapitalize="words"
+                maxLength={80}
+              />
+              {invalidLastName ? (
+                <p className="text-sm text-red-500">{tValidation('enterLastName')}</p>
+              ) : null}
+            </div>
           </div>
 
           {/* Email */}
-          <div className="mb-6">
+          <div className="mb-6 space-y-2">
+            <Label htmlFor="booking-email" className="text-sm font-medium">
+              {t('email')} <span className="text-destructive">*</span>
+            </Label>
             <Input
+              id="booking-email"
               type="email"
               placeholder={t('email')}
               value={data.basicInfo.email}
               onChange={(e) => handleInputChange("email", e.target.value)}
+              aria-required="true"
+              aria-invalid={invalidEmail}
+              className={cn(invalidEmail && "border-red-500 ring-1 ring-red-500/20")}
+              autoComplete="email"
+              autoCapitalize="none"
+              inputMode="email"
+              spellCheck={false}
             />
+            {invalidEmail ? (
+              <p className="text-sm text-red-500">
+                {data.basicInfo.email.trim()
+                  ? tValidation('invalidEmail')
+                  : tValidation('enterEmail')}
+              </p>
+            ) : null}
           </div>
 
           {/* Marketing Checkbox */}
-          <div className="flex items-start space-x-3 mb-8">
+          <div
+            className={cn(
+              "mb-8 rounded-xl transition-colors",
+              invalidConsent && "border border-red-500/70 bg-red-500/5 p-3",
+            )}
+          >
+            <div className="flex items-start space-x-3">
             <Checkbox
               id="marketing"
               checked={data.basicInfo.givenConsent}
               onCheckedChange={(checked) => handleInputChange("givenConsent", checked as boolean)}
               className="mt-1"
+              aria-required="true"
             />
             <div className="space-y-2">
               <Label htmlFor="marketing" className="text-sm font-medium leading-relaxed cursor-pointer">
-                {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })}
+                {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })} <span className="text-destructive">*</span>
               </Label>
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('consentRequiredHint')}
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {t('marketingConsentText', { clinicName: selectedLocation?.title || t('clinic') })}
               </p>
             </div>
+            </div>
+            {invalidConsent ? (
+              <p className="mt-3 text-sm text-red-500">{tValidation('acceptSmsConsent')}</p>
+            ) : null}
           </div>
         </div>
 
@@ -174,6 +297,7 @@ export function BasicInformationForm() {
               value={data.basicInfo.bookingNotes}
               onChange={(e) => handleInputChange("bookingNotes", e.target.value)}
               className="min-h-[100px] resize-none"
+              maxLength={1000}
             />
           )}
         </div>
@@ -251,6 +375,23 @@ export function BasicInformationForm() {
                   <div className="flex-1 flex flex-col mt-2">
                     <p className="text-sm font-medium text-foreground capitalize"> {formatSelectedDate()}</p>
                     <p className="text-xs text-muted-foreground">{formatSelectedTime()}</p>
+                {officeTimeZoneLabel ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {t("officeTimeZoneNotice", {
+                        location: selectedLocation?.title || t("location"),
+                        timezone: officeTimeZoneLabel,
+                      })}
+                    </p>
+                    {selectedLocation?.timezone ? (
+                      <TimeZoneDifferenceNote
+                        officeTimeZone={selectedLocation.timezone}
+                        date={data.selectedDate}
+                        namespace="Booking"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
                   </div>
               </div>
             </div>

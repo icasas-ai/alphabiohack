@@ -19,7 +19,8 @@
     "db:migrate:deploy": "sh ./scripts/prisma-local.sh migrate deploy",
     "db:migrate:status": "sh ./scripts/prisma-local.sh migrate status",
     "db:generate": "sh ./scripts/prisma-local.sh generate",
-    "db:studio": "sh ./scripts/prisma-local.sh studio"
+    "db:studio": "sh ./scripts/prisma-local.sh studio",
+    "db:seed:e2e": "sh ./scripts/seed-e2e.sh"
   },
   "dependencies": {
     "@csstools/postcss-oklab-function": "^4.0.11",

@@ -4,6 +4,8 @@ import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 import { createLocalSession, hashPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { isValidEmailInput, normalizeEmailInput, normalizeWhitespace } from "@/lib/validation/form-fields";
+import { DEFAULT_SEED_COMPANY } from "@/prisma/seeds/config/default-company";
+import { resolveSeedCompanyContent } from "@/prisma/seeds/config/default-company-content";
 import { getPublicCompany } from "@/services";
 
 export async function POST(request: NextRequest) {
@@ -46,7 +48,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const publicCompany = await getPublicCompany();
+    const preferredLocale = request.headers.get("accept-language")?.split(",")[0] ?? "en";
+    const defaultCompanyContent = resolveSeedCompanyContent(preferredLocale);
+
+    const publicCompany =
+      (await getPublicCompany()) ||
+      (await prisma.company.upsert({
+        where: { slug: DEFAULT_SEED_COMPANY.slug },
+        update: {
+          publicDescription: defaultCompanyContent.publicDescription,
+          publicSummary: defaultCompanyContent.publicSummary,
+          publicSpecialty: defaultCompanyContent.publicSpecialty,
+        },
+        create: {
+          ...DEFAULT_SEED_COMPANY,
+          publicDescription: defaultCompanyContent.publicDescription,
+          publicSummary: defaultCompanyContent.publicSummary,
+          publicSpecialty: defaultCompanyContent.publicSpecialty,
+          publicEmail: normalizedEmail,
+        },
+      }));
+
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,

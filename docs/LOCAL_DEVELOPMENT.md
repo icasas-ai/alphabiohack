@@ -130,6 +130,12 @@ Seed local data:
 npm run db:seed
 ```
 
+Seed expanded e2e validation data (10+ records per core entity and past/future booking spread):
+
+```bash
+npm run db:seed:e2e
+```
+
 If you want to inspect the database in Prisma Studio:
 
 ```bash

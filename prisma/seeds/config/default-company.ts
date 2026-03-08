@@ -1,3 +1,5 @@
+import { DEFAULT_SEED_COMPANY_CONTENT } from "@/prisma/seeds/config/default-company-content";
+
 export const DEFAULT_SEED_COMPANY = {
   id: "default-company",
   slug: "default-company",
@@ -5,11 +7,9 @@ export const DEFAULT_SEED_COMPANY = {
   logo: null,
   publicEmail: "therapist@example.com",
   publicPhone: "+15551234567",
-  publicDescription:
-    "A therapist-led practice using AlphaBioHack for bookings, scheduling, and client operations.",
-  publicSummary:
-    "Book appointments, review office availability, and stay connected with your care team.",
-  publicSpecialty: "Therapist Services",
+  publicDescription: DEFAULT_SEED_COMPANY_CONTENT.en.publicDescription,
+  publicSummary: DEFAULT_SEED_COMPANY_CONTENT.en.publicSummary,
+  publicSpecialty: DEFAULT_SEED_COMPANY_CONTENT.en.publicSpecialty,
   defaultTimezone: "America/Los_Angeles",
   weekdaysHours: "9:00 AM - 6:00 PM",
   saturdayHours: "9:00 AM - 2:00 PM",

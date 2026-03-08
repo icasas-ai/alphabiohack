@@ -191,6 +191,7 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 - `npm run db:migrate:deploy` - apply committed migrations using `.env.local`
 - `npm run db:migrate:status` - check migration status
 - `npm run db:seed` - seed local data
+- `npm run db:seed:e2e` - seed high-volume synthetic e2e validation data (10+ records per core entity)
 - `npm run db:seed:prod` - bootstrap a real company and owner user without demo data
 - `npm run db:reset` - reset and reseed the database
 - `npm run db:studio` - open Prisma Studio using `.env.local`

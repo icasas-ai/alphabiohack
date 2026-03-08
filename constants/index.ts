@@ -1,6 +1,7 @@
 export const CONTACT_INFO = { // this is the footer information;
   EMAIL: "icasas@tenmacontrol.com",
   PHONE: "+16194682741",
+  WEBSITE: "https://www.myalphapulse.com",
   ADDRESS: "3556 Beech Street, San Francisco, California, CA 94109",
   BRAND_NAME: "TENMA CONTROL",
   SOCIAL_MEDIA: {

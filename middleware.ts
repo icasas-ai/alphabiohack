@@ -17,8 +17,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public images and static assets
      * - API routes (handled separately)
+     * - standalone non-localized document routes
      */
-    "/((?!_next/static|_next/image|favicon.ico|images/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images/|api/|product-presentation(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)",
     "/",
   ],
 };

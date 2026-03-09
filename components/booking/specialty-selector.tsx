@@ -84,10 +84,10 @@ export function SpecialtySelector({ showValidation = false }: SpecialtySelectorP
             <p className="text-sm text-muted-foreground">{t('noServicesAvailable')}</p>
           </div>
         ) : (
-          <div className="max-h-[26rem] overflow-y-auto pr-2 md:max-h-[32rem]">
+          <div className="max-h-[26rem] overflow-y-auto px-1 py-2 md:max-h-[32rem]">
             <div
               className={cn(
-                "grid grid-cols-1 gap-4 pr-2 md:grid-cols-3",
+                "grid grid-cols-1 gap-4 md:grid-cols-3",
                 showValidation &&
                   data.selectedServiceIds.length === 0 &&
                   "[&>div]:border-red-500/70 [&>div]:ring-1 [&>div]:ring-red-500/20",

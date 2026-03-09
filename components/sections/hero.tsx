@@ -157,13 +157,13 @@ export function HeroSection({
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent_46%)]" />
 
                     {hasDisplayLogo ? (
-                      <div className={`brand-showcase-glass relative overflow-hidden ${publicCardRadiusClass} px-6 py-6 sm:px-8`}>
+                      <div className={`brand-showcase-glass relative mx-auto flex w-fit max-w-full items-center justify-center overflow-hidden ${publicCardRadiusClass} px-2.5 py-2.5 sm:px-3.5 sm:py-3.5`}>
                         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_48%),radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_52%)]" />
                         <PublicBrandLogo
                           src={displayLogoSource}
                           alt={brandName || t("doctorImageAlt")}
                           variant="showcase"
-                          className="relative z-10 max-w-none"
+                          className="relative z-10 max-w-full"
                         />
                       </div>
                     ) : (

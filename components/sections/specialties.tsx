@@ -101,11 +101,14 @@ export function SpecialtiesSection({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-4">
           {visibleSpecialties.map((specialty) => {
             const IconComponent = specialty.icon
             return (
-              <Card key={specialty.id} className={`group cursor-pointer p-0 transition-all duration-300 hover:shadow-lg ${publicCardRadiusClass}`}>
+              <Card
+                key={specialty.id}
+                className={`group relative z-0 cursor-pointer overflow-visible p-0 transition-all duration-300 hover:z-10 hover:shadow-lg ${publicCardRadiusClass}`}
+              >
                 <CardContent className="p-0">
                   <div className="relative overflow-hidden rounded-t-[24px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

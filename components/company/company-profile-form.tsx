@@ -723,7 +723,7 @@ export function CompanyProfileForm() {
                     <img
                       src={formData.logo}
                       alt={formData.name || "Company logo"}
-                      className="h-20 w-20 rounded-xl border object-cover"
+                      className="h-20 w-20 rounded-xl border bg-background/90 object-contain p-2"
                     />
                   ) : (
                     <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed text-muted-foreground">
@@ -751,7 +751,7 @@ export function CompanyProfileForm() {
                     <img
                       src={formData.headerLogo}
                       alt={formData.name || "Company header logo"}
-                      className="h-16 w-40 rounded-xl border object-cover"
+                      className="h-16 w-40 rounded-xl border bg-background/90 object-contain p-2"
                     />
                   ) : (
                     <div className="flex h-16 min-w-40 items-center justify-center rounded-xl border border-dashed px-4 text-sm text-muted-foreground">

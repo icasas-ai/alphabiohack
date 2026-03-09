@@ -34,10 +34,10 @@ const variantClasses = {
     sizes: "(max-width: 640px) 220px, 320px",
   },
   showcase: {
-    frame: "relative flex h-24 w-full max-w-[380px] items-center sm:h-28 sm:max-w-[440px]",
-    shell: "relative h-full w-full overflow-hidden rounded-[24px] px-4 py-3 sm:px-6 sm:py-4",
-    image: "object-contain object-center",
-    sizes: "(max-width: 640px) 320px, 440px",
+    frame: "relative inline-flex max-w-full items-center justify-center",
+    shell: "relative inline-flex max-w-full items-center justify-center overflow-hidden rounded-[20px]",
+    image: "block h-auto max-h-44 w-auto max-w-full object-contain object-center sm:max-h-56 sm:max-w-[24rem] lg:max-h-64 lg:max-w-[26rem]",
+    sizes: "(max-width: 640px) 288px, 352px",
   },
 } as const;
 
@@ -52,6 +52,23 @@ export function PublicBrandLogo({
   const resolvedSrc = src || fallbackSrc;
   const config = variantClasses[variant];
   const baseImageClassName = cn("h-full w-full", config.image, imageClassName);
+
+  if (variant === "showcase") {
+    return (
+      <div className={cn(config.frame, className)}>
+        <div className={config.shell}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={resolvedSrc}
+            alt={alt}
+            className={baseImageClassName}
+            decoding="async"
+            loading="eager"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(config.frame, className)}>

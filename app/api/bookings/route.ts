@@ -294,6 +294,7 @@ export async function POST(request: NextRequest) {
           });
         inviteTasks.push(
           sendTherapistInviteEmail({
+            context: "booking.therapist_invite",
             to: therapistEmail,
             subject,
             reactProps,
@@ -322,6 +323,7 @@ export async function POST(request: NextRequest) {
         );
         inviteTasks.push(
           sendPatientInviteEmail({
+            context: "booking.patient_invite",
             to: booking.email,
             subject,
             reactProps,

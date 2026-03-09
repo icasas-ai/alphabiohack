@@ -72,6 +72,7 @@ export async function POST(
     const loginUrl = new URL("/auth/login", request.url).toString();
 
     await sendEmail({
+      context: "personnel.reset_password",
       to: personnel.email,
       subject: "Your AlphaBioHack temporary password",
       react: PersonnelInviteEmail({

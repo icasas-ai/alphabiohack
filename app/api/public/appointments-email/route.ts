@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         : `Your upcoming appointments - ${company.name}`;
 
     await sendEmail({
+      context: "public.appointments_summary",
       to: email,
       subject,
       react: UpcomingAppointmentsEmail({

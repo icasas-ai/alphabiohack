@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
       const language = preferredLocale.startsWith("es") ? "es" : "en";
 
       await sendEmail({
+        context: "auth.forgot_password",
         to: user.email,
         subject:
           language === "es"

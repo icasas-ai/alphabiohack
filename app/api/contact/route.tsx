@@ -99,6 +99,7 @@ export async function POST(request: Request) {
 
     // Enviar email usando servicio genérico
     const data = await sendEmail({
+      context: "contact.form_submission",
       to: [destinationEmail],
       subject,
       replyTo: email,

@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
     const loginUrl = new URL("/auth/login", request.url).toString();
 
     await sendEmail({
+      context: "personnel.invite",
       to: normalizedEmail,
       subject: `Your AlphaBioHack staff access`,
       react: PersonnelInviteEmail({

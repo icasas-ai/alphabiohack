@@ -1,4 +1,5 @@
 import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
+import { hashPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 
 type BootstrapConfig = {
@@ -11,7 +12,7 @@ type BootstrapConfig = {
   publicSummary?: string;
   publicSpecialty?: string;
   ownerEmail: string;
-  ownerSupabaseId?: string;
+  ownerPassword?: string;
   ownerFirstname: string;
   ownerLastname: string;
   ownerAvatar?: string;
@@ -60,7 +61,7 @@ function getBootstrapConfig(): BootstrapConfig {
     publicSummary: getOptionalEnv("BOOTSTRAP_PUBLIC_SUMMARY"),
     publicSpecialty: getOptionalEnv("BOOTSTRAP_PUBLIC_SPECIALTY"),
     ownerEmail,
-    ownerSupabaseId: getOptionalEnv("BOOTSTRAP_OWNER_SUPABASE_ID"),
+    ownerPassword: getOptionalEnv("BOOTSTRAP_OWNER_PASSWORD"),
     ownerFirstname:
       getOptionalEnv("BOOTSTRAP_OWNER_FIRSTNAME") || fallbackName.firstname,
     ownerLastname:
@@ -79,40 +80,23 @@ async function resolveBootstrapOwner(config: BootstrapConfig) {
   const existingByEmail = await prisma.user.findUnique({
     where: { email: config.ownerEmail },
   });
-
-  const existingBySupabaseId = config.ownerSupabaseId
-    ? await prisma.user.findUnique({
-        where: { supabaseId: config.ownerSupabaseId },
-      })
-    : null;
-
-  if (
-    existingByEmail &&
-    existingBySupabaseId &&
-    existingByEmail.id !== existingBySupabaseId.id
-  ) {
-    throw new Error(
-      "BOOTSTRAP_OWNER_EMAIL and BOOTSTRAP_OWNER_SUPABASE_ID refer to different users.",
-    );
-  }
-
-  const existingUser = existingByEmail || existingBySupabaseId;
+  const existingUser = existingByEmail;
 
   if (!existingUser) {
-    if (!config.ownerSupabaseId) {
+    if (!config.ownerPassword) {
       throw new Error(
-        "Owner user does not exist. Create the Supabase auth user first or provide BOOTSTRAP_OWNER_SUPABASE_ID so db:seed:prod can create the Prisma user row.",
+        "BOOTSTRAP_OWNER_PASSWORD is required to create the bootstrap owner user.",
       );
     }
 
     const createdUser = await prisma.user.create({
       data: {
         email: config.ownerEmail,
-        supabaseId: config.ownerSupabaseId,
         firstname: config.ownerFirstname,
         lastname: config.ownerLastname,
         avatar: config.ownerAvatar,
         role: [UserRole.Admin, UserRole.Therapist],
+        passwordHash: hashPassword(config.ownerPassword),
       },
     });
 
@@ -120,12 +104,9 @@ async function resolveBootstrapOwner(config: BootstrapConfig) {
     return createdUser;
   }
 
-  if (
-    config.ownerSupabaseId &&
-    existingUser.supabaseId !== config.ownerSupabaseId
-  ) {
+  if (!existingUser.passwordHash && !config.ownerPassword) {
     throw new Error(
-      `Existing user ${config.ownerEmail} has supabaseId ${existingUser.supabaseId}, which does not match BOOTSTRAP_OWNER_SUPABASE_ID.`,
+      "Existing owner user has no local password. Set BOOTSTRAP_OWNER_PASSWORD to backfill one.",
     );
   }
 
@@ -136,6 +117,12 @@ async function resolveBootstrapOwner(config: BootstrapConfig) {
       lastname: config.ownerLastname || existingUser.lastname,
       avatar: config.ownerAvatar ?? existingUser.avatar,
       role: mergeRoles(existingUser.role),
+      ...(!existingUser.passwordHash && config.ownerPassword
+        ? {
+            passwordHash: hashPassword(config.ownerPassword),
+            mustChangePassword: false,
+          }
+        : {}),
     },
   });
 

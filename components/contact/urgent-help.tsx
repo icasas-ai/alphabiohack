@@ -36,7 +36,7 @@ export function UrgentHelp({
 
   return (
     <div className={`${className || ''}`}>
-      <div className="overflow-hidden rounded-[24px] border border-border/70 bg-accent/10 p-7 text-card-foreground">
+      <div className="h-full overflow-hidden rounded-[24px] border border-border/70 bg-accent/10 p-7 text-card-foreground">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-primary/72">

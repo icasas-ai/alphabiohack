@@ -25,6 +25,12 @@ type UserSeed = {
   role: UserRole[];
 };
 
+type LocationSeed = {
+  id: string;
+  title: string;
+  timezone: string;
+};
+
 function daysFromNow(days: number) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
@@ -83,7 +89,6 @@ async function ensureUsers(companyId: string): Promise<UserSeed[]> {
     const created = await prisma.user.create({
       data: {
         email: `e2e.user+${index}@alphabiohack.local`,
-        supabaseId: `e2e-user-${index}`,
         firstname: `E2E${index}`,
         lastname: "User",
         role,
@@ -141,7 +146,7 @@ async function ensureLocations(companyId: string) {
       companyId,
       title: { startsWith: "E2E Location " },
     },
-    select: { id: true, timezone: true },
+    select: { id: true, title: true, timezone: true },
     orderBy: { title: "asc" },
   });
 
@@ -163,7 +168,7 @@ async function ensureLocations(companyId: string) {
 
   return prisma.location.findMany({
     where: { companyId, title: { startsWith: "E2E Location " } },
-    select: { id: true, timezone: true },
+    select: { id: true, title: true, timezone: true },
     orderBy: { title: "asc" },
     take: TARGET_LOCATIONS,
   });
@@ -245,7 +250,7 @@ async function ensureServices(companyId: string, specialties: { id: string }[]) 
 async function ensureBookings(params: {
   companyId: string;
   users: UserSeed[];
-  locations: { id: string; timezone: string }[];
+  locations: LocationSeed[];
   services: { id: string; duration: number; specialtyId: string }[];
 }) {
   const { companyId, users, locations, services } = params;
@@ -337,23 +342,26 @@ async function ensureBookings(params: {
 async function ensureAvailability(params: {
   companyId: string;
   therapistId: string;
-  locationId: string;
+  locations: LocationSeed[];
 }) {
-  const { companyId, therapistId, locationId } = params;
+  const { companyId, therapistId, locations } = params;
+
+  if (locations.length === 0) {
+    return;
+  }
 
   const existing = await prisma.availabilityPeriod.findMany({
     where: {
       companyId,
       title: { startsWith: "E2E Period " },
     },
-    select: { id: true, title: true },
+    select: { id: true, title: true, locationId: true },
     orderBy: { title: "asc" },
   });
 
-  const missing = Math.max(0, TARGET_AVAILABILITY_PERIODS - existing.length);
+  let nextIndex = existing.length + 1;
 
-  for (let i = 0; i < missing; i += 1) {
-    const index = existing.length + i + 1;
+  const createAvailabilityPeriod = async (index: number, location: LocationSeed) => {
     const startDate = daysFromNow(index * 7);
     const endDate = daysFromNow(index * 7 + 2);
 
@@ -361,7 +369,7 @@ async function ensureAvailability(params: {
       data: {
         companyId,
         therapistId,
-        locationId,
+        locationId: location.id,
         title: `E2E Period ${index}`,
         notes: "Synthetic availability period for e2e.",
         startDate,
@@ -375,7 +383,7 @@ async function ensureAvailability(params: {
         availabilityPeriodId: period.id,
         companyId,
         therapistId,
-        locationId,
+        locationId: location.id,
         date: startDate,
         sessionDurationMinutes: 60,
         notes: "E2E available day",
@@ -397,6 +405,20 @@ async function ensureAvailability(params: {
         },
       ],
     });
+  };
+
+  const seededLocationIds = new Set(existing.map((period) => period.locationId));
+  const missingLocations = locations.filter((location) => !seededLocationIds.has(location.id));
+
+  for (const location of missingLocations) {
+    await createAvailabilityPeriod(nextIndex, location);
+    nextIndex += 1;
+  }
+
+  while (nextIndex <= TARGET_AVAILABILITY_PERIODS) {
+    const location = locations[(nextIndex - 1) % locations.length];
+    await createAvailabilityPeriod(nextIndex, location);
+    nextIndex += 1;
   }
 }
 
@@ -413,13 +435,12 @@ export async function main() {
 
   const therapistId =
     users.find((user) => user.role.includes(UserRole.Therapist))?.id ?? users[0]?.id;
-  const locationId = locations[0]?.id;
 
-  if (therapistId && locationId) {
+  if (therapistId) {
     await ensureAvailability({
       companyId,
       therapistId,
-      locationId,
+      locations,
     });
   }
 

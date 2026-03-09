@@ -1,39 +1,62 @@
 import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 
 import {
-  findCompanyById,
   findCompanyBySlug,
   findCompanyContextForUser,
-  findFirstCompany,
-  findFirstTherapistMembershipForCompany,
   findPrimaryCompanyMembershipForUser,
   findUserByIdWithInclude,
 } from "@/repositories";
 
-function getConfiguredCompanyIdentifier() {
+export type PublicSiteUnavailableCode =
+  | "missing_company_slug"
+  | "company_not_found"
+  | "missing_public_therapist"
+  | "invalid_public_therapist";
+
+export class PublicSiteUnavailableError extends Error {
+  readonly code: PublicSiteUnavailableCode;
+
+  constructor(code: PublicSiteUnavailableCode, message: string) {
+    super(message);
+    this.name = "PublicSiteUnavailableError";
+    this.code = code;
+  }
+}
+
+export function isPublicSiteUnavailableError(
+  error: unknown,
+): error is PublicSiteUnavailableError {
   return (
-    process.env.NEXT_PUBLIC_DEFAULT_COMPANY_SLUG ||
-    process.env.DEFAULT_COMPANY_SLUG ||
-    process.env.NEXT_PUBLIC_DEFAULT_COMPANY_ID ||
-    process.env.DEFAULT_COMPANY_ID ||
-    null
+    error instanceof PublicSiteUnavailableError ||
+    (error instanceof Error && error.name === "PublicSiteUnavailableError")
   );
 }
 
-export async function getPublicCompany() {
-  const configured = getConfiguredCompanyIdentifier()?.trim();
+function getConfiguredCompanySlug() {
+  const slug = process.env.DEFAULT_COMPANY_SLUG?.trim();
 
-  if (configured) {
-    const configuredCompany =
-      (await findCompanyBySlug(configured)) ||
-      (await findCompanyById(configured));
-
-    if (configuredCompany) {
-      return configuredCompany;
-    }
+  if (!slug) {
+    throw new PublicSiteUnavailableError(
+      "missing_company_slug",
+      "DEFAULT_COMPANY_SLUG is required to resolve the public company.",
+    );
   }
 
-  return findFirstCompany();
+  return slug;
+}
+
+export async function getPublicCompany() {
+  const slug = getConfiguredCompanySlug();
+  const company = await findCompanyBySlug(slug);
+
+  if (!company) {
+    throw new PublicSiteUnavailableError(
+      "company_not_found",
+      `Configured public company "${slug}" was not found in the database.`,
+    );
+  }
+
+  return company;
 }
 
 export async function getPrimaryCompanyIdForUser(userId: string) {
@@ -63,26 +86,26 @@ export async function getCompanyContextForUser(userId: string) {
 }
 
 export async function getPublicTherapistForCompany(companyId: string, preferredTherapistId?: string | null) {
-  if (preferredTherapistId) {
-    const configuredTherapist = await findUserByIdWithInclude(preferredTherapistId, {
-      companyMemberships: {
-        select: {
-          companyId: true,
-        },
-      },
-    });
-
-    if (
-      configuredTherapist?.role.includes(UserRole.Therapist) &&
-      configuredTherapist?.companyMemberships?.some?.((membership) => membership.companyId === companyId)
-    ) {
-      return configuredTherapist;
-    }
+  if (!preferredTherapistId) {
+    return null;
   }
 
-  const therapistMembership = await findFirstTherapistMembershipForCompany(companyId);
+  const configuredTherapist = await findUserByIdWithInclude(preferredTherapistId, {
+    companyMemberships: {
+      select: {
+        companyId: true,
+      },
+    },
+  });
 
-  return therapistMembership?.user ?? null;
+  if (
+    configuredTherapist?.role.includes(UserRole.Therapist) &&
+    configuredTherapist?.companyMemberships?.some?.((membership) => membership.companyId === companyId)
+  ) {
+    return configuredTherapist;
+  }
+
+  return null;
 }
 
 type ManagedTherapistUser = {

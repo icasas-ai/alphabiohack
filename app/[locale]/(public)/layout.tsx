@@ -2,6 +2,7 @@ import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
 import { MedicalFooter } from "@/components/layout/footer"
 import { getSiteUrl } from "@/lib/config/site-url";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
 import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import type { Metadata } from "next";
 
@@ -18,7 +19,13 @@ export default async function PublicLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const company = await getPublicCompanyProfile().catch(() => null);
+  const company = await getPublicCompanyProfile().catch((error) => {
+    if (isPublicSiteUnavailableError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
   const headerContact = company
     ? {
         name: company.name,

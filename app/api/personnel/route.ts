@@ -2,14 +2,12 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
 import { getCurrentUser, hashPassword } from "@/lib/auth/session";
 import { canManagePersonnel } from "@/lib/auth/authorization";
-import { hasSupabaseAuth } from "@/lib/auth/config";
 import { prisma } from "@/lib/prisma";
-import { createSupabaseAdminClient, hasSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   isValidEmailInput,
   isValidPhoneInput,
@@ -135,40 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     const temporaryPassword = generateTemporaryPassword();
-    let supabaseId = `local-frontdesk-${randomUUID()}`;
-    let passwordHash: string | null = hashPassword(temporaryPassword);
-    let createdSupabaseAuthUserId: string | null = null;
-
-    if (hasSupabaseAuth) {
-      if (!hasSupabaseAdmin()) {
-        return NextResponse.json(
-          {
-            error:
-              "SUPABASE_SERVICE_ROLE_KEY is required to invite personnel when Supabase auth is enabled.",
-          },
-          { status: 409 },
-        );
-      }
-
-      const adminClient = createSupabaseAdminClient();
-      const { data: createdAuthUser, error: createAuthError } =
-        await adminClient.auth.admin.createUser({
-          email: normalizedEmail,
-          password: temporaryPassword,
-          email_confirm: true,
-        });
-
-      if (createAuthError || !createdAuthUser.user?.id) {
-        const message = createAuthError?.message || "Unable to create Supabase auth user.";
-        const alreadyExists =
-          /already exists|already registered|duplicate/i.test(message);
-        return NextResponse.json({ error: message }, { status: alreadyExists ? 409 : 500 });
-      }
-
-      supabaseId = createdAuthUser.user.id;
-      passwordHash = null;
-      createdSupabaseAuthUserId = createdAuthUser.user.id;
-    }
+    const passwordHash = hashPassword(temporaryPassword);
 
     let user;
     try {
@@ -178,7 +143,6 @@ export async function POST(request: NextRequest) {
           lastname: normalizedLastname,
           email: normalizedEmail,
           telefono: normalizedPhone || null,
-          supabaseId,
           role: [UserRole.FrontDesk],
           passwordHash,
           mustChangePassword: true,
@@ -203,10 +167,6 @@ export async function POST(request: NextRequest) {
         },
       });
     } catch (dbError) {
-      if (createdSupabaseAuthUserId && hasSupabaseAdmin()) {
-        const adminClient = createSupabaseAdminClient();
-        await adminClient.auth.admin.deleteUser(createdSupabaseAuthUserId).catch(() => null);
-      }
       throw dbError;
     }
 

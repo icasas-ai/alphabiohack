@@ -33,30 +33,6 @@ export interface CreateBookingRequest {
   status?: BookingStatus;
 }
 
-// Interfaz para horarios de negocio (respuesta de API)
-export interface BusinessHours {
-  id: string;
-  dayOfWeek: string;
-  locationId: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  timeSlots?: TimeSlotResponse[];
-  location?: Location;
-}
-
-// Interfaz para slots de tiempo (respuesta de API)
-export interface TimeSlotResponse {
-  id: string;
-  startTime: string;
-  endTime: string;
-  isActive: boolean;
-  businessHoursId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  businessHours?: BusinessHours;
-}
-
 // Interfaz para ubicaciones (respuesta de API)
 export interface Location {
   id: string;

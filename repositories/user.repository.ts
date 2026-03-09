@@ -22,41 +22,6 @@ export async function findUserByIdWithSelect<TSelect extends object>(id: string,
   });
 }
 
-export async function findFirstUserWithSelect<TSelect extends object>(select: TSelect) {
-  return prisma.user.findFirst({
-    select,
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-}
-
-export async function findFirstTherapistWithSelect<TSelect extends object>(
-  select: TSelect,
-  companyId?: string,
-) {
-  return prisma.user.findFirst({
-    where: {
-      role: {
-        has: UserRole.Therapist,
-      },
-      ...(companyId
-        ? {
-            companyMemberships: {
-              some: {
-                companyId,
-              },
-            },
-          }
-        : {}),
-    },
-    select,
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-}
-
 export async function findUsersByRole(role: UserRole, companyId?: string) {
   return prisma.user.findMany({
     where: {

@@ -24,6 +24,8 @@ const inventory = {
     "scroll-area",
     "separator",
     "sidebar",
+    "stepper",
+    "sticky-wizard-shell",
     "tabs",
   ],
   overlays: [
@@ -48,6 +50,7 @@ const inventory = {
     "skeleton",
     "skeleton-component",
     "sonner",
+    "surface-card",
     "table",
   ],
 } as const
@@ -78,7 +81,10 @@ const storyCovered = new Set([
   "separator",
   "sheet",
   "skeleton",
+  "stepper",
+  "sticky-wizard-shell",
   "switch",
+  "surface-card",
   "table",
   "tabs",
   "textarea",

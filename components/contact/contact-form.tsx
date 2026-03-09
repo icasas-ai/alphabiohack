@@ -98,7 +98,7 @@ export function ContactForm({ className }: ContactFormProps) {
       <Button
         type="submit"
         disabled={isLoading}
-        className="h-12 w-full rounded-xl px-6 py-3 font-medium shadow-[0_14px_30px_-22px_rgba(13,70,115,0.45)]"
+        className="brand-button h-12 w-full rounded-xl px-6 py-3 font-medium"
       >
         {isLoading ? (
           <>

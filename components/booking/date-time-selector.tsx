@@ -47,6 +47,11 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
     () => services.find((service) => data.selectedServiceIds.includes(service.id)),
     [data.selectedServiceIds, services],
   )
+  const selectedDateLabel = data.selectedDate ? format.dateTime(data.selectedDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }) : null
 
   const effectiveDurationMinutes = data.sessionDurationMinutes ?? selectedService?.duration ?? null
   const selectedLocation = useMemo(
@@ -252,8 +257,27 @@ export function DateTimeSelector({ showValidation = false }: DateTimeSelectorPro
                           </Button>
                         ))
                       ) : (
-                        <div className="text-center py-6 text-xs text-muted-foreground">
-                          {t('noSlotsAvailable')}
+                        <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5 text-center">
+                          <p className="text-sm font-medium text-foreground">
+                            {t('noSlotsAvailable')}
+                          </p>
+                          {selectedDateLabel && selectedLocation?.title ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {selectedService?.description
+                                ? t('noSlotsAvailableForSelectionWithService', {
+                                    service: selectedService.description,
+                                    location: selectedLocation.title,
+                                    date: selectedDateLabel,
+                                  })
+                                : t('noSlotsAvailableForSelection', {
+                                    location: selectedLocation.title,
+                                    date: selectedDateLabel,
+                                  })}
+                            </p>
+                          ) : null}
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {t('noSlotsAvailableHint')}
+                          </p>
                         </div>
                       )
                     ) : (

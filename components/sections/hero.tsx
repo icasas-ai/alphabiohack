@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import { useRouter } from "@/i18n/navigation";
+import { type LandingPageResolvedHeroSection } from "@/lib/company/landing-page-config";
 import { readJsonResponse } from "@/lib/utils/read-json-response";
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from "react";
@@ -24,11 +25,17 @@ interface HeroSectionProps {
     id: string;
     title: string;
   }>;
+  readonly content?: LandingPageResolvedHeroSection | null;
 }
 
-export function HeroSection({ initialPublicData, initialLocations }: HeroSectionProps) {
+export function HeroSection({
+  initialPublicData,
+  initialLocations,
+  content = null,
+}: HeroSectionProps) {
   const t = useTranslations('Hero');
   const router = useRouter();
+  const publicCardRadiusClass = "rounded-[24px]";
   const [publicData, setPublicData] = useState<HeroData | null>(initialPublicData);
   const [publicLoading, setPublicLoading] = useState(!initialPublicData);
   const [selectedLocationId, setSelectedLocationId] = useState<string>("");
@@ -57,6 +64,9 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
   const brandName = heroData?.name || t("title");
   const specialty = heroData?.publicSpecialty || t("subtitle");
   const summary = heroData?.publicSummary || t("description");
+  const badge = content?.badge || t("badge");
+  const helper = content?.helper || t("helper");
+  const showcaseSummary = content?.showcaseSummary || t("showcaseSummary");
   const displayLogoSource = heroData?.logo || null;
   const hasDisplayLogo = Boolean(displayLogoSource);
 
@@ -77,6 +87,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
   
   return (
     <section
+      id="home-hero"
       className="relative flex flex-1 items-center overflow-hidden bg-transparent py-16 lg:py-24"
       suppressHydrationWarning
     >
@@ -93,7 +104,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
               <div className="space-y-8">
                 <div className="space-y-5">
                   <p className="inline-flex rounded-full border border-primary/16 bg-primary/8 px-4 py-1.5 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-primary">
-                    {t("badge")}
+                    {badge}
                   </p>
                   <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl lg:text-[4.3rem] lg:leading-[1.02]">
                     <span>{brandName}</span>
@@ -108,7 +119,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
                   </p>
                 </div>
 
-                <div className="surface-panel rounded-[30px] p-6 sm:p-7">
+                <div className={`surface-panel ${publicCardRadiusClass} p-6 sm:p-7`}>
                   <div className="grid gap-4 md:grid-cols-[1fr_auto]">
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -134,7 +145,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
                   </div>
 
                   <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                    {t("helper")}
+                    {helper}
                   </p>
                 </div>
               </div>
@@ -142,11 +153,11 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
               <div className="relative">
                 <div className="relative mx-auto max-w-lg">
                   <div className="absolute inset-x-8 top-10 h-64 rounded-full bg-[radial-gradient(circle,oklch(var(--primary)/0.2),transparent_72%)] blur-3xl" />
-                  <div className="relative overflow-hidden rounded-[40px] border border-white/12 bg-[linear-gradient(160deg,rgba(8,28,49,0.92)_0%,rgba(13,70,115,0.88)_54%,rgba(17,114,184,0.78)_100%)] p-8 shadow-[0_36px_100px_-48px_rgba(10,44,76,0.76)] sm:p-10">
+                  <div className={`brand-showcase-panel relative overflow-hidden ${publicCardRadiusClass} p-8 sm:p-10`}>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.06),transparent_46%)]" />
 
                     {hasDisplayLogo ? (
-                      <div className="relative overflow-hidden rounded-[28px] border border-white/24 bg-[linear-gradient(180deg,rgba(255,255,255,0.26)_0%,rgba(255,255,255,0.12)_100%)] px-6 py-6 shadow-[0_28px_70px_-42px_rgba(8,28,49,0.62)] backdrop-blur-2xl sm:px-8">
+                      <div className={`brand-showcase-glass relative overflow-hidden ${publicCardRadiusClass} px-6 py-6 sm:px-8`}>
                         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_48%),radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_52%)]" />
                         <PublicBrandLogo
                           src={displayLogoSource}
@@ -169,11 +180,11 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
                     )}
 
                     <p className="relative mt-8 max-w-md text-sm leading-7 text-white/76">
-                      {t("showcaseSummary")}
+                      {showcaseSummary}
                     </p>
 
                     <div className="relative mt-8 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.1] px-4 py-4">
+                      <div className={`border border-white/10 bg-white/[0.1] px-4 py-4 ${publicCardRadiusClass}`}>
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white/62">
                           {t("logoCardSpecialtyLabel")}
                         </p>
@@ -181,7 +192,7 @@ export function HeroSection({ initialPublicData, initialLocations }: HeroSection
                           {specialty}
                         </p>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-4">
+                      <div className={`border border-white/10 bg-white/[0.08] px-4 py-4 ${publicCardRadiusClass}`}>
                         <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white/62">
                           {t("logoCardBookingLabel")}
                         </p>

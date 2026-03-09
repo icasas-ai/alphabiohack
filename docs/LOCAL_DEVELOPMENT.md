@@ -17,18 +17,14 @@ That gives you:
 ## What this setup supports
 
 - local PostgreSQL
-- local auth backed by Prisma
+- app-managed auth backed by Prisma
 - local email capture with Mailpit
 - host-run app with Dockerized services
 - full Docker workflow if you want it
 
 ## What this does not replace
 
-- Supabase password reset
-- Supabase email confirmation
 - Supabase Storage flows that still depend on Supabase credentials
-
-If `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` are empty, the app uses local auth mode.
 
 ## Prerequisites
 
@@ -47,7 +43,7 @@ cp .env.example .env.local
 Use this baseline for host-run local development:
 
 ```env
-# Local auth mode
+# Optional Supabase Storage
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
@@ -65,24 +61,21 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_SECURE=false
 
-# Local auth cookie signing
-LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
+# App auth cookie signing
+APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
 # Optional: derive location coordinates/timezone from full address
 GOOGLE_MAPS_API_KEY=
 
-NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
-
-DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+DEFAULT_COMPANY_SLUG=default-company
 ```
 
 Notes:
 
 - `.env.local` is sourced by `sh`, so every assignment must use `KEY=value` with no spaces around `=`
-- `LOCAL_AUTH_SECRET` is required whenever Supabase auth is disabled
-- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
-- `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
-- that user must include `Therapist` in `role`
+- `APP_AUTH_SECRET` is required because auth is app-managed
+- `DEFAULT_COMPANY_SLUG` selects the single public company for this deployment
+- that company must have a valid `publicTherapistId`
 - local sign-up creates `Patient`, not `Therapist`
 - `RESEND_API_KEY` is not needed for local Mailpit testing
 - `GOOGLE_MAPS_API_KEY` is optional; if set, location save can try to derive coordinates and timezone from the full office address
@@ -130,11 +123,24 @@ Seed local data:
 npm run db:seed
 ```
 
-Seed expanded e2e validation data (10+ records per core entity and past/future booking spread):
+Seed a realistic demo practice for walkthroughs and sales calls:
+
+```bash
+npm run db:seed:demo
+```
+
+Seed expanded e2e validation data (10+ records per core entity and future booking availability):
 
 ```bash
 npm run db:seed:e2e
 ```
+
+Demo seed notes:
+
+- set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness` before running the app
+- the demo company is `Harbor Balance Wellness`
+- all demo users share the password `HarborDemo123!`
+- use `npm run db:reset -- --demo` if you want the demo dataset on a clean database
 
 If you want to inspect the database in Prisma Studio:
 
@@ -211,18 +217,36 @@ Reset the database:
 npm run db:reset
 ```
 
+Reset the database and seed the realistic demo dataset:
+
+```bash
+npm run db:reset -- --demo
+```
+
+Reset the database and seed the synthetic e2e dataset instead of the default local data:
+
+```bash
+npm run db:reset -- --e2e
+```
+
 ## Migration troubleshooting and recovery
 
 If `npm run db:migrate:deploy` fails locally, use this checklist.
 
 ### 1. Validate `.env.local` formatting
 
-The Prisma wrapper script sources `.env.local` directly:
+The Prisma wrapper script uses `.env.local` by default:
 
 - valid: `DB_USER=postgres`
 - invalid: `DB_USER= postgres`
 
 If there is a space around `=`, shell sourcing can fail before Prisma starts.
+
+If you intentionally want to target another env file for a one-off command, override it explicitly:
+
+```bash
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+```
 
 ### 2. Check for a host port conflict
 
@@ -275,20 +299,27 @@ npm run db:reset
 
 This is the fastest recovery path in local development. Do not use it for production databases.
 
-## Local auth behavior
+If you need the reset flow to reseed with synthetic e2e data, run:
 
-When Supabase env vars are empty:
+```bash
+npm run db:reset -- --e2e
+```
+
+## App-managed auth behavior
 
 - `/auth/sign-up` creates a user in PostgreSQL
 - `/auth/login` authenticates against PostgreSQL
 - session state is stored in an HTTP-only cookie
 - protected API routes resolve the current user from that cookie
+- public booking creates a patient profile automatically on confirmation when the email is new
+- public booking links to an existing patient only on exact email match
+- phone lookup in the booking form is a suggestion layer for reusing saved details, not an automatic identity merge
 
 Important:
 
 - local sign-up creates `Patient` users
-- public booking uses the company's `publicTherapistId`, with `DEFAULT_THERAPIST_ID` as a server-side fallback
-- if you set `DEFAULT_THERAPIST_ID`, it must point to a therapist-role user
+- public booking uses the configured company's `publicTherapistId`
+- if booking/profile routes fail, verify that `DEFAULT_COMPANY_SLUG` points to a company with a therapist-role `publicTherapistId`
 
 For more detail, see [USER_IDENTITY_MODEL.md](./USER_IDENTITY_MODEL.md).
 
@@ -349,7 +380,8 @@ If Prisma commands fail with missing env vars:
 
 If booking fails with therapist errors:
 
-- verify `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- verify `DEFAULT_COMPANY_SLUG`
+- verify that the referenced company has a valid `publicTherapistId`
 - verify that referenced user has role `Therapist`
 
 If local email does not appear:

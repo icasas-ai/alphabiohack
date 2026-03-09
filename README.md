@@ -20,8 +20,8 @@ The current product surface includes:
   - appointment type
   - specialty and service selection
   - therapist/location-aware date and time selection
-  - basic info capture
-  - confirmation flow
+  - phone-first basic info capture with saved-detail suggestions
+  - confirmation flow that creates or links patient profiles automatically
 - therapist/admin management views for:
   - locations
   - specialties and services
@@ -29,7 +29,7 @@ The current product surface includes:
   - appointments
   - profile
 - email appointment invites
-- local development with PostgreSQL, Mailpit, and local auth
+- local development with PostgreSQL, Mailpit, and app-managed auth
 
 ## Main Capabilities
 
@@ -38,6 +38,9 @@ The current product surface includes:
 - multiple booking types
 - service-based booking flow
 - therapist-aware booking
+- phone-based patient detail lookup during booking
+- automatic patient profile creation on booking confirmation
+- exact-email matching for safe patient linking
 - slot validation before booking creation
 - invite email generation after booking
 
@@ -59,8 +62,10 @@ The current product surface includes:
 
 ### Auth
 
-- Supabase auth when configured
-- local auth when Supabase env vars are empty
+- app-managed auth with signed cookies
+- password hashes stored in Prisma users
+- Supabase is not used for auth or password reset
+- optional Supabase Storage when project env vars are present
 
 ### Email
 
@@ -69,9 +74,24 @@ The current product surface includes:
 
 ## Important Architecture Notes
 
+### 0. Supabase Is Infrastructure Here, Not Identity
+
+Current split:
+
+- Supabase Postgres can host the database
+- Supabase Storage is optional for uploads
+- users, sessions, password reset, and personnel password flows are app-managed
+- no Supabase Auth users are required
+
+This matters for deployment and operations:
+
+- production bootstrapping creates staff users in Prisma
+- forgot-password and personnel reset happen through the app email flows
+- Netlify env should include storage vars only if you actually use uploads
+
 ### 1. Dated Availability Is The Primary Scheduling Direction
 
-The newer booking flow is based on explicit dated availability, not only weekly business hours.
+The booking flow is based on explicit dated availability.
 
 Core availability tables:
 
@@ -80,15 +100,6 @@ Core availability tables:
 - `availability_time_ranges`
 - `availability_excluded_dates`
 - `availability_excluded_time_ranges`
-
-Legacy weekly scheduling tables still exist:
-
-- `business_hours`
-- `time_slots`
-- `date_overrides`
-- `override_time_slots`
-
-Those remain in the schema, but the newer booking flow is designed around explicit dated availability.
 
 ### 2. The App Is Multi-User, But Not Yet Truly Multi-Tenant
 
@@ -112,8 +123,8 @@ A therapist is a `users` row whose `role` includes `Therapist`.
 
 Current public identity behavior:
 
-- public site can resolve the company from `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
-- public booking therapist resolves from the active company's public therapist, with a server-side fallback to `DEFAULT_THERAPIST_ID`
+- public site resolves the company from the server-side `DEFAULT_COMPANY_SLUG`
+- public booking/profile resolve therapist identity from that company's `publicTherapistId`
 - some internal flows still need deeper tenant-aware authorization refactoring
 
 For more detail, see [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md).
@@ -125,7 +136,7 @@ Local self-signup creates `Patient` users.
 If you want public booking to work in local development:
 
 - create or seed a therapist user
-- assign that user as the company's `publicTherapistId` or set `DEFAULT_THERAPIST_ID`
+- assign that user as the company's `publicTherapistId`
 
 ## Recommended Local Development Workflow
 
@@ -170,16 +181,16 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_SECURE=false
 
-LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
-DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
+DEFAULT_COMPANY_SLUG=default-company
 ```
 
 Important:
 
 - `.env.local` is sourced by a shell wrapper, so use `KEY=value` with no spaces around `=`
-- `LOCAL_AUTH_SECRET` is required when Supabase auth is disabled
-- `DEFAULT_THERAPIST_ID` must be a real Prisma `users.id`
-- that user must include `Therapist` in `role`
+- `APP_AUTH_SECRET` is required because auth is app-managed
+- `DEFAULT_COMPANY_SLUG` must match the single company row for this deployment
+- that company must have a valid `publicTherapistId` that points to a therapist-role user
 
 For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
 
@@ -187,14 +198,66 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 
 - `npm run dev` - run the app locally
 - `npm run dev:docker` - app startup flow inside Docker
-- `npm run db:generate` - generate Prisma client using `.env.local`
-- `npm run db:migrate:deploy` - apply committed migrations using `.env.local`
+- `npm run db:generate` - generate Prisma client using `.env.local` by default
+- `npm run db:migrate:deploy` - apply committed migrations using `.env.local` by default
 - `npm run db:migrate:status` - check migration status
 - `npm run db:seed` - seed local data
-- `npm run db:seed:e2e` - seed high-volume synthetic e2e validation data (10+ records per core entity)
+- `npm run db:seed:demo` - seed a realistic demo practice with polished sales-call data and bookable availability
+- `npm run db:seed:e2e` - seed high-volume synthetic e2e validation data with bookable availability
 - `npm run db:seed:prod` - bootstrap a real company and owner user without demo data
 - `npm run db:reset` - reset and reseed the database
-- `npm run db:studio` - open Prisma Studio using `.env.local`
+- `npm run db:reset -- --demo` - reset and reseed with the realistic demo dataset
+- `npm run db:reset -- --e2e` - reset and reseed with synthetic e2e data
+- `npm run db:studio` - open Prisma Studio using `.env.local` by default
+
+All Prisma and seed wrapper scripts default to `.env.local`, but you can point them at another env file when needed:
+
+```bash
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+```
+
+### Demo Seed
+
+Use the demo seed when you want a sales-call-ready practice instead of bare local fixtures or synthetic e2e data:
+
+```bash
+npm run db:reset -- --demo
+```
+
+Important:
+
+- set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
+- the seeded company name is `Harbor Balance Wellness`
+- all seeded demo users share the password `HarborDemo123!`
+- the demo seed creates realistic staff, patients, locations, upcoming availability, and mixed booking history
+
+### Demo Release
+
+If you want a hosted demo environment with the realistic demo data, use the production env file but run the demo seed instead of the production bootstrap seed:
+
+```bash
+cp .env.production.example .env.production
+# fill the production values, then:
+
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+
+set -a
+source ./.env.production
+set +a
+npm run build
+```
+
+For a demo release:
+
+- set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
+- do not run `npm run db:seed:prod`
+- you do not need `BOOTSTRAP_*` variables unless you intentionally want the real production bootstrap instead of demo data
+- use an isolated database and isolated auth secret because the demo users all share `HarborDemo123!`
+- main demo admin login: `sofia.ramirez@example.com` / `HarborDemo123!`
+
+For the full hosted runbook, including which Netlify secrets to update, see [docs/DEPLOY_NETLIFY_SUPABASE.md](docs/DEPLOY_NETLIFY_SUPABASE.md).
 
 ## Migration Troubleshooting
 
@@ -258,6 +321,12 @@ npm run db:reset
 
 Do not use `db:reset` against production data.
 
+If you want the reset flow to seed the synthetic e2e dataset instead:
+
+```bash
+npm run db:reset -- --e2e
+```
+
 ## Main Project Areas
 
 - [app](/Users/davidguillen/Projects/david/alphabiohack/app) - App Router pages and API routes
@@ -291,6 +360,6 @@ These are the main product and architecture gaps still visible in the codebase:
 - no true tenant/subdomain ownership model yet
 - therapist creation is still not a first-class admin flow
 - public profile identity still needs to be fully unified
-- some older Supabase-dependent flows still remain, especially storage and a few auth-adjacent paths
+- some storage/upload flows still depend on Supabase when uploads are enabled
 
 That means the app already works well as a booking and therapist operations platform, but the next major evolution is a cleaner multi-tenant identity model.

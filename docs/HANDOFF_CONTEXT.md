@@ -89,7 +89,7 @@ Recent changes added:
 - `managedByTherapistId` on `User`
 - `mustChangePassword` on `User`
 - therapist-owned personnel management page
-- invite / resend temporary password flow for local auth
+- invite / resend temporary password flow for app-managed auth
 - forced password change on first login
 - FrontDesk sidebar/page restriction toward appointments-only use
 
@@ -108,22 +108,22 @@ FrontDesk is therapist-owned, not tenant-owned yet.
 
 That is acceptable for the current pre-tenant phase, but it is not the final production architecture.
 
-## Local Auth Vs Production Auth
+## App-Managed Auth Vs Production Hardening
 
-### Local auth
+### App-managed auth
 
-Local auth is supported when Supabase env vars are empty.
+The app now uses app-managed auth regardless of whether Supabase Storage is configured.
 
 This now also supports:
 
 - temporary password creation for FrontDesk
 - login redirect to password update when `mustChangePassword = true`
-- local password update route
+- app password update route
 
 Relevant files:
 
-- `app/api/auth/local/login/route.ts`
-- `app/api/auth/local/update-password/route.ts`
+- `app/api/auth/app/login/route.ts`
+- `app/api/auth/app/update-password/route.ts`
 - `components/auth/login-form.tsx`
 - `components/auth/update-password-form.tsx`
 - `app/[locale]/auth/login/page.tsx`
@@ -135,7 +135,7 @@ The current FrontDesk invite/reset flow is production-safe only as a development
 
 Why:
 
-- it depends on local auth
+- it depends on app-managed auth with emailed temporary passwords
 - it sends temporary passwords by email
 
 For production, this should be replaced with:
@@ -277,7 +277,7 @@ Future likely direction:
 
 Still not implemented.
 
-The current staff invite/reset flow is intentionally local-auth-first.
+The current staff invite/reset flow is intentionally app-auth-first.
 
 ## Files Worth Reading First
 

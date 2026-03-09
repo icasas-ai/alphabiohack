@@ -1,6 +1,6 @@
 # Production Readiness
 
-This document describes what needs to change to take AlphaBioHack from its current single-therapist / local-auth-friendly shape into a production-ready multi-tenant platform.
+This document describes what needs to change to take AlphaBioHack from its current single-therapist / app-managed-auth shape into a production-ready multi-tenant platform.
 
 It focuses on:
 
@@ -19,7 +19,7 @@ Main current limitations:
 - no first-class `Tenant` model yet
 - public booking still depends on a configured default therapist in some paths
 - FrontDesk is now supported, but ownership is still therapist-driven rather than tenant-driven
-- the invite / temporary-password flow is implemented for local auth only
+- the invite / temporary-password flow still relies on emailed temporary passwords
 - some public identity resolution still needs to be unified
 
 ## Production Target
@@ -234,7 +234,7 @@ Start with tenant-wide FrontDesk permissions, then add therapist and/or office a
 
 ## 7. Replace Temporary Password Emailing In Production
 
-The current local-auth staff invite flow works for development, but it should not be the production pattern.
+The current app-managed temporary-password staff invite flow works for development, but it should not be the production pattern.
 
 Production-ready invitation should be:
 
@@ -249,13 +249,13 @@ Avoid:
 
 ### Recommended production approach
 
-Use Supabase Auth (or your real auth provider) for staff accounts too.
+Keep app-managed auth if you want, but move staff onboarding to expiring invite/reset links instead of reusable temporary passwords.
 
 Flow:
 
 1. therapist creates FrontDesk user in app
-2. backend creates auth account
-3. backend creates Prisma membership/profile
+2. backend creates Prisma membership/profile
+3. backend generates a one-time onboarding token
 4. backend sends invite/reset link
 5. staff sets password on first login
 
@@ -274,7 +274,7 @@ Add a proper auth/personnel provisioning layer with methods like:
 
 This service should abstract:
 
-- local-auth dev flow
+- app-managed temporary-password dev flow
 - Supabase production flow
 
 ### Why
@@ -456,7 +456,7 @@ Before calling this production-ready, the app should have:
 
 These are still useful for local/dev workflows:
 
-- local auth
+- app-managed auth
 - temporary-password staff invite flow
 - default therapist fallback for quick local testing
 - Mailpit delivery for invites

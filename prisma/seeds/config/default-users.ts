@@ -2,7 +2,6 @@ import { UserRole } from "@/lib/prisma-client";
 
 export type SeedUser = {
   email: string;
-  supabaseId: string;
   firstname: string;
   lastname: string;
   avatar: string;
@@ -15,7 +14,6 @@ export const DEFAULT_SEED_USER_PASSWORD = "AlphaBioHack123!";
 export const DEFAULT_SEED_USERS: SeedUser[] = [
   {
     email: "omar@montycode.dev",
-    supabaseId: "a94c7581-bebf-4f1c-8fc3-031c1aff2741",
     firstname: "Omar",
     lastname: "Monty",
     avatar:
@@ -25,7 +23,6 @@ export const DEFAULT_SEED_USERS: SeedUser[] = [
   },
   {
     email: "patient@myalphapulse.com",
-    supabaseId: "e2ab1f51-f7a0-4901-84ab-bbce09ccbfe6",
     firstname: "Juan",
     lastname: "Pérez",
     avatar:
@@ -35,7 +32,6 @@ export const DEFAULT_SEED_USERS: SeedUser[] = [
   },
   {
     email: "therapist@example.com",
-    supabaseId: "local-seed-therapist",
     firstname: "John",
     lastname: "Doe",
     avatar: "https://example.com/avatar.jpg",

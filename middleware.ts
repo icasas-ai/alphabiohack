@@ -1,15 +1,11 @@
 import { routing } from "@/i18n/routing";
-import { updateSession } from "@/lib/supabase/middleware";
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest } from "next/server";
 
 const handleI18nRouting = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-  const response = handleI18nRouting(request);
-
-  // Otherwise, handle Supabase session updates
-  return await updateSession(request, response);
+  return handleI18nRouting(request);
 }
 
 export const config = {

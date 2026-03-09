@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteLocation,
   getLocationBookings,
-  getLocationBusinessHours,
   getLocationById,
   updateLocation,
 } from "@/services";
@@ -11,7 +10,6 @@ import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 interface LocationResponseData {
   location: unknown;
-  businessHours?: unknown[];
   bookings?: unknown[];
 }
 
@@ -23,7 +21,6 @@ export async function GET(
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const includeBusinessHours = searchParams.get("includeBusinessHours");
     const includeBookings = searchParams.get("includeBookings");
 
     const location = await getLocationById(id);
@@ -34,15 +31,6 @@ export async function GET(
     }
 
     let responseData: LocationResponseData = { location };
-
-    // Si se solicitan los horarios de atención
-    if (includeBusinessHours === "true") {
-      const businessHours = await getLocationBusinessHours(id);
-      responseData = {
-        ...responseData,
-        businessHours,
-      };
-    }
 
     // Si se solicitan las citas
     if (includeBookings === "true") {

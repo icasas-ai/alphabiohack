@@ -5,6 +5,7 @@ import { formatBookingToLocalStrings, resolveTimeZone } from "@/lib/utils/timezo
 import { prisma } from "@/lib/prisma";
 import { createBookingRecord, findLocationByIdWithSelect } from "@/repositories";
 import { generateBookingNumber } from "@/lib/utils/booking-number";
+import { ensurePatientProfileForBooking } from "@/services/patient-profile.service";
 
 const bookingCreateInclude = {
   location: {
@@ -66,6 +67,7 @@ export const createBooking = async (data: CreateBookingData) => {
   try {
     let bookedDurationMinutes = data.bookedDurationMinutes;
     let companyId = data.companyId;
+    let patientId = data.patientId;
 
     if (!companyId) {
       const location = await findLocationByIdWithSelect(data.locationId, {
@@ -86,6 +88,16 @@ export const createBooking = async (data: CreateBookingData) => {
       bookedDurationMinutes = service?.duration;
     }
 
+    if (!patientId) {
+      patientId = await ensurePatientProfileForBooking({
+        companyId,
+        firstname: data.firstname,
+        lastname: data.lastname,
+        email: data.email,
+        phone: data.phone,
+      });
+    }
+
     let booking = null;
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -104,7 +116,7 @@ export const createBooking = async (data: CreateBookingData) => {
           email: data.email,
           givenConsent: data.givenConsent,
           therapistId: data.therapistId,
-          patientId: data.patientId,
+          patientId,
           bookingNotes: data.bookingNotes,
           bookingSchedule: data.bookingSchedule,
           status: data.status || "Pending",
@@ -171,6 +183,23 @@ export const getBookingsByPatient = async (patientId: string) => {
   });
 };
 
+export const getBookingsForUserIdentity = async (
+  userId: string,
+  email: string,
+) => {
+  return listBookingsWithLocalTime({
+    where: {
+      OR: [
+        { patientId: userId },
+        {
+          patientId: null,
+          email,
+        },
+      ],
+    },
+  })
+}
+
 // Obtener citas por terapeuta
 export const getBookingsByTherapist = async (therapistId: string) => {
   return listBookingsWithLocalTime({
@@ -233,6 +262,37 @@ export const getBookingsByEmail = async (email: string) => {
     });
   } catch (error) {
     console.error("Error getting bookings by email:", error);
+    throw error;
+  }
+};
+
+export const getUpcomingBookingsByEmailForCompany = async (
+  email: string,
+  companyId: string,
+  take = 12,
+) => {
+  try {
+    return await listBookingsWithLocalTime({
+      where: {
+        companyId,
+        email,
+        bookingSchedule: {
+          gte: new Date(),
+        },
+        status: {
+          in: [
+            BookingStatus.Pending,
+            BookingStatus.NeedsAttention,
+            BookingStatus.Confirmed,
+            BookingStatus.InProgress,
+          ],
+        },
+      },
+      orderBy: { bookingSchedule: "asc" },
+      take,
+    });
+  } catch (error) {
+    console.error("Error getting upcoming bookings by email for company:", error);
     throw error;
   }
 };

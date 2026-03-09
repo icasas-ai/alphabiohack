@@ -4,12 +4,7 @@ This document describes the current availability architecture.
 
 ## Current Model
 
-The platform now has two availability models in the codebase:
-
-1. legacy weekly availability
-2. dated therapist availability
-
-The newer booking flow is designed around the dated model.
+The platform uses dated therapist availability.
 
 ## Primary Booking Model
 
@@ -100,19 +95,6 @@ These are different concepts.
 - `isAvailable` is set to `false`
 - it remains part of the saved day list but is not bookable
 
-## Legacy Weekly Model
-
-Legacy tables still exist:
-
-- `business_hours`
-- `time_slots`
-- `date_overrides`
-- `override_time_slots`
-
-These are older location-first scheduling primitives.
-
-They are still part of the schema and some older code paths, but they are not the preferred model for the newer therapist/location/date-based booking flow.
-
 ## Authorization
 
 Availability APIs are protected so only:
@@ -124,6 +106,6 @@ can list or mutate therapist availability records.
 
 ## Open Architectural Gap
 
-The app still lacks a true tenant/public profile model. Public booking resolves therapist identity from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`, while other public pages still need to be unified under the same source of truth.
+The app still lacks a true tenant/public profile model. Public routes now resolve the company from `DEFAULT_COMPANY_SLUG` and then use that company's `publicTherapistId`, but the broader tenant model is still single-deployment-oriented rather than true multi-tenant routing.
 
 That is the main next architectural step if the product is moving toward one subdomain per therapist or office.

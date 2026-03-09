@@ -20,7 +20,7 @@ Use it together with [.env.example](/Users/davidguillen/Projects/david/alphabioh
 - Example:
 
 ```env
-DATABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres?pgbouncer=true
+DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require&uselibpqcompat=true
 ```
 
 Notes:
@@ -70,7 +70,10 @@ Notes:
 
 Notes:
 
-- Example: `DB_QUERY=pgbouncer=true&sslmode=require`
+- Example: `DB_QUERY=pgbouncer=true&sslmode=require&uselibpqcompat=true`
+- `pg` currently treats `sslmode=require` as a certificate-verifying mode unless `uselibpqcompat=true` is also present.
+- For Supabase pooled runtime connections, prefer `pgbouncer=true&sslmode=require&uselibpqcompat=true`.
+- If you intentionally want strict certificate verification, use `sslmode=verify-full` instead.
 
 ### `DIRECT_URL`
 
@@ -93,43 +96,42 @@ Notes:
 ### `NEXT_PUBLIC_SUPABASE_URL`
 
 - Public: `yes`
-- Required: only when using Supabase Auth or Supabase Storage
-- Used for: Supabase browser client, Supabase server client, middleware session handling
+- Required: only when using Supabase Storage
+- Used for: Supabase browser client for optional storage uploads
 
 Notes:
 
-- If this and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` are both empty, the app falls back to local auth.
+- Must match the same Supabase project as `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`.
 
 ### `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
 
 - Public: `yes`
-- Required: only when using Supabase Auth or Supabase Storage
-- Used for: Supabase browser client, Supabase server client, middleware session handling
+- Required: only when using Supabase Storage
+- Used for: Supabase browser client for optional storage uploads
 
 Notes:
 
 - Must match the same Supabase project as `NEXT_PUBLIC_SUPABASE_URL`.
 
-### `SUPABASE_SERVICE_ROLE_KEY`
+### `SUPABASE_SERVICE_ROLE_KEY` (Deprecated)
 
 - Public: `no`
-- Required: yes when using Supabase auth and you want to create personnel invites/reset temporary passwords from the app
-- Used for: server-side Supabase admin calls (`auth.admin.createUser`, `auth.admin.updateUserById`) in personnel management
+- Required: `no`
+- Used for: not currently read by runtime
 
 Notes:
 
-- Keep this as a secret variable in Netlify.
-- Never expose this key to client-side code.
+- Deprecated for user management in this repository.
+- You can omit it unless you reintroduce server-side Supabase admin workflows.
 
-### `LOCAL_AUTH_SECRET`
+### `APP_AUTH_SECRET`
 
 - Public: `no`
-- Required: yes when Supabase Auth is disabled
-- Used for: signing and verifying local auth session cookies
+- Required: yes
+- Used for: signing and verifying app-managed auth session cookies
 
 Notes:
 
-- Required only for local auth mode.
 - Use a strong random secret in any non-trivial environment.
 
 ## Email
@@ -237,42 +239,15 @@ Notes:
 ### `DEFAULT_COMPANY_SLUG`
 
 - Public: `no`
-- Required: optional but recommended
-- Used for: server-side default company selection
+- Required: yes for any public deployment
+- Used for: server-side public company selection
 
 Notes:
 
-- The app uses this to decide which company powers public pages when more than one company exists.
-
-### `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
-
-- Public: `yes`
-- Required: optional but recommended
-- Used for: client-side default company selection
-
-Notes:
-
-- Keep this aligned with `DEFAULT_COMPANY_SLUG`.
-
-### `DEFAULT_COMPANY_ID`
-
-- Public: `no`
-- Required: optional
-- Used for: server-side fallback company lookup when slug is not provided
-
-Notes:
-
-- This is a compatibility fallback. Prefer using company slug variables first.
-
-### `NEXT_PUBLIC_DEFAULT_COMPANY_ID`
-
-- Public: `yes`
-- Required: optional
-- Used for: client-visible fallback company lookup when slug is not provided
-
-Notes:
-
-- This is a compatibility fallback. Prefer using company slug variables first.
+- This is the single env var used to decide which company powers public pages and public APIs in a deployment.
+- The configured slug must exist in the database.
+- The configured company must also have a valid `publicTherapistId` for public profile and booking flows.
+- For the realistic demo dataset created by `npm run db:seed:demo`, set this to `harbor-balance-wellness`.
 
 ## Location Geocoding
 
@@ -348,6 +323,14 @@ Notes:
 
 These variables are only used by `npm run db:seed:prod`.
 
+They are not needed for `npm run db:seed:demo`.
+
+If you are doing a hosted demo release, leave these unset and use:
+
+```bash
+ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+```
+
 ### `BOOTSTRAP_COMPANY_SLUG`
 
 - Public: `no`
@@ -406,15 +389,16 @@ Notes:
 - Required: yes for `db:seed:prod`
 - Used for: locating or creating the bootstrap owner user
 
-### `BOOTSTRAP_OWNER_SUPABASE_ID`
+### `BOOTSTRAP_OWNER_PASSWORD`
 
 - Public: `no`
 - Required: optional
-- Used for: linking the Prisma user row to an existing Supabase Auth user
+- Used for: creating the bootstrap owner's local password, or backfilling one for a legacy user
 
 Notes:
 
-- If the owner user does not already exist in Prisma, this must be set so the production seed can create the Prisma-side user record.
+- Required when the owner user does not already exist.
+- Also required when an existing owner row still has no `passwordHash`.
 
 ### `BOOTSTRAP_OWNER_FIRSTNAME`
 
@@ -433,20 +417,6 @@ Notes:
 - Public: `no`
 - Required: optional
 - Used for: owner profile avatar URL during bootstrap
-
-## Documented But Not Currently Read By Runtime
-
-These names still appear in docs, but there is no direct `process.env` read for them in the current codebase.
-
-### `DEFAULT_THERAPIST_ID`
-
-- Mentioned in local setup docs as a transitional fallback for public booking.
-- Not currently read directly by runtime code in this repository snapshot.
-
-### `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-
-- Mentioned in several docs as a transitional fallback for public booking.
-- Not currently read directly by runtime code in this repository snapshot.
 
 ## Recommended Sets
 
@@ -468,9 +438,8 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_SECURE=false
 
-LOCAL_AUTH_SECRET=replace-with-a-strong-random-secret
+APP_AUTH_SECRET=replace-with-a-strong-random-secret
 DEFAULT_COMPANY_SLUG=default-company
-NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
 ```
 
 Important:
@@ -484,17 +453,17 @@ Important:
 SITE_URL=https://your-site.netlify.app
 NEXT_PUBLIC_SITE_URL=https://your-site.netlify.app
 
-DB_USER=postgres
+DB_USER=postgres.[project-ref]
 DB_PASS=[db-password]
-DB_HOST=[session-pooler-host]
+DB_HOST=[pooler-host]
 DB_PORT=6543
 DB_NAME=postgres
+DB_QUERY=pgbouncer=true&sslmode=require&uselibpqcompat=true
 
 NEXT_PUBLIC_SUPABASE_URL=https://[project].supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=[anon-key]
 
 DEFAULT_COMPANY_SLUG=default-company
-NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
 
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=[resend-api-key]
@@ -504,9 +473,10 @@ BOOKING_REPLY_TO=support@example.com
 
 Migration note:
 
-- Keep `DB_HOST`/`DB_PORT` on session-pooler values for Netlify runtime.
+- Keep `DB_HOST`/`DB_PORT` on Supabase pooler values for Netlify runtime.
+- For Supabase pooled runtime connections, `DB_USER` should be the pooled username, typically `postgres.[project-ref]`, not plain `postgres`.
 - For one-off Prisma migration commands, temporarily run with direct host/port:
-  `DB_HOST='db.[project].supabase.co' DB_PORT='5432' npx prisma migrate deploy`
+  `DB_HOST='db.[project].supabase.co' DB_PORT='5432' DB_QUERY='sslmode=require&uselibpqcompat=true' npx prisma migrate deploy`
 
 ## Netlify Secret Scanning Guidance
 
@@ -516,8 +486,7 @@ On Netlify, classify env vars like this to avoid false-positive build failures.
 
 - `DB_PASS`
 - `RESEND_API_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (required for Supabase-backed personnel invites/temp password reset)
-- `LOCAL_AUTH_SECRET` (if using local auth mode)
+- `APP_AUTH_SECRET`
 - `SMTP_PASS` (if SMTP auth is configured)
 - `GOOGLE_MAPS_API_KEY` (optional, policy-dependent)
 
@@ -531,7 +500,6 @@ On Netlify, classify env vars like this to avoid false-positive build failures.
 - `DB_NAME`
 - `DB_QUERY`
 - `DEFAULT_COMPANY_SLUG`
-- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
 - `EMAIL_PROVIDER`
 - `BOOKING_FROM_EMAIL`
 - `BOOKING_REPLY_TO`

@@ -17,7 +17,6 @@ export {
   getTherapistBookings,
   getUserByEmail,
   getUserById,
-  getUserBySupabaseId,
   getUsersByRole,
   updateUser,
 } from "./user.service";
@@ -28,7 +27,6 @@ export {
   findNearbyLocations,
   getAllLocations,
   getLocationBookings,
-  getLocationBusinessHours,
   getLocationById,
   searchLocationsByAddress,
   searchLocationsByTitle,
@@ -85,6 +83,7 @@ export {
   getBookingsByLocation,
   getBookingsByName,
   getBookingsByPatient,
+  getBookingsForUserIdentity,
   getBookingsByPhone,
   getBookingsByTherapist,
   getBookingsByTherapistAndDate,

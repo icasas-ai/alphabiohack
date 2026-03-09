@@ -8,6 +8,7 @@ import {
   getBookingsByName,
   getBookingsByPatient,
   getBookingsByPhone,
+  getBookingsForUserIdentity,
   getBookingsByTherapist,
   getBookingsByTherapistAndDate,
   getBookingsByType,
@@ -85,7 +86,10 @@ export async function GET(request: NextRequest) {
       }
 
       if (scope === "self") {
-        bookings = await getBookingsByEmail(prismaUser.email);
+        bookings = await getBookingsForUserIdentity(
+          prismaUser.id,
+          prismaUser.email,
+        );
         return NextResponse.json(successResponse(bookings));
       }
 
@@ -106,6 +110,21 @@ export async function GET(request: NextRequest) {
 
       bookings = await getBookingsByTherapist(managedTherapistId);
       return NextResponse.json(successResponse(bookings));
+    }
+
+    const { prismaUser } = await getCurrentUser();
+    if (!prismaUser) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    if (!canOperateAppointments(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
     }
 
     if (patientId) {

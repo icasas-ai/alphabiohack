@@ -14,14 +14,6 @@ export async function findCompanyBySlug(slug: string) {
   });
 }
 
-export async function findFirstCompany() {
-  return prisma.company.findFirst({
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-}
-
 export async function findCompanyWithSelect<TSelect extends object>(
   id: string,
   select: TSelect,

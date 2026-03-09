@@ -74,17 +74,14 @@ This makes tenant scoping explicit in the database.
 
 The public site now resolves the business profile from `Company`.
 
-Current lookup order is:
+Current lookup is strict:
 
-1. `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG`
-2. `DEFAULT_COMPANY_SLUG`
-3. first available company
+1. `DEFAULT_COMPANY_SLUG`
+2. exact `Company.slug` match in the database
 
-The public therapist still has a compatibility fallback through:
+Public booking and public profile then resolve from that company's `publicTherapistId`.
 
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-
-That fallback should be treated as transitional while the app finishes moving to a company-first public model.
+There is no first-company or env-based therapist fallback in the runtime public path anymore.
 
 ## Seed Behavior
 

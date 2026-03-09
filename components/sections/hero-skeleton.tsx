@@ -17,7 +17,7 @@ export function HeroSkeleton() {
               <Skeleton className="h-24 w-full" />
             </div>
 
-            <div className="bg-card p-6 rounded-lg shadow-xs border border-border">
+            <div className="rounded-[24px] border border-border bg-card p-6 shadow-xs">
               <div className="grid md:grid-cols-2 gap-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />

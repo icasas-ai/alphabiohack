@@ -52,6 +52,7 @@ export async function PUT(
         id: true,
         status: true,
         therapistId: true,
+        patientId: true,
         locationId: true,
         email: true,
         bookingSchedule: true,
@@ -71,7 +72,9 @@ export async function PUT(
     }
 
     const isAdmin = prismaUser.role.includes(UserRole.Admin);
-    const isPatientOwner = prismaUser.email.toLowerCase() === booking.email.toLowerCase();
+    const isPatientOwner = booking.patientId
+      ? prismaUser.id === booking.patientId
+      : prismaUser.email.toLowerCase() === booking.email.toLowerCase();
 
     if (isAdmin || canManageBookingAsOperator(prismaUser, booking.therapistId)) {
       const allowedTransitions =

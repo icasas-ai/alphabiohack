@@ -1,9 +1,10 @@
 "use client"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Clock, MapPin, Plus, Stethoscope, User } from "lucide-react"
+import { Clock, Loader2, MapPin, Plus, Stethoscope, User } from "lucide-react"
 import { useFormatter, useLocale, useTranslations } from "next-intl"
-import { useLocations, useServices, useSpecialties } from "@/hooks"
+import { useBookingPatientLookup, useLocations, useServices, useSpecialties } from "@/hooks"
 import { formatTime12h } from "@/lib/format-time"; 
 
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,7 @@ import {
   normalizePhoneInput,
   normalizeWhitespace,
 } from "@/lib/validation/form-fields"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 interface BasicInformationFormProps {
   showValidation?: boolean
@@ -77,6 +78,30 @@ export function BasicInformationForm({ showValidation = false }: BasicInformatio
     showValidation &&
     (!data.basicInfo.phone.trim() || !isValidPhoneInput(data.basicInfo.phone))
   const invalidConsent = showValidation && !data.basicInfo.givenConsent
+  const patientLookup = useBookingPatientLookup({
+    locationId: data.locationId,
+    phone: data.basicInfo.phone,
+  })
+  const matchedPatientId =
+    patientLookup.kind === "existingProfile"
+      ? patientLookup.patientId
+      : undefined
+
+  useEffect(() => {
+    if (patientLookup.kind === "existingProfile" && matchedPatientId) {
+      if (data.patientId !== matchedPatientId) {
+        update({ patientId: matchedPatientId })
+      }
+      return
+    }
+
+    if (
+      patientLookup.kind !== "loading" &&
+      data.patientId
+    ) {
+      update({ patientId: undefined })
+    }
+  }, [data.patientId, matchedPatientId, patientLookup.kind, update])
 
   // Obtener información de la ubicación seleccionada
   const selectedLocation = locations.find(loc => loc.id === data.locationId)
@@ -128,6 +153,48 @@ export function BasicInformationForm({ showValidation = false }: BasicInformatio
     return `${startLabel} – ${endLabel}`
   }
 
+  const savedFirstname =
+    patientLookup.kind === "existingProfile" ||
+    patientLookup.kind === "previousBooking"
+      ? normalizeWhitespace(patientLookup.firstname)
+      : ""
+  const savedLastname =
+    patientLookup.kind === "existingProfile" ||
+    patientLookup.kind === "previousBooking"
+      ? normalizeWhitespace(patientLookup.lastname)
+      : ""
+  const savedEmail =
+    patientLookup.kind === "existingProfile" ||
+    patientLookup.kind === "previousBooking" ||
+    patientLookup.kind === "newProfile"
+      ? normalizeEmailInput(patientLookup.email)
+      : ""
+  const canApplySavedDetails = Boolean(
+    (savedFirstname || savedLastname || savedEmail) &&
+      (savedFirstname !== normalizeWhitespace(data.basicInfo.firstName) ||
+        savedLastname !== normalizeWhitespace(data.basicInfo.lastName) ||
+        savedEmail !== normalizeEmailInput(data.basicInfo.email)),
+  )
+
+  const applySavedDetails = () => {
+    if (!savedFirstname && !savedLastname && !savedEmail) {
+      return
+    }
+
+    update({
+      basicInfo: {
+        ...data.basicInfo,
+        firstName: savedFirstname || data.basicInfo.firstName,
+        lastName: savedLastname || data.basicInfo.lastName,
+        email: savedEmail || data.basicInfo.email,
+      },
+    })
+  }
+
+  const toggleConsent = () => {
+    handleInputChange("givenConsent", !data.basicInfo.givenConsent)
+  }
+
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Contact Information Form */}
@@ -168,6 +235,69 @@ export function BasicInformationForm({ showValidation = false }: BasicInformatio
               {t('phoneConsentText')}
             </p>
           </div>
+
+          {patientLookup.kind !== "idle" ? (
+            <Alert
+              variant={
+                patientLookup.kind === "existingProfile"
+                  ? "success"
+                  : patientLookup.kind === "error"
+                    ? "warning"
+                    : "info"
+              }
+              className="mb-6"
+            >
+              {patientLookup.kind === "loading" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <User className="h-4 w-4" />
+              )}
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="font-medium">
+                    {patientLookup.kind === "existingProfile"
+                      ? t("patientLookupExistingTitle")
+                      : patientLookup.kind === "previousBooking"
+                        ? t("patientLookupHistoryTitle")
+                        : patientLookup.kind === "newProfile"
+                          ? t("patientLookupNewTitle")
+                          : patientLookup.kind === "loading"
+                            ? t("patientLookupLoadingTitle")
+                            : t("patientLookupErrorTitle")}
+                  </p>
+                  <AlertDescription>
+                    {patientLookup.kind === "existingProfile"
+                      ? t("patientLookupExistingDescription")
+                      : patientLookup.kind === "previousBooking"
+                        ? t("patientLookupHistoryDescription")
+                        : patientLookup.kind === "newProfile"
+                          ? t("patientLookupNewDescription")
+                          : patientLookup.kind === "loading"
+                            ? t("patientLookupLoadingDescription")
+                            : t("patientLookupErrorDescription")}
+                  </AlertDescription>
+                  {savedFirstname && savedLastname ? (
+                    <p className="text-xs font-medium text-current/80">
+                      {t("patientLookupSavedName", {
+                        name: `${savedFirstname} ${savedLastname}`,
+                      })}
+                    </p>
+                  ) : null}
+                </div>
+                {canApplySavedDetails ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={applySavedDetails}
+                  >
+                    {t("patientLookupUseSavedDetails")}
+                  </Button>
+                ) : null}
+              </div>
+            </Alert>
+          ) : null}
 
           {/* Name Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -249,24 +379,28 @@ export function BasicInformationForm({ showValidation = false }: BasicInformatio
             )}
           >
             <div className="flex items-start space-x-3">
-            <Checkbox
-              id="marketing"
-              checked={data.basicInfo.givenConsent}
-              onCheckedChange={(checked) => handleInputChange("givenConsent", checked as boolean)}
-              className="mt-1"
-              aria-required="true"
-            />
-            <div className="space-y-2">
-              <Label htmlFor="marketing" className="text-sm font-medium leading-relaxed cursor-pointer">
-                {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })} <span className="text-destructive">*</span>
-              </Label>
-              <p className="text-xs font-medium text-muted-foreground">
-                {t('consentRequiredHint')}
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t('marketingConsentText', { clinicName: selectedLocation?.title || t('clinic') })}
-              </p>
-            </div>
+              <Checkbox
+                id="marketing"
+                checked={data.basicInfo.givenConsent}
+                onCheckedChange={(checked) => handleInputChange("givenConsent", checked as boolean)}
+                className="mt-1"
+                aria-required="true"
+              />
+              <button
+                type="button"
+                className="space-y-2 text-left"
+                onClick={toggleConsent}
+              >
+                <span className="text-sm font-medium leading-relaxed">
+                  {t('marketingConsentLabel', { clinicName: selectedLocation?.title || t('clinic') })} <span className="text-destructive">*</span>
+                </span>
+                <p className="text-xs font-medium text-muted-foreground">
+                  {t('consentRequiredHint')}
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {t('marketingConsentText', { clinicName: selectedLocation?.title || t('clinic') })}
+                </p>
+              </button>
             </div>
             {invalidConsent ? (
               <p className="mt-3 text-sm text-red-500">{tValidation('acceptSmsConsent')}</p>

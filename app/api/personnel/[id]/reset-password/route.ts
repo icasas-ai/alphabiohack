@@ -6,10 +6,8 @@ import { randomBytes } from "node:crypto";
 
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
 import { canManagePersonnel } from "@/lib/auth/authorization";
-import { hasSupabaseAuth } from "@/lib/auth/config";
 import { getCurrentUser, hashPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
-import { createSupabaseAdminClient, hasSupabaseAdmin } from "@/lib/supabase/admin";
 import { sendEmail } from "@/services/email.service";
 import { resolveManagedTherapistIdForUser } from "@/services";
 
@@ -53,7 +51,6 @@ export async function POST(
         id: true,
         firstname: true,
         email: true,
-        supabaseId: true,
       },
     });
 
@@ -62,45 +59,13 @@ export async function POST(
     }
 
     const temporaryPassword = generateTemporaryPassword();
-    if (hasSupabaseAuth) {
-      if (!hasSupabaseAdmin()) {
-        return NextResponse.json(
-          {
-            error:
-              "SUPABASE_SERVICE_ROLE_KEY is required to reset personnel passwords when Supabase auth is enabled.",
-          },
-          { status: 409 },
-        );
-      }
-
-      const adminClient = createSupabaseAdminClient();
-      const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(
-        personnel.supabaseId,
-        { password: temporaryPassword },
-      );
-
-      if (updateAuthError) {
-        return NextResponse.json(
-          { error: updateAuthError.message || "Unable to reset Supabase password." },
-          { status: 500 },
-        );
-      }
-
-      await prisma.user.update({
-        where: { id: personnel.id },
-        data: {
-          mustChangePassword: true,
-        },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: personnel.id },
-        data: {
-          passwordHash: hashPassword(temporaryPassword),
-          mustChangePassword: true,
-        },
-      });
-    }
+    await prisma.user.update({
+      where: { id: personnel.id },
+      data: {
+        passwordHash: hashPassword(temporaryPassword),
+        mustChangePassword: true,
+      },
+    });
 
     const therapistName =
       `${prismaUser.firstname} ${prismaUser.lastname}`.trim() || prismaUser.email;

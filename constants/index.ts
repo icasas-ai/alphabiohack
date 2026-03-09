@@ -129,16 +129,4 @@ export const API_ENDPOINTS = {
     WITH_SERVICES: "/api/specialties?withServices=true",
     SERVICES: (id: string) => `/api/specialties/${id}/services`,
   },
-
-  // Overrides de fechas
-  OVERRIDES: {
-    BASE: "/api/overrides",
-    BY_ID: (id: string) => `/api/overrides/${id}`,
-    SLOTS: {
-      BASE: "/api/overrides/time-slots",
-      BY_ID: (id: string) => `/api/overrides/time-slots/${id}`,
-      BY_OVERRIDE: (overrideId: string) =>
-        `/api/overrides/time-slots?dateOverrideId=${overrideId}`,
-    },
-  },
 } as const;

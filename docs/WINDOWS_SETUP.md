@@ -75,7 +75,7 @@ For Windows local development, keep the database values in both files aligned.
 Use this baseline in `.env.local`:
 
 ```env
-# Local auth mode
+# App-managed auth
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
@@ -93,15 +93,13 @@ SMTP_HOST=localhost
 SMTP_PORT=1025
 SMTP_SECURE=false
 
-# Local auth cookie signing
-LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
+# App auth cookie signing
+APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
 # Optional: derive location coordinates/timezone from full address
 GOOGLE_MAPS_API_KEY=
 
-NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=default-company
-
-NEXT_PUBLIC_DEFAULT_THERAPIST_ID=replace-with-a-real-therapist-users-id
+DEFAULT_COMPANY_SLUG=default-company
 ```
 
 Copy these same DB-related values into `.env`:
@@ -113,14 +111,14 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=alphabiohack
 DB_QUERY=schema=public
-LOCAL_AUTH_SECRET=replace-this-with-a-strong-random-secret
+APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 ```
 
 Notes:
 
-- `LOCAL_AUTH_SECRET` is required when Supabase auth is disabled
-- `NEXT_PUBLIC_DEFAULT_COMPANY_SLUG` selects the public company/tenant when multiple companies exist
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` must point to a real therapist `users.id`
+- `APP_AUTH_SECRET` is required because auth is app-managed
+- `DEFAULT_COMPANY_SLUG` selects the public company for this deployment
+- that company must have a valid `publicTherapistId`
 - local sign-up creates `Patient`, not `Therapist`
 - default local seed users now live in [prisma/seeds/config/default-users.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-users.ts)
 - the default local company profile lives in [prisma/seeds/config/default-company.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-company.ts)
@@ -288,7 +286,7 @@ Make sure `DB_USER`, `DB_HOST`, and `DB_NAME` exist in `.env`, not only `.env.lo
 
 Check:
 
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- `DEFAULT_COMPANY_SLUG`
 - that the referenced user has role `Therapist`
 
 ### Email is not arriving in Mailpit

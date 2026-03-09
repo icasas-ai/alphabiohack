@@ -4,6 +4,7 @@ import { Bone, Brain, ChevronLeft, ChevronRight, Eye, Heart, Stethoscope, Blueto
 import { Card, CardContent } from "@/components/ui/card"
 
 import { Button } from "@/components/ui/button"
+import { type LandingPageResolvedSimpleSection } from "@/lib/company/landing-page-config"
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 
@@ -52,10 +53,17 @@ const specialties = [
   },
 ]
 
-export function SpecialtiesSection() {
+export function SpecialtiesSection({
+  content = null,
+}: {
+  content?: LandingPageResolvedSimpleSection | null
+}) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const itemsPerView = 4
   const t = useTranslations('Specialties')
+  const publicCardRadiusClass = "rounded-[24px]"
+  const sectionTitle = content?.title || t("title")
+  const sectionDescription = content?.description || t("description")
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + itemsPerView >= specialties.length ? 0 : prev + 1))
@@ -68,13 +76,13 @@ export function SpecialtiesSection() {
   const visibleSpecialties = specialties.slice(currentIndex, currentIndex + itemsPerView)
 
   return (
-    <section className="py-16 bg-transparent">
+    <section id="home-specialties" className="py-16 bg-transparent">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
           <div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">{t('title')}</h2>
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">{sectionTitle}</h2>
             <p className="text-muted-foreground max-w-2xl">
-              {t('description')}
+              {sectionDescription}
             </p>
           </div>
 
@@ -97,9 +105,9 @@ export function SpecialtiesSection() {
           {visibleSpecialties.map((specialty) => {
             const IconComponent = specialty.icon
             return (
-              <Card key={specialty.id} className="group hover:shadow-lg transition-all duration-300 cursor-pointer p-0 border-full">
+              <Card key={specialty.id} className={`group cursor-pointer p-0 transition-all duration-300 hover:shadow-lg ${publicCardRadiusClass}`}>
                 <CardContent className="p-0">
-                  <div className="relative overflow-hidden rounded-t-lg">
+                  <div className="relative overflow-hidden rounded-t-[24px]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={specialty.image || "/images/placeholder.svg"}
@@ -113,7 +121,7 @@ export function SpecialtiesSection() {
                     />
                     <div className="absolute inset-0 bg-primary/40 group-hover:bg-primary/30 transition-colors duration-300" />
                     <div className="absolute bottom-4 left-4">
-                      <div className="bg-secondary rounded-lg p-3 mb-2 flex items-center gap-2">
+                      <div className={`mb-2 flex items-center gap-2 bg-secondary p-3 ${publicCardRadiusClass}`}>
                         <IconComponent className="h-6 w-6 text-primary" />
                         <h3 className="text-primary font-semibold text-lg">{t(specialty.name.toLowerCase())}</h3>
                       </div>

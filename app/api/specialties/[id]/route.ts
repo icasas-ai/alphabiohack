@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   deleteSpecialty,
+  getSpecialtyByName,
   getSpecialtyById,
   getSpecialtyStats,
   updateSpecialty,
@@ -67,6 +68,16 @@ export async function PUT(
         { success: false, error: "Specialty not found" },
         { status: 404 }
       );
+    }
+
+    if (body.name) {
+      const duplicate = await getSpecialtyByName(body.name, existingSpecialty.companyId);
+      if (duplicate && duplicate.id !== id) {
+        return NextResponse.json(
+          { success: false, error: "Specialty already exists" },
+          { status: 409 }
+        );
+      }
     }
 
     const updatedSpecialty = await updateSpecialty(id, body);

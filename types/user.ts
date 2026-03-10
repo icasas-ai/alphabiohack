@@ -1,9 +1,8 @@
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-browser";
 
 // Interfaz para crear un nuevo usuario
 export interface CreateUserData {
   email: string;
-  supabaseId: string;
   firstname: string;
   lastname: string;
   avatar?: string;

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
-import { getUsersByRole } from "@/services";
+import { getPublicCompany, getUsersByRole } from "@/services";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
 
 export async function GET() {
   try {
-    const therapists = await getUsersByRole(UserRole.Therapist);
+    const company = await getPublicCompany();
+    const therapists = await getUsersByRole(UserRole.Therapist, company.id);
 
     return NextResponse.json({
       success: true,
@@ -13,7 +15,6 @@ export async function GET() {
         id: therapist.id,
         firstName: therapist.firstname,
         lastName: therapist.lastname,
-        email: therapist.email,
         profileImage: therapist.avatar || "/images/smiling-doctor.png",
         specialties: therapist.especialidad ? [therapist.especialidad] : [],
         bio: therapist.summary || "Professional",
@@ -21,9 +22,18 @@ export async function GET() {
       })),
     });
   } catch (error) {
+    if (isPublicSiteUnavailableError(error)) {
+      return NextResponse.json(
+        { success: false, error: "Public site unavailable" },
+        { status: 503 },
+      );
+    }
+
     console.error("Error fetching therapists:", error);
+    const message =
+      error instanceof Error ? error.message : "Error fetching therapists";
     return NextResponse.json(
-      { success: false, error: "Error fetching therapists" },
+      { success: false, error: message },
       { status: 500 },
     );
   }

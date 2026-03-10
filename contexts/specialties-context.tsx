@@ -57,7 +57,7 @@ export function SpecialtiesProvider({ children }: { children: React.ReactNode })
   const refreshSpecialties = useCallback(async () => {
     try {
       updateState({ loading: true, error: null });
-      const specialties = await specialtiesApi.getSpecialtiesWithServices();
+      const specialties = await specialtiesApi.getAllSpecialties();
       updateState({ specialties, loading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al cargar especialidades';

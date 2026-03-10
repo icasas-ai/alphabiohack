@@ -7,6 +7,7 @@
 
 import { useCallback } from "react";
 import { useLocale } from "next-intl";
+import { readJsonResponse } from "@/lib/utils/read-json-response";
 
 type ApiSuccess<T = unknown> = { success: true; data: T; successCode?: string };
 type ApiFailure = { success: false; errorCode: string };
@@ -53,15 +54,17 @@ export function useApiI18n() {
         body,
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse<Record<string, unknown>>(response);
 
       if (!response.ok) {
-        const errorCode: string = data?.errorCode || "internal_error";
+        const errorCode =
+          typeof data?.errorCode === "string" ? data.errorCode : "internal_error";
         return { success: false, errorCode };
       }
 
       const payload = (data?.data ?? data) as T;
-      const successCode: string | undefined = data?.successCode;
+      const successCode =
+        typeof data?.successCode === "string" ? data.successCode : undefined;
       return successCode ?
           { success: true, data: payload, successCode }
         : { success: true, data: payload };

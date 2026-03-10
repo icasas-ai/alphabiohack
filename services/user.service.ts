@@ -1,6 +1,6 @@
 import type { CreateUserData, UpdateUserData } from "@/types";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 import { prisma } from "@/lib/prisma";
 
 // Crear usuario
@@ -9,7 +9,6 @@ export const createUser = async (data: CreateUserData) => {
     const user = await prisma.user.create({
       data: {
         email: data.email,
-        supabaseId: data.supabaseId,
         firstname: data.firstname,
         lastname: data.lastname,
         avatar: data.avatar,
@@ -36,23 +35,6 @@ export const getUserById = async (id: string) => {
     return user;
   } catch (error) {
     console.error("Error getting user by id:", error);
-    throw error;
-  }
-};
-
-// Obtener usuario por Supabase ID
-export const getUserBySupabaseId = async (supabaseId: string) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { supabaseId },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
-    });
-    return user;
-  } catch (error) {
-    console.error("Error getting user by supabase id:", error);
     throw error;
   }
 };
@@ -92,13 +74,29 @@ export const getAllUsers = async () => {
 };
 
 // Obtener usuarios por rol
-export const getUsersByRole = async (role: UserRole) => {
+export const getUsersByRole = async (
+  role: UserRole,
+  companyId?: string
+) => {
   try {
     const users = await prisma.user.findMany({
       where: {
-        role: {
-          has: role,
-        },
+        AND: [
+          {
+            role: {
+              has: role,
+            },
+          },
+          companyId
+            ? {
+                companyMemberships: {
+                  some: {
+                    companyId,
+                  },
+                },
+              }
+            : {},
+        ],
       },
       include: {
         therapistBookings: true,

@@ -1,12 +1,14 @@
+import { BookingStatus, BookingType } from "@/lib/prisma-browser";
+
 // Interfaz para la respuesta de creación de booking
-export interface CreateBookingResponse {
+export interface CreateBookingResponse<T = unknown> {
   success: boolean;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
 // Interfaz para la respuesta de API genérica
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -14,10 +16,11 @@ export interface ApiResponse<T = any> {
 
 // Interfaz para la petición de creación de booking
 export interface CreateBookingRequest {
-  bookingType: string;
+  bookingType: BookingType;
   locationId: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname: string;
   lastname: string;
   phone: string;
@@ -26,36 +29,8 @@ export interface CreateBookingRequest {
   therapistId?: string;
   patientId?: string;
   bookingNotes?: string;
-  // Opción 1: bookingSchedule como ISO string (flujo antiguo)
-  bookingSchedule?: string;
-  // Opción 2: selectedDate + selectedTime (flujo nuevo, recomendado)
-  selectedDate?: string; // YYYY-MM-DD
-  selectedTime?: string; // HH:mm
-  status?: string;
-}
-
-// Interfaz para horarios de negocio (respuesta de API)
-export interface BusinessHours {
-  id: string;
-  dayOfWeek: string;
-  locationId: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  timeSlots?: TimeSlotResponse[];
-  location?: Location;
-}
-
-// Interfaz para slots de tiempo (respuesta de API)
-export interface TimeSlotResponse {
-  id: string;
-  startTime: string;
-  endTime: string;
-  isActive: boolean;
-  businessHoursId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  businessHours?: BusinessHours;
+  bookingSchedule: string;
+  status?: BookingStatus;
 }
 
 // Interfaz para ubicaciones (respuesta de API)
@@ -67,6 +42,7 @@ export interface Location {
   logo?: string;
   lat?: number;
   lon?: number;
+  timezone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -131,8 +107,8 @@ export interface Therapist {
   firstName: string;
   lastName: string;
   avatar: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   specialties: string[];
   bio: string;
   profileImage: string;
@@ -147,6 +123,7 @@ export interface Therapist {
 // Interfaz para bookings de terapeuta (respuesta de API)
 export interface TherapistBooking {
   id: string;
+  bookingNumber: string;
   firstname: string;
   lastname: string;
   email: string;
@@ -167,6 +144,7 @@ export interface TherapistBooking {
     id: string;
     title: string;
     address: string;
+    timezone?: string;
   };
   patient: {
     id: string;
@@ -181,6 +159,8 @@ export interface TherapistBooking {
     email: string;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -188,6 +168,7 @@ export interface TherapistBooking {
 // Interfaz para bookings de usuario (respuesta de API)
 export interface UserBooking {
   id: string;
+  bookingNumber: string;
   firstname: string;
   lastname: string;
   email: string;
@@ -195,7 +176,10 @@ export interface UserBooking {
   bookingSchedule: string;
   status: string;
   location: {
+    id?: string;
     title: string;
+    address?: string;
+    timezone?: string;
   };
   specialty?: {
     id: string;
@@ -214,6 +198,8 @@ export interface UserBooking {
     email: string;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
   createdAt: string;
   updatedAt: string;
 }

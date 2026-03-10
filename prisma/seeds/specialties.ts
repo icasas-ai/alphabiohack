@@ -1,4 +1,4 @@
-import { PrismaClient, Specialty as PrismaSpecialty } from "@prisma/client";
+import { PrismaClient, Specialty as PrismaSpecialty } from "@/lib/prisma-client";
 
 const DEFAULT_SPECIALTIES = [
   {
@@ -9,9 +9,11 @@ const DEFAULT_SPECIALTIES = [
 ];
 
 export async function seedDefaultSpecialties(
-  prisma: PrismaClient
+  prisma: PrismaClient,
+  companyId: string,
 ): Promise<Partial<PrismaSpecialty>[]> {
   const existing = await prisma.specialty.findMany({
+    where: { companyId },
     select: { id: true, name: true },
   });
   console.log(`Found ${existing.length} specialties`);
@@ -24,10 +26,14 @@ export async function seedDefaultSpecialties(
   console.log("Seeding default specialties...");
 
   await prisma.specialty.createMany({
-    data: DEFAULT_SPECIALTIES,
+    data: DEFAULT_SPECIALTIES.map((specialty) => ({
+      ...specialty,
+      companyId,
+    })),
   });
 
   const created = await prisma.specialty.findMany({
+    where: { companyId },
     select: { id: true, name: true },
   });
 

@@ -1,12 +1,10 @@
+import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
+import { getSiteUrl } from "@/lib/config/site-url";
 import type { Metadata } from "next";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
+  metadataBase: new URL(getSiteUrl()),
   title: "Authenticate",
   description: "Login or register to your account",
 };
@@ -18,10 +16,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen flex flex-col bg-secondary">
+    <div className="app-page-gradient min-h-screen flex flex-col bg-secondary">
       <MedicalHeader />
-      <main className="flex-1 flex items-center justify-center">
-        {children}
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
+        <PageTransition className="w-full">
+          <div className="w-full">
+            {children}
+          </div>
+        </PageTransition>
       </main>
     </div>
   );

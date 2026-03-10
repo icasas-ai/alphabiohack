@@ -1,0 +1,98 @@
+model AvailabilityPeriod {
+  id                        String                   @id @default(cuid())
+  companyId                 String
+  therapistId               String
+  locationId                String
+  title                     String?
+  notes                     String?
+  startDate                 DateTime                 @db.Date
+  endDate                   DateTime                 @db.Date
+  isActive                  Boolean                  @default(true)
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  company                   Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  therapist                 User                     @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  location                  Location                 @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  days                      AvailabilityDay[]
+  excludedDates             AvailabilityExcludedDate[]
+
+  @@index([companyId, therapistId, locationId, startDate, endDate])
+  @@map("availability_periods")
+}
+
+model AvailabilityDay {
+  id                     String                  @id @default(cuid())
+  availabilityPeriodId   String
+  companyId              String
+  therapistId            String
+  locationId             String
+  date                   DateTime                @db.Date
+  isAvailable            Boolean                 @default(true)
+  sessionDurationMinutes Int                     @default(60)
+  notes                  String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period                 AvailabilityPeriod      @relation(fields: [availabilityPeriodId], references: [id], onDelete: Cascade)
+  therapist              User                    @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  location               Location                @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  timeRanges             AvailabilityTimeRange[]
+
+  @@unique([therapistId, locationId, date])
+  @@index([companyId, date])
+  @@index([locationId, date])
+  @@index([therapistId, date])
+  @@map("availability_days")
+}
+
+model AvailabilityExcludedDate {
+  id                     String                        @id @default(cuid())
+  availabilityPeriodId   String
+  companyId              String
+  therapistId            String
+  locationId             String
+  date                   DateTime                      @db.Date
+  sessionDurationMinutes Int                           @default(60)
+  notes                  String?
+  createdAt              DateTime                      @default(now())
+  updatedAt              DateTime                      @updatedAt
+  company                Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period                 AvailabilityPeriod            @relation(fields: [availabilityPeriodId], references: [id], onDelete: Cascade)
+  therapist              User                          @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  location               Location                      @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  timeRanges             AvailabilityExcludedTimeRange[]
+
+  @@unique([availabilityPeriodId, date])
+  @@index([companyId, date])
+  @@index([locationId, date])
+  @@index([therapistId, date])
+  @@map("availability_excluded_dates")
+}
+
+model AvailabilityExcludedTimeRange {
+  id                         String                   @id @default(cuid())
+  availabilityExcludedDateId String
+  startTime                  String
+  endTime                    String
+  isActive                   Boolean                  @default(true)
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  availabilityExcludedDate   AvailabilityExcludedDate @relation(fields: [availabilityExcludedDateId], references: [id], onDelete: Cascade)
+
+  @@unique([availabilityExcludedDateId, startTime, endTime])
+  @@map("availability_excluded_time_ranges")
+}
+
+model AvailabilityTimeRange {
+  id                String          @id @default(cuid())
+  availabilityDayId String
+  startTime         String
+  endTime           String
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  availabilityDay   AvailabilityDay @relation(fields: [availabilityDayId], references: [id], onDelete: Cascade)
+
+  @@unique([availabilityDayId, startTime, endTime])
+  @@map("availability_time_ranges")
+}

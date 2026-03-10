@@ -22,6 +22,7 @@ export type AddToCalendarProps = {
   startTimeHHmm: string;
   endTimeHHmm: string;
   organizerEmail?: string;
+  timeZone?: string;
   filename?: string;
   className?: string;
 };
@@ -34,6 +35,7 @@ export function AddToCalendarButton({
   startTimeHHmm,
   endTimeHHmm,
   organizerEmail,
+  timeZone,
   filename,
   className = "",
 }: AddToCalendarProps) {
@@ -47,8 +49,8 @@ export function AddToCalendarButton({
       date,
       startTimeHHmm,
       endTimeHHmm,
-    });
-  }, [title, description, location, date, startTimeHHmm, endTimeHHmm]);
+    }, timeZone);
+  }, [title, description, location, date, startTimeHHmm, endTimeHHmm, timeZone]);
 
   const onGoogle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -66,7 +68,7 @@ export function AddToCalendarButton({
       date,
       startTimeHHmm,
       endTimeHHmm,
-    });
+    }, timeZone);
     downloadBlob(`${slugify(filename || title || "event")}.ics`, ics);
   };
 

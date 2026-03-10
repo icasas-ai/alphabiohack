@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
-import { hasSupabaseAuth } from "@/lib/auth/config";
+import { hasSupabaseStorage } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
 
 export interface UploadFile {
@@ -56,7 +56,7 @@ export const useSupabaseUpload = ({
   const [isDragReject, setIsDragReject] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const supabase = hasSupabaseAuth ? createClient() : null;
+  const supabase = hasSupabaseStorage ? createClient() : null;
 
   const validateFile = useCallback(
     (file: File): Array<{ message: string }> => {

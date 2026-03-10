@@ -1,11 +1,13 @@
-import { BookingStatus, BookingType } from "@prisma/client";
+import { BookingStatus, BookingType } from "@/lib/prisma-browser";
 
 // Interfaz para crear una nueva cita
 export interface CreateBookingData {
+  companyId?: string;
   bookingType: BookingType;
   locationId: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname: string;
   lastname: string;
   phone: string;
@@ -24,6 +26,7 @@ export interface UpdateBookingData {
   locationId?: string;
   specialtyId?: string;
   serviceId?: string;
+  bookedDurationMinutes?: number;
   firstname?: string;
   lastname?: string;
   phone?: string;
@@ -45,6 +48,7 @@ export interface BookingFormData {
   selectedDate: Date | null;
   selectedTime: string;
   therapistId: string | null;
+  sessionDurationMinutes?: number | null;
   basicInfo: {
     firstName: string;
     lastName: string;

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function HeroSkeleton() {
   return (
-    <section className="bg-linear-to-br from-background to-muted py-20 lg:py-32">
+    <section className="bg-transparent py-20 lg:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
@@ -17,7 +17,7 @@ export function HeroSkeleton() {
               <Skeleton className="h-24 w-full" />
             </div>
 
-            <div className="bg-card p-6 rounded-lg shadow-xs border border-border">
+            <div className="rounded-[24px] border border-border bg-card p-6 shadow-xs">
               <div className="grid md:grid-cols-2 gap-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />

@@ -1,4 +1,4 @@
-import { PST_TZ, dateKeyInTZ } from "./timezone";
+import { dateKeyInTZ, formatBookingToLocalStrings, resolveTimeZone } from "./timezone";
 
 import { format } from "date-fns";
 
@@ -11,7 +11,9 @@ export interface BookingData {
   bookingSchedule: string;
   status: string;
   location: {
+    id?: string;
     title: string;
+    timezone?: string;
   };
   specialty?: {
     id: string;
@@ -24,14 +26,27 @@ export interface BookingData {
     duration: number;
   };
   bookingNotes?: string;
+  bookingLocalDate?: string;
+  bookingLocalTime?: string;
+  bookingTimeZone?: string;
 }
 
 export interface CalendarEvent {
   id: string;
   title: string;
   time: string;
+  displayTime?: string;
+  dateKey?: string;
+  locationId?: string;
   type: "appointment" | "task" | "event";
-  status?: "confirmed" | "pending" | "cancelled";
+  status?:
+    | "pending"
+    | "needsattention"
+    | "confirmed"
+    | "inprogress"
+    | "completed"
+    | "cancelled"
+    | "noshow";
   color?: string;
   // Datos adicionales para appointments
   patientName?: string;
@@ -44,18 +59,45 @@ export interface CalendarEvent {
   notes?: string;
 }
 
+export function normalizeBookingStatus(status?: string): CalendarEvent["status"] {
+  switch ((status || "").toLowerCase()) {
+    case "pending":
+      return "pending";
+    case "needsattention":
+      return "needsattention";
+    case "confirmed":
+      return "confirmed";
+    case "inprogress":
+      return "inprogress";
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "noshow":
+      return "noshow";
+    default:
+      return undefined;
+  }
+}
+
 export function convertBookingsToEvents(
   bookings: BookingData[]
 ): CalendarEvent[] {
   return bookings.map((booking) => {
     const patientName = `${booking.firstname} ${booking.lastname}`;
     const eventTime = new Date(booking.bookingSchedule);
-    const timeString = eventTime.toLocaleTimeString("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: PST_TZ,
-    });
+    const officeTimeZone = resolveTimeZone(
+      booking.bookingTimeZone || booking.location?.timezone
+    );
+    const localStrings = formatBookingToLocalStrings(eventTime, officeTimeZone);
+    const timeString =
+      booking.bookingLocalTime ||
+      eventTime.toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: officeTimeZone,
+      });
 
     // Usar el nombre completo del paciente + hora como título
     const eventTitle = `${patientName} - ${timeString}`;
@@ -64,8 +106,11 @@ export function convertBookingsToEvents(
       id: booking.id,
       title: eventTitle,
       time: booking.bookingSchedule,
+      displayTime: timeString,
+      dateKey: booking.bookingLocalDate || localStrings.dateString,
+      locationId: booking.location?.id,
       type: "appointment" as const,
-      status: booking.status as "confirmed" | "pending" | "cancelled",
+      status: normalizeBookingStatus(booking.status),
       patientName,
       patientEmail: booking.email,
       patientPhone: booking.phone,
@@ -82,9 +127,9 @@ export function getEventsForDate(
   events: CalendarEvent[],
   date: Date
 ): CalendarEvent[] {
-  const dateKey = dateKeyInTZ(date);
+  const dateKey = format(date, "yyyy-MM-dd");
   return events.filter((event) => {
-    const eventDate = dateKeyInTZ(new Date(event.time));
+    const eventDate = event.dateKey || dateKeyInTZ(new Date(event.time));
     return eventDate === dateKey;
   });
 }
@@ -95,7 +140,8 @@ export function getEventsForMonth(
 ): CalendarEvent[] {
   const monthKey = format(date, "yyyy-MM");
   return events.filter((event) => {
-    const eventMonth = format(new Date(event.time), "yyyy-MM");
+    const eventMonth =
+      event.dateKey?.slice(0, 7) || format(new Date(event.time), "yyyy-MM");
     return eventMonth === monthKey;
   });
 }

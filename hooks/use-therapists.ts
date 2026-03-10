@@ -5,12 +5,24 @@ import { useCallback, useEffect, useState } from "react";
 import { API_ENDPOINTS } from "@/constants";
 import type { Therapist } from "@/types";
 
-export function useTherapists() {
+interface UseTherapistsOptions {
+  enabled?: boolean;
+}
+
+export function useTherapists(options: UseTherapistsOptions = {}) {
+  const { enabled = true } = options;
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTherapists = useCallback(async () => {
+    if (!enabled) {
+      setTherapists([]);
+      setError(null);
+      setLoading(false);
+      return [];
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -33,7 +45,7 @@ export function useTherapists() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     fetchTherapists();

@@ -1,36 +1,90 @@
-import { PST_TZ, dateKeyInTZ } from "@/lib/utils/timezone";
+import {
+  combineDateAndTimeToUtc,
+  dateKeyInTZ,
+  formatBookingToLocalStrings,
+  formatInTZ,
+  parseDateStringInTimeZone,
+  resolveTimeZone,
+} from "@/lib/utils/timezone";
 
 import { NextResponse } from "next/server";
-import { getDefaultTherapistId } from "@/lib/config/features";
+import { getCurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { resolveManagedTherapistIdForUser, resolveScopedCompanyId } from "@/services";
 
-function toPSTRange(date: Date) {
-  // Construir inicio/fin de día en PST y convertir a UTC para comparar con DB
-  const localeDate = new Date(date);
-  const y = localeDate.getUTCFullYear();
-  const m = localeDate.getUTCMonth();
-  const d = localeDate.getUTCDate();
-  const startPST = new Date(Date.UTC(y, m, d, 8, 0, 0, 0)); // 00:00 PST = 08:00 UTC
-  const endPST = new Date(Date.UTC(y, m, d, 8 + 23, 59, 59, 999));
-  return { start: startPST, end: endPST };
+type RangeKey = "last7" | "today" | "thisWeek" | "last30" | "all";
+
+function normalizeRange(value: string | null): RangeKey {
+  if (value === "today" || value === "thisWeek" || value === "last30" || value === "all") {
+    return value;
+  }
+  return "last7";
 }
 
-function monthRangePST(date: Date) {
-  // Primer y último día del mes en PST
-  const y = date.getUTCFullYear();
-  const m = date.getUTCMonth();
-  const first = new Date(Date.UTC(y, m, 1));
-  const last = new Date(Date.UTC(y, m + 1, 0));
-  const start = toPSTRange(first).start;
-  const end = toPSTRange(last).end;
+function addDaysToDateKey(dateKey: string, days: number, timeZone: string): string {
+  const date = parseDateStringInTimeZone(dateKey, timeZone);
+  date.setUTCDate(date.getUTCDate() + days);
+  return dateKeyInTZ(date, timeZone);
+}
+
+function toTimeZoneDayRange(dateKey: string, timeZone: string) {
+  const localDate = parseDateStringInTimeZone(dateKey, timeZone);
+  const start = combineDateAndTimeToUtc(localDate, "00:00", timeZone);
+  const end = combineDateAndTimeToUtc(localDate, "23:59", timeZone);
+  end.setUTCSeconds(59, 999);
   return { start, end };
+}
+
+function monthRangeInTimeZone(date: Date, timeZone: string) {
+  const monthKey = formatInTZ(date, "yyyy-MM", timeZone);
+  const [year, month] = monthKey.split("-").map(Number);
+  const startKey = `${monthKey}-01`;
+  const endKey = dateKeyInTZ(new Date(Date.UTC(year, month, 0, 12, 0, 0, 0)), timeZone);
+  const start = toTimeZoneDayRange(startKey, timeZone).start;
+  const end = toTimeZoneDayRange(endKey, timeZone).end;
+  return { start, end };
+}
+
+async function resolveDashboardTimeZone(
+  therapistId: string,
+  userId?: string | null,
+) {
+  const latestBookingWithLocation = await prisma.booking.findFirst({
+    where: { therapistId },
+    orderBy: { bookingSchedule: "desc" },
+    select: {
+      location: {
+        select: {
+          timezone: true,
+        },
+      },
+    },
+  });
+
+  if (latestBookingWithLocation?.location?.timezone) {
+    return latestBookingWithLocation.location.timezone;
+  }
+
+  const scopedCompanyId = await resolveScopedCompanyId(userId);
+  if (scopedCompanyId) {
+    const company = await prisma.company.findUnique({
+      where: { id: scopedCompanyId },
+      select: { defaultTimezone: true },
+    });
+    return resolveTimeZone(company?.defaultTimezone);
+  }
+
+  return resolveTimeZone(undefined);
 }
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+    const { prismaUser } = await getCurrentUser();
     const therapistId =
-      getDefaultTherapistId() || url.searchParams.get("therapistId") || "";
+      url.searchParams.get("therapistId") ||
+      (await resolveManagedTherapistIdForUser(prismaUser)) ||
+      "";
 
     if (!therapistId) {
       return NextResponse.json(
@@ -39,13 +93,51 @@ export async function GET(req: Request) {
       );
     }
 
-    // Rango opcional from/to (ISO), con normalización PST → rangos UTC
+    const dashboardTimeZone = await resolveDashboardTimeZone(
+      therapistId,
+      prismaUser?.id,
+    );
+    const requestedRange = normalizeRange(url.searchParams.get("range"));
     const fromParam = url.searchParams.get("from");
     const toParam = url.searchParams.get("to");
-    const todayRange = toPSTRange(new Date());
-    const rangeStart =
-      fromParam ? toPSTRange(new Date(fromParam)).start : undefined;
-    const rangeEnd = toParam ? toPSTRange(new Date(toParam)).end : undefined;
+
+    const todayKey = dateKeyInTZ(new Date(), dashboardTimeZone);
+    const todayRange = toTimeZoneDayRange(todayKey, dashboardTimeZone);
+
+    let rangeFromKey = todayKey;
+    let rangeToKey = todayKey;
+
+    if (fromParam && toParam) {
+      rangeFromKey = fromParam.slice(0, 10);
+      rangeToKey = toParam.slice(0, 10);
+    } else if (requestedRange === "today") {
+      rangeFromKey = todayKey;
+      rangeToKey = todayKey;
+    } else if (requestedRange === "thisWeek") {
+      const isoWeekDay = Number(formatInTZ(new Date(), "i", dashboardTimeZone));
+      rangeFromKey = addDaysToDateKey(todayKey, -(isoWeekDay - 1), dashboardTimeZone);
+      rangeToKey = todayKey;
+    } else if (requestedRange === "last30") {
+      rangeFromKey = addDaysToDateKey(todayKey, -29, dashboardTimeZone);
+      rangeToKey = todayKey;
+    } else if (requestedRange === "all") {
+      const allTimeBounds = await prisma.booking.aggregate({
+        where: { therapistId },
+        _min: { bookingSchedule: true },
+        _max: { bookingSchedule: true },
+      });
+
+      if (allTimeBounds._min.bookingSchedule && allTimeBounds._max.bookingSchedule) {
+        rangeFromKey = dateKeyInTZ(allTimeBounds._min.bookingSchedule, dashboardTimeZone);
+        rangeToKey = dateKeyInTZ(allTimeBounds._max.bookingSchedule, dashboardTimeZone);
+      }
+    } else {
+      rangeFromKey = addDaysToDateKey(todayKey, -6, dashboardTimeZone);
+      rangeToKey = todayKey;
+    }
+
+    const rangeStart = toTimeZoneDayRange(rangeFromKey, dashboardTimeZone).start;
+    const rangeEnd = toTimeZoneDayRange(rangeToKey, dashboardTimeZone).end;
 
     const [appointmentsToday, bookingsAll, recentPatientsAgg] =
       await Promise.all([
@@ -60,9 +152,7 @@ export async function GET(req: Request) {
         prisma.booking.findMany({
           where: {
             therapistId,
-            ...(rangeStart && rangeEnd ?
-              { bookingSchedule: { gte: rangeStart, lte: rangeEnd } }
-            : {}),
+            bookingSchedule: { gte: rangeStart, lte: rangeEnd },
           },
           include: { service: true, location: true, patient: true },
           orderBy: { bookingSchedule: "asc" },
@@ -96,34 +186,32 @@ export async function GET(req: Request) {
         ) / 60,
     };
 
-    const appointments = bookingsAll.slice(0, 10).map((b) => ({
-      id: b.id,
-      date: dateKeyInTZ(b.bookingSchedule as unknown as Date, PST_TZ),
-      time: new Intl.DateTimeFormat("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-        timeZone: PST_TZ,
-      }).format(b.bookingSchedule as unknown as Date),
-      name:
-        b.patient?.firstname ?
-          `${b.patient.firstname} ${b.patient.lastname ?? ""}`.trim()
-        : `${b.firstname} ${b.lastname}`.trim(),
-      service: b.service?.description,
-      location: b.location?.title,
-      status: b.status,
-    }));
+    const appointments = bookingsAll.slice(0, 10).map((b) => {
+      const officeTimeZone = resolveTimeZone(b.location?.timezone || dashboardTimeZone);
+      const local = formatBookingToLocalStrings(b.bookingSchedule, officeTimeZone);
+
+      return {
+        id: b.id,
+        bookingSchedule: b.bookingSchedule.toISOString(),
+        date: local.dateString,
+        time: local.timeString,
+        timeZone: officeTimeZone,
+        name:
+          b.patient?.firstname ?
+            `${b.patient.firstname} ${b.patient.lastname ?? ""}`.trim()
+          : `${b.firstname} ${b.lastname}`.trim(),
+        service: b.service?.description,
+        location: b.location?.title,
+        status: b.status,
+      };
+    });
 
     const upcoming = appointments[0] || null;
 
-    // Weekly overview (last 7 days or provided range)
-    const defaultStart = toPSTRange(
-      new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-    ).start;
-    const defaultEnd = toPSTRange(new Date()).end;
+    // Weekly/range overview aligned to the office timezone.
     const ws = {
-      start: rangeStart || defaultStart,
-      end: rangeEnd || defaultEnd,
+      start: rangeStart,
+      end: rangeEnd,
     };
 
     const weeklyBookings = await prisma.booking.findMany({
@@ -134,39 +222,31 @@ export async function GET(req: Request) {
       select: { bookingSchedule: true, status: true },
     });
 
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Los_Angeles",
-      weekday: "short",
-    });
-    const order: string[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const counts: Record<string, number> = Object.fromEntries(
-      order.map((d) => [d, 0])
-    );
-    for (const b of weeklyBookings) {
-      const key = formatter.format(b.bookingSchedule as unknown as Date);
-      if (counts[key] !== undefined) counts[key] += 1;
-    }
     // Build daily series for selected range
     const bookingsInRange = weeklyBookings;
     const dayFormatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/Los_Angeles",
+      timeZone: dashboardTimeZone,
       month: "2-digit",
       day: "2-digit",
     });
-    const countsByLabel: Record<string, number> = {};
-    const pendingByLabel: Record<string, number> = {};
-    const completedByLabel: Record<string, number> = {};
+    const countsByDateKey: Record<string, number> = {};
+    const pendingByDateKey: Record<string, number> = {};
+    const completedByDateKey: Record<string, number> = {};
     for (const b of bookingsInRange) {
-      const label = dayFormatter.format(b.bookingSchedule as unknown as Date);
-      countsByLabel[label] = (countsByLabel[label] || 0) + 1;
+      const dateKey = dateKeyInTZ(
+        b.bookingSchedule as unknown as Date,
+        dashboardTimeZone,
+      );
+      countsByDateKey[dateKey] = (countsByDateKey[dateKey] || 0) + 1;
       const status = (b.status || "").toLowerCase();
       if (status === "pending")
-        pendingByLabel[label] = (pendingByLabel[label] || 0) + 1;
+        pendingByDateKey[dateKey] = (pendingByDateKey[dateKey] || 0) + 1;
       if (status === "completed")
-        completedByLabel[label] = (completedByLabel[label] || 0) + 1;
+        completedByDateKey[dateKey] = (completedByDateKey[dateKey] || 0) + 1;
     }
     const daily: Array<{ day: string; value: number }> = [];
-    const isoForDay = (d: Date) => dateKeyInTZ(d as unknown as Date, PST_TZ);
+    const isoForDay = (d: Date) =>
+      dateKeyInTZ(d as unknown as Date, dashboardTimeZone);
     const seriesAppointmentsDaily: Array<{ date: string; value: number }> = [];
     const seriesPendingDaily: Array<{ date: string; value: number }> = [];
     const seriesCompletedDaily: Array<{ date: string; value: number }> = [];
@@ -176,16 +256,16 @@ export async function GET(req: Request) {
       d = new Date(d.getTime() + 24 * 60 * 60 * 1000)
     ) {
       const label = dayFormatter.format(d);
-      daily.push({ day: label, value: countsByLabel[label] || 0 });
       const iso = isoForDay(d);
+      daily.push({ day: label, value: countsByDateKey[iso] || 0 });
       seriesAppointmentsDaily.push({
         date: iso,
-        value: countsByLabel[label] || 0,
+        value: countsByDateKey[iso] || 0,
       });
-      seriesPendingDaily.push({ date: iso, value: pendingByLabel[label] || 0 });
+      seriesPendingDaily.push({ date: iso, value: pendingByDateKey[iso] || 0 });
       seriesCompletedDaily.push({
         date: iso,
-        value: completedByLabel[label] || 0,
+        value: completedByDateKey[iso] || 0,
       });
     }
     const weeklyOverview = daily;
@@ -291,7 +371,7 @@ export async function GET(req: Request) {
           name,
           lastAppointment:
             g._max.bookingSchedule ?
-              dateKeyInTZ(g._max.bookingSchedule as unknown as Date, PST_TZ)
+              dateKeyInTZ(g._max.bookingSchedule as unknown as Date, dashboardTimeZone)
             : null,
           code: user ? user.id.slice(0, 6) : email.split("@")[0].slice(0, 6),
         };
@@ -301,10 +381,7 @@ export async function GET(req: Request) {
     // Totales adicionales y usuarios vs mes anterior
     const totalAllTime = await prisma.booking.count({ where: { therapistId } });
     const now = new Date();
-    const currentMonth = monthRangePST(now);
-    const previousMonth = monthRangePST(
-      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
-    );
+    const currentMonth = monthRangeInTimeZone(now, dashboardTimeZone);
     const pendingThisMonth = await prisma.booking.count({
       where: {
         therapistId,
@@ -312,29 +389,32 @@ export async function GET(req: Request) {
         bookingSchedule: { gte: currentMonth.start, lte: currentMonth.end },
       },
     });
-    const usersAllTime = (
-      await prisma.booking.groupBy({
-        by: ["email"],
-        where: { therapistId },
-        _count: { email: true },
-      })
-    ).length;
-    const usersPrevMonth = (
+    const usersCurrentTotal = (
       await prisma.booking.groupBy({
         by: ["email"],
         where: {
           therapistId,
-          bookingSchedule: { gte: previousMonth.start, lte: previousMonth.end },
+          bookingSchedule: { lte: ws.end },
+        },
+        _count: { email: true },
+      })
+    ).length;
+    const usersPreviousTotal = (
+      await prisma.booking.groupBy({
+        by: ["email"],
+        where: {
+          therapistId,
+          bookingSchedule: { lte: prevEnd },
         },
         _count: { email: true },
       })
     ).length;
     const usersDeltaVsPrevMonth =
-      usersPrevMonth === 0 ?
-        usersAllTime > 0 ?
+      usersPreviousTotal === 0 ?
+        usersCurrentTotal > 0 ?
           100
         : 0
-      : Math.round(((usersAllTime - usersPrevMonth) / usersPrevMonth) * 1000) /
+      : Math.round(((usersCurrentTotal - usersPreviousTotal) / usersPreviousTotal) * 1000) /
         10;
 
     return NextResponse.json({
@@ -354,7 +434,7 @@ export async function GET(req: Request) {
           totals: { value: totalAllTime, deltaPercent: 0 },
           pendingThisMonth: { value: pendingThisMonth, deltaPercent: 0 },
           usersTotalVsPrevMonth: {
-            value: usersAllTime,
+            value: usersCurrentTotal,
             deltaPercent: usersDeltaVsPrevMonth,
           },
         },
@@ -362,6 +442,7 @@ export async function GET(req: Request) {
           from: ws.start.toISOString(),
           to: ws.end.toISOString(),
         },
+        timeZone: dashboardTimeZone,
         appointments,
         upcoming,
         weeklyOverview,

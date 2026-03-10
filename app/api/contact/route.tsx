@@ -4,8 +4,10 @@ import { errorResponse, successResponse } from "@/services/api-errors.service";
 
 import { ContactEmail } from "@/emails/contact-email";
 import { NextResponse } from "next/server";
-import { PROFESSIONAL_INFO } from "@/constants";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
+import { getDefaultEmailConfig } from "@/services/config.service";
 import { getServerLanguage } from "@/services/i18n.service";
+import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import {
   isValidEmailInput,
   isValidPhoneInput,
@@ -21,6 +23,17 @@ interface ContactFormData {
   phone?: string;
   services?: string;
   message: string;
+}
+
+function extractEmailAddress(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  const match = trimmed.match(/<([^>]+)>/);
+  const candidate = match?.[1] ?? trimmed;
+  return isValidEmailInput(candidate) ? candidate : undefined;
 }
 
 export async function POST(request: Request) {
@@ -65,28 +78,31 @@ export async function POST(request: Request) {
 
     // Determinar el idioma del email
     const emailLanguage = language;
+    const company = await getPublicCompanyProfile();
+    const emailDefaults = getDefaultEmailConfig();
+    const destinationEmail =
+      extractEmailAddress(company?.publicEmail || undefined) ||
+      extractEmailAddress(emailDefaults.replyTo) ||
+      extractEmailAddress(emailDefaults.from);
 
-    // Configuración del email basada en el idioma
-    const emailConfig = {
-      es: {
-        subject: "Nueva consulta de contacto - MyAlphaPulse",
-        from: "MyAlphaPulse <noreply@myalphapulse.com>",
-        to: [PROFESSIONAL_INFO.EMAIL], // Email de destino
-      },
-      en: {
-        subject: "New Contact Inquiry - MyAlphaPulse",
-        from: "MyAlphaPulse <noreply@myalphapulse.com>",
-        to: [PROFESSIONAL_INFO.EMAIL], // Email de destino
-      },
-    } as const;
+    if (!destinationEmail) {
+      throw new Error(
+        "Contact email destination is not configured. Set company publicEmail, BOOKING_REPLY_TO, or BOOKING_FROM_EMAIL.",
+      );
+    }
 
-    const config = emailConfig[emailLanguage];
+    const companyName = company?.name || "MyAlphaPulse";
+    const subject =
+      emailLanguage === "es"
+        ? `Nueva consulta de contacto - ${companyName}`
+        : `New contact inquiry - ${companyName}`;
 
     // Enviar email usando servicio genérico
     const data = await sendEmail({
-      from: config.from,
-      to: config.to,
-      subject: config.subject,
+      context: "contact.form_submission",
+      to: [destinationEmail],
+      subject,
+      replyTo: email,
       react: ContactEmail({
         name,
         email,
@@ -99,6 +115,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json(successResponse(data, "contact.submit.success"));
   } catch (error) {
+    if (isPublicSiteUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Public site unavailable" },
+        { status: 503 },
+      );
+    }
+
     console.error("Contact form error:", error);
     const { body, status } = errorResponse("internal_error", language, 500);
     return NextResponse.json(body, { status });

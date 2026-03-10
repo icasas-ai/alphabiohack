@@ -84,55 +84,57 @@ export function SpecialtySelector({ showValidation = false }: SpecialtySelectorP
             <p className="text-sm text-muted-foreground">{t('noServicesAvailable')}</p>
           </div>
         ) : (
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-4 md:grid-cols-3",
-              showValidation &&
-                data.selectedServiceIds.length === 0 &&
-                "[&>div]:border-red-500/70 [&>div]:ring-1 [&>div]:ring-red-500/20",
-            )}
-          >
-            {services.map((service) => (
-              <Card
-                key={service.id}
-                className={cn(
-                  "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
-                  data.selectedServiceIds[0] === service.id
-                    ? "interactive-selected ring-1 ring-primary/10"
-                    : "border-border/80 bg-card/70",
-                )}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('[role="checkbox"]')) {
-                    handleServiceToggle(service.id)
-                  }
-                }}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-foreground mb-1">{service.description}</h4>
-                      <div className="flex gap-2">
-                        {shouldShowPrices() ? (
-                          <Badge variant="info" className="text-sm">
-                            ${service.cost}
+          <div className="max-h-[26rem] overflow-y-auto px-1 py-2 md:max-h-[32rem]">
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-4 md:grid-cols-3",
+                showValidation &&
+                  data.selectedServiceIds.length === 0 &&
+                  "[&>div]:border-red-500/70 [&>div]:ring-1 [&>div]:ring-red-500/20",
+              )}
+            >
+              {services.map((service) => (
+                <Card
+                  key={service.id}
+                  className={cn(
+                    "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                    data.selectedServiceIds[0] === service.id
+                      ? "interactive-selected ring-1 ring-primary/10"
+                      : "border-border/80 bg-card/70",
+                  )}
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('[role="checkbox"]')) {
+                      handleServiceToggle(service.id)
+                    }
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-foreground mb-1">{service.description}</h4>
+                        <div className="flex gap-2">
+                          {shouldShowPrices() ? (
+                            <Badge variant="info" className="text-sm">
+                              ${service.cost}
+                            </Badge>
+                          ) : null}
+                          <Badge variant="outline" className="text-sm">
+                            {t('serviceDuration', { duration: service.duration })}
                           </Badge>
-                        ) : null}
-                        <Badge variant="outline" className="text-sm">
-                          {t('serviceDuration', { duration: service.duration })}
-                        </Badge>
+                        </div>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={data.selectedServiceIds[0] === service.id}
+                          onCheckedChange={() => handleServiceToggle(service.id)}
+                          className="ml-2"
+                        />
                       </div>
                     </div>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={data.selectedServiceIds[0] === service.id}
-                        onCheckedChange={() => handleServiceToggle(service.id)}
-                        className="ml-2"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
         {showValidation && data.selectedServiceIds.length === 0 ? (

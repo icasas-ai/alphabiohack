@@ -1,17 +1,10 @@
 import { ArrowRight, Globe, Mail } from "lucide-react"
 
-import { PLATFORM_INFO } from "@/constants"
+import { CONTACT_INFO, PLATFORM_INFO } from "@/constants"
 import { PublicBrandLogo } from "@/components/common/public-brand-logo"
 import Link from "next/link"
 import { Link as LocalizedLink } from "@/i18n/navigation"
-import { getSiteUrl } from "@/lib/config/site-url"
 import { getTranslations } from "next-intl/server"
-import { getDefaultEmailConfig } from "@/services/config.service"
-
-function extractEmailAddress(value: string) {
-  const match = value.match(/<([^>]+)>/)
-  return match?.[1] ?? value
-}
 
 export async function MedicalFooter() {
   const t = await getTranslations("Footer")
@@ -19,10 +12,9 @@ export async function MedicalFooter() {
   const brandName = PLATFORM_INFO.BRAND_NAME
   const footerLogo = PLATFORM_INFO.LOGO
   const platformSummary = t("description")
-  const siteUrl = getSiteUrl()
-  const siteHost = new URL(siteUrl).host
-  const supportEmail =
-    process.env.BOOKING_REPLY_TO || extractEmailAddress(getDefaultEmailConfig().from)
+  const siteUrl = CONTACT_INFO.WEBSITE
+  const siteHost = new URL(CONTACT_INFO.WEBSITE).host
+  const supportEmail = CONTACT_INFO.EMAIL
 
   return (
     <footer className="mt-16 border-t border-border/60 bg-[linear-gradient(180deg,oklch(var(--accent)/0.08)_0%,oklch(var(--background))_100%)]">

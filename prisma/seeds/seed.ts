@@ -1,6 +1,5 @@
 import {
   seedDefaultBookings,
-  seedDefaultBusinessHours,
   seedDefaultCompany,
   seedDefaultLocations,
   seedDefaultServices,
@@ -14,7 +13,6 @@ export async function main() {
   const users = await seedDefaultUsers(prisma);
   const company = await seedDefaultCompany(prisma, users);
   const locations = await seedDefaultLocations(prisma, company.id);
-  await seedDefaultBusinessHours(prisma, locations);
   const specialties = await seedDefaultSpecialties(prisma, company.id);
   const services = await seedDefaultServices(prisma, company.id, specialties);
   await seedDefaultBookings(prisma, { companyId: company.id, users, locations, services });

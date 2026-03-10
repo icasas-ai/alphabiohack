@@ -9,6 +9,7 @@ model Company {
   publicDescription         String?                  @db.Text
   publicSummary             String?                  @db.Text
   publicSpecialty           String?
+  landingPageConfig         String?                  @db.Text
   defaultTimezone           String                   @default("America/Los_Angeles")
   publicTherapistId         String?
   weekdaysHours             String?                  @default("9:00 AM - 6:00 PM")

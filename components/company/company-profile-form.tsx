@@ -1,9 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Loader2, Upload } from "lucide-react";
-import { useTranslations } from "next-intl";
+import {
+  AlertCircle,
+  Building2,
+  ChevronsUpDown,
+  Check,
+  Clock3,
+  FileText,
+  Globe2,
+  LayoutTemplate,
+  Loader2,
+  Upload,
+} from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 
+import { LandingPageBuilder } from "@/components/company/landing-page-builder";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -22,8 +34,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SurfaceCard } from "@/components/ui/surface-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppToast } from "@/hooks/use-app-toast";
+import {
+  normalizeLandingPageConfig,
+  normalizeLandingPageLocale,
+  type LandingPageConfig,
+} from "@/lib/company/landing-page-config";
 import { SUPPORTED_COMPANY_TIMEZONES } from "@/lib/constants/supported-timezones";
 import {
   isValidEmailInput,
@@ -31,7 +50,6 @@ import {
   isValidUrlInput,
   normalizeEmailInput,
   normalizePhoneInput,
-  normalizeSlugInput,
   normalizeUrlInput,
   normalizeWhitespace,
 } from "@/lib/validation/form-fields";
@@ -48,6 +66,7 @@ type CompanyProfile = {
   publicDescription: string;
   publicSummary: string;
   publicSpecialty: string;
+  landingPageConfig: LandingPageConfig;
   defaultTimezone: string;
   weekdaysHours: string;
   saturdayHours: string;
@@ -73,6 +92,7 @@ const EMPTY_COMPANY: CompanyProfile = {
   publicDescription: "",
   publicSummary: "",
   publicSpecialty: "",
+  landingPageConfig: normalizeLandingPageConfig(undefined),
   defaultTimezone: "America/Los_Angeles",
   weekdaysHours: "9:00 AM - 6:00 PM",
   saturdayHours: "9:00 AM - 2:00 PM",
@@ -98,6 +118,35 @@ type DayHoursState = {
 type CompanyProfileResponse = Partial<CompanyProfile> & {
   canEdit?: boolean | null;
 };
+
+type CompanySection = "brand" | "public" | "landing" | "contact" | "social";
+
+function getCompanyProfileSnapshot(profile: CompanyProfile) {
+  return JSON.stringify({
+    id: profile.id,
+    name: profile.name,
+    slug: profile.slug,
+    logo: profile.logo,
+    headerLogo: profile.headerLogo,
+    publicEmail: profile.publicEmail,
+    publicPhone: profile.publicPhone,
+    publicDescription: profile.publicDescription,
+    publicSummary: profile.publicSummary,
+    publicSpecialty: profile.publicSpecialty,
+    landingPageConfig: profile.landingPageConfig,
+    defaultTimezone: profile.defaultTimezone,
+    weekdaysHours: profile.weekdaysHours,
+    saturdayHours: profile.saturdayHours,
+    sundayHours: profile.sundayHours,
+    facebook: profile.facebook,
+    instagram: profile.instagram,
+    linkedin: profile.linkedin,
+    twitter: profile.twitter,
+    tiktok: profile.tiktok,
+    youtube: profile.youtube,
+    website: profile.website,
+  });
+}
 
 function padTwoDigits(value: number) {
   return value.toString().padStart(2, "0");
@@ -170,6 +219,7 @@ function normalizeCompanyProfile(
     publicDescription: data?.publicDescription ?? "",
     publicSummary: data?.publicSummary ?? "",
     publicSpecialty: data?.publicSpecialty ?? "",
+    landingPageConfig: normalizeLandingPageConfig(data?.landingPageConfig),
     defaultTimezone: data?.defaultTimezone ?? "America/Los_Angeles",
     weekdaysHours: data?.weekdaysHours ?? "9:00 AM - 6:00 PM",
     saturdayHours: data?.saturdayHours ?? "9:00 AM - 2:00 PM",
@@ -242,9 +292,12 @@ function HoursInputRow({
 }
 
 export function CompanyProfileForm() {
+  const locale = normalizeLandingPageLocale(useLocale());
   const t = useTranslations("CompanyProfile");
   const toast = useAppToast();
   const [formData, setFormData] = useState<CompanyProfile>(EMPTY_COMPANY);
+  const [savedSnapshot, setSavedSnapshot] = useState(getCompanyProfileSnapshot(EMPTY_COMPANY));
+  const [activeSection, setActiveSection] = useState<CompanySection>("brand");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -266,7 +319,9 @@ export function CompanyProfileForm() {
           throw new Error(data.error || t("loadError"));
         }
 
-        setFormData(normalizeCompanyProfile(data));
+        const normalizedProfile = normalizeCompanyProfile(data);
+        setFormData(normalizedProfile);
+        setSavedSnapshot(getCompanyProfileSnapshot(normalizedProfile));
       } catch (error) {
         toast.error(error instanceof Error ? error.message : t("loadError"));
       } finally {
@@ -290,28 +345,29 @@ export function CompanyProfileForm() {
   ) => {
     const { name, value } = e.target;
     const nextValue =
-      name === "slug"
-        ? normalizeSlugInput(value)
-        : name === "publicEmail"
-          ? normalizeEmailInput(value)
-          : name === "publicSummary" || name === "publicDescription"
-            ? value
+      name === "publicEmail"
+        ? normalizeEmailInput(value)
+        : name === "publicSummary" || name === "publicDescription"
+          ? value
           : [
-                "website",
-                "facebook",
-                "instagram",
-                "linkedin",
-                "twitter",
-                "tiktok",
-                "youtube",
-              ].includes(name)
+              "website",
+              "facebook",
+              "instagram",
+              "linkedin",
+              "twitter",
+              "tiktok",
+              "youtube",
+            ].includes(name)
             ? value.trim()
             : normalizeWhitespace(value);
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
   };
 
-  const handleFieldChange = (name: keyof CompanyProfile, value: string | boolean) => {
+  const handleFieldChange = <K extends keyof CompanyProfile>(
+    name: K,
+    value: CompanyProfile[K],
+  ) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -378,12 +434,12 @@ export function CompanyProfileForm() {
       const payload = {
         ...formData,
         name: normalizeWhitespace(formData.name),
-        slug: normalizeSlugInput(formData.slug),
         publicEmail: normalizeEmailInput(formData.publicEmail),
         publicPhone: normalizePhoneInput(formData.publicPhone),
         publicDescription: formData.publicDescription.trim(),
         publicSummary: formData.publicSummary.trim(),
         publicSpecialty: normalizeWhitespace(formData.publicSpecialty),
+        landingPageConfig: normalizeLandingPageConfig(formData.landingPageConfig),
         weekdaysHours: formData.weekdaysHours.trim(),
         saturdayHours: formData.saturdayHours.trim(),
         sundayHours: formData.sundayHours.trim(),
@@ -397,33 +453,31 @@ export function CompanyProfileForm() {
       };
 
       if (!payload.name) {
+        setActiveSection("brand");
         toast.error(t("saveError"));
         return;
       }
 
       if (payload.publicEmail && !isValidEmailInput(payload.publicEmail)) {
+        setActiveSection("contact");
         toast.error(t("saveError"));
         return;
       }
 
       if (payload.publicPhone && !isValidPhoneInput(payload.publicPhone)) {
+        setActiveSection("contact");
         toast.error(t("saveError"));
         return;
       }
 
-      for (const field of [
-        "website",
-        "facebook",
-        "instagram",
-        "linkedin",
-        "twitter",
-        "tiktok",
-        "youtube",
-      ] as const) {
-        if (payload[field] && !isValidUrlInput(payload[field])) {
-          toast.error(t("saveError"));
-          return;
-        }
+      const invalidUrlField = (
+        ["website", "facebook", "instagram", "linkedin", "twitter", "tiktok", "youtube"] as const
+      ).find((field) => payload[field] && !isValidUrlInput(payload[field]));
+
+      if (invalidUrlField) {
+        setActiveSection("social");
+        toast.error(t("saveError"));
+        return;
       }
 
       const response = await fetch("/api/company/profile", {
@@ -439,13 +493,13 @@ export function CompanyProfileForm() {
         throw new Error(data.error || t("saveError"));
       }
 
-      setFormData((prev) =>
-        normalizeCompanyProfile({
-          ...prev,
-          ...data,
-          canEdit: prev.canEdit,
-        }),
-      );
+      const nextProfile = normalizeCompanyProfile({
+        ...formData,
+        ...data,
+        canEdit: formData.canEdit,
+      });
+      setFormData(nextProfile);
+      setSavedSnapshot(getCompanyProfileSnapshot(nextProfile));
       setHasAttemptedSubmit(false);
       toast.success(t("saved"));
     } catch (error) {
@@ -481,274 +535,585 @@ export function CompanyProfileForm() {
     youtube: hasAttemptedSubmit && Boolean(formData.youtube.trim()) && !isValidUrlInput(formData.youtube),
   };
   const invalidName = hasAttemptedSubmit && !normalizeWhitespace(formData.name);
+  const hasPendingChanges = getCompanyProfileSnapshot(formData) !== savedSnapshot;
+  const sections = [
+    {
+      value: "brand" as const,
+      label: t("brandSection"),
+      description: t("brandSectionDescription"),
+      icon: Building2,
+    },
+    {
+      value: "public" as const,
+      label: t("publicSection"),
+      description: t("publicSectionDescription"),
+      icon: FileText,
+    },
+    {
+      value: "landing" as const,
+      label: t("landingSection"),
+      description: t("landingSectionDescription"),
+      icon: LayoutTemplate,
+    },
+    {
+      value: "contact" as const,
+      label: t("contactSection"),
+      description: t("contactSectionDescription"),
+      icon: Clock3,
+    },
+    {
+      value: "social" as const,
+      label: t("socialSection"),
+      description: t("socialSectionDescription"),
+      icon: Globe2,
+    },
+  ];
+  const currentSection =
+    sections.find((section) => section.value === activeSection) ?? sections[0];
+  const CurrentSectionIcon = currentSection.icon;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {!formData.canEdit ? (
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           {t("readOnlyNotice")}
         </div>
       ) : null}
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{t("brandSection")}</h2>
-          <p className="text-sm text-muted-foreground">{t("brandSectionDescription")}</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">{t("name")}</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={!formData.canEdit || saving} autoComplete="organization" maxLength={120} aria-invalid={invalidName} className={cn(invalidName && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="slug">{t("slug")}</Label>
-            <Input id="slug" name="slug" value={formData.slug} onChange={handleChange} disabled={!formData.canEdit || saving} spellCheck={false} autoCapitalize="none" maxLength={80} />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="logo">{t("logo")}</Label>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <Input
-              id="logo"
-              name="logo"
-              type="file"
-              accept="image/*"
-              onChange={handleLogoChange}
-              disabled={!formData.canEdit || saving}
-              className="max-w-sm"
-            />
-            {formData.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={formData.logo}
-                alt={formData.name || "Company logo"}
-                className="h-20 w-20 rounded-xl border object-cover"
-              />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed text-muted-foreground">
-                <Upload className="h-5 w-5" />
+      <Tabs
+        value={activeSection}
+        onValueChange={(value) => setActiveSection(value as CompanySection)}
+        className="gap-6"
+      >
+        <div className="space-y-4 lg:sticky lg:top-[calc(var(--visible-header-offset,0px)+1rem)] lg:z-20">
+          <SurfaceCard variant="glass" className="gap-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  {currentSection.label}
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                    <CurrentSectionIcon className="size-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-semibold">
+                      {formData.name || t("title")}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {currentSection.description}
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">{t("logoHint")}</p>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="headerLogo">{t("headerLogo")}</Label>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <Input
-              id="headerLogo"
-              name="headerLogo"
-              type="file"
-              accept="image/*"
-              onChange={handleHeaderLogoChange}
-              disabled={!formData.canEdit || saving}
-              className="max-w-sm"
-            />
-            {formData.headerLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={formData.headerLogo}
-                alt={formData.name || "Company header logo"}
-                className="h-16 w-40 rounded-xl border object-cover"
-              />
-            ) : (
-              <div className="flex h-16 min-w-40 items-center justify-center rounded-xl border border-dashed px-4 text-sm text-muted-foreground">
-                {formData.name || t("headerLogoFallback")}
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">{t("headerLogoHint")}</p>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{t("publicSection")}</h2>
-          <p className="text-sm text-muted-foreground">{t("publicSectionDescription")}</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="publicSpecialty">{t("publicSpecialty")}</Label>
-            <Input id="publicSpecialty" name="publicSpecialty" value={formData.publicSpecialty} onChange={handleChange} disabled={!formData.canEdit || saving} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="defaultTimezone">{t("defaultTimezone")}</Label>
-            <Popover
-              open={timeZoneOpen}
-              onOpenChange={setTimeZoneOpen}
-              modal
-            >
-              <PopoverTrigger asChild>
+              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                <div className="flex flex-wrap gap-2">
+                  {formData.defaultTimezone ? (
+                    <span className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {formData.defaultTimezone}
+                    </span>
+                  ) : null}
+                  {hasPendingChanges ? (
+                    <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-900 dark:text-amber-200">
+                      <AlertCircle className="size-3.5" />
+                      {t("pendingChangesBadge")}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-800 dark:text-emerald-200">
+                      {t("savedState")}
+                    </span>
+                  )}
+                </div>
                 <Button
-                  id="defaultTimezone"
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={timeZoneOpen}
-                  className="w-full justify-between font-normal"
-                  disabled={!formData.canEdit || saving}
+                  type="submit"
+                  disabled={!formData.canEdit || saving || !hasPendingChanges}
+                  className="min-w-[168px]"
                 >
-                  <span className="truncate text-left">
-                    {formData.defaultTimezone || t("timeZonePlaceholderShort")}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  {saving ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("saving")}
+                    </span>
+                  ) : (
+                    t("save")
+                  )}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[320px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder={t("timeZoneSearch")} />
-                  <CommandList>
-                    <ScrollArea className="h-72">
-                      <CommandEmpty>{t("timeZoneNotFound")}</CommandEmpty>
-                      <CommandGroup>
-                        {SUPPORTED_COMPANY_TIMEZONES.map((timezone) => (
-                          <CommandItem
-                            key={timezone}
-                            value={timezone}
-                            onSelect={() => {
-                              handleFieldChange("defaultTimezone", timezone);
-                              setTimeZoneOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.defaultTimezone === timezone ? "opacity-100" : "opacity-0",
-                              )}
-                            />
-                            <span className="truncate">{timezone}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </ScrollArea>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <p className="text-xs text-muted-foreground">{t("defaultTimezoneHint")}</p>
-          </div>
+              </div>
+            </div>
+            {hasPendingChanges ? (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+                <p className="font-medium">{t("pendingChangesTitle")}</p>
+                <p className="mt-1 text-amber-900/80 dark:text-amber-100/80">
+                  {t("pendingChangesDescription")}
+                </p>
+              </div>
+            ) : null}
+          </SurfaceCard>
+
+          <SurfaceCard variant="elevated" className="gap-0 p-2">
+            <TabsList
+              aria-label={t("title")}
+              className="grid h-auto w-full grid-cols-1 gap-2 rounded-[20px] border-0 bg-transparent p-0 shadow-none sm:grid-cols-2 xl:grid-cols-5"
+            >
+              {sections.map((section) => {
+                const SectionIcon = section.icon;
+
+                return (
+                  <TabsTrigger
+                    key={section.value}
+                    value={section.value}
+                    className="h-auto w-full flex-col items-start gap-2 rounded-[18px] border border-border/60 bg-background/60 px-4 py-3 text-left whitespace-normal"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-semibold">
+                      <SectionIcon className="size-4" />
+                      {section.label}
+                    </span>
+                    <span className="line-clamp-2 text-left text-xs font-normal opacity-80">
+                      {section.description}
+                    </span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </SurfaceCard>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="publicSummary">{t("publicSummary")}</Label>
-          <Textarea id="publicSummary" name="publicSummary" value={formData.publicSummary} onChange={handleChange} disabled={!formData.canEdit || saving} rows={4} maxLength={300} />
-        </div>
+        <TabsContent value="brand" className="mt-0">
+          <SurfaceCard variant="panel" className="gap-6 p-6 sm:p-8">
+            <section className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{t("brandSection")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("brandSectionDescription")}
+                </p>
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="publicDescription">{t("publicDescription")}</Label>
-          <Textarea id="publicDescription" name="publicDescription" value={formData.publicDescription} onChange={handleChange} disabled={!formData.canEdit || saving} rows={3} maxLength={1000} />
-          <p className="text-xs text-muted-foreground">{t("publicDescriptionHint")}</p>
-        </div>
-      </section>
+              <div className="max-w-xl space-y-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">{t("name")}</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoComplete="organization"
+                    maxLength={120}
+                    aria-invalid={invalidName}
+                    className={cn(invalidName && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+              </div>
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{t("contactSection")}</h2>
-          <p className="text-sm text-muted-foreground">{t("contactSectionDescription")}</p>
-        </div>
+              <div className="space-y-2">
+                <Label htmlFor="logo">{t("logo")}</Label>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                  <Input
+                    id="logo"
+                    name="logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoChange}
+                    disabled={!formData.canEdit || saving}
+                    className="max-w-sm"
+                  />
+                  {formData.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formData.logo}
+                      alt={formData.name || "Company logo"}
+                      className="h-20 w-20 rounded-xl border bg-background/90 object-contain p-2"
+                    />
+                  ) : (
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-dashed text-muted-foreground">
+                      <Upload className="h-5 w-5" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("logoHint")}</p>
+              </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="publicEmail">{t("publicEmail")}</Label>
-            <Input id="publicEmail" name="publicEmail" type="email" value={formData.publicEmail} onChange={handleChange} disabled={!formData.canEdit || saving} autoComplete="email" autoCapitalize="none" inputMode="email" spellCheck={false} aria-invalid={invalidPublicEmail} className={cn(invalidPublicEmail && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="publicPhone">{t("publicPhone")}</Label>
-            <PhoneInput
-              id="publicPhone"
-              name="publicPhone"
-              value={formData.publicPhone}
-              onChange={(value) => handleFieldChange("publicPhone", normalizePhoneInput(value || ""))}
-              defaultCountry="US"
-              international
+              <div className="space-y-2">
+                <Label htmlFor="headerLogo">{t("headerLogo")}</Label>
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                  <Input
+                    id="headerLogo"
+                    name="headerLogo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeaderLogoChange}
+                    disabled={!formData.canEdit || saving}
+                    className="max-w-sm"
+                  />
+                  {formData.headerLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formData.headerLogo}
+                      alt={formData.name || "Company header logo"}
+                      className="h-16 w-40 rounded-xl border bg-background/90 object-contain p-2"
+                    />
+                  ) : (
+                    <div className="flex h-16 min-w-40 items-center justify-center rounded-xl border border-dashed px-4 text-sm text-muted-foreground">
+                      {formData.name || t("headerLogoFallback")}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">{t("headerLogoHint")}</p>
+              </div>
+            </section>
+          </SurfaceCard>
+        </TabsContent>
+
+        <TabsContent value="public" className="mt-0">
+          <SurfaceCard variant="panel" className="gap-6 p-6 sm:p-8">
+            <section className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{t("publicSection")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("publicSectionDescription")}
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="publicSpecialty">{t("publicSpecialty")}</Label>
+                  <Input
+                    id="publicSpecialty"
+                    name="publicSpecialty"
+                    value={formData.publicSpecialty}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="defaultTimezone">{t("defaultTimezone")}</Label>
+                  <Popover open={timeZoneOpen} onOpenChange={setTimeZoneOpen} modal>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="defaultTimezone"
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={timeZoneOpen}
+                        className="w-full justify-between font-normal"
+                        disabled={!formData.canEdit || saving}
+                      >
+                        <span className="truncate text-left">
+                          {formData.defaultTimezone || t("timeZonePlaceholderShort")}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-[--radix-popover-trigger-width] min-w-[320px] p-0"
+                      align="start"
+                    >
+                      <Command>
+                        <CommandInput placeholder={t("timeZoneSearch")} />
+                        <CommandList>
+                          <ScrollArea className="h-72">
+                            <CommandEmpty>{t("timeZoneNotFound")}</CommandEmpty>
+                            <CommandGroup>
+                              {SUPPORTED_COMPANY_TIMEZONES.map((timezone) => (
+                                <CommandItem
+                                  key={timezone}
+                                  value={timezone}
+                                  onSelect={() => {
+                                    handleFieldChange("defaultTimezone", timezone);
+                                    setTimeZoneOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      formData.defaultTimezone === timezone
+                                        ? "opacity-100"
+                                        : "opacity-0",
+                                    )}
+                                  />
+                                  <span className="truncate">{timezone}</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </ScrollArea>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    {t("defaultTimezoneHint")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="publicSummary">{t("publicSummary")}</Label>
+                <Textarea
+                  id="publicSummary"
+                  name="publicSummary"
+                  value={formData.publicSummary}
+                  onChange={handleChange}
+                  disabled={!formData.canEdit || saving}
+                  rows={4}
+                  maxLength={300}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="publicDescription">{t("publicDescription")}</Label>
+                <Textarea
+                  id="publicDescription"
+                  name="publicDescription"
+                  value={formData.publicDescription}
+                  onChange={handleChange}
+                  disabled={!formData.canEdit || saving}
+                  rows={3}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("publicDescriptionHint")}
+                </p>
+              </div>
+            </section>
+          </SurfaceCard>
+        </TabsContent>
+
+        <TabsContent value="landing" className="mt-0">
+          <SurfaceCard variant="panel" className="gap-6 p-6 sm:p-8">
+            <LandingPageBuilder
+              value={formData.landingPageConfig}
+              onChange={(landingPageConfig) =>
+                handleFieldChange("landingPageConfig", landingPageConfig)
+              }
               disabled={!formData.canEdit || saving}
-              autoComplete="tel"
-              aria-invalid={invalidPublicPhone}
-              className={cn(invalidPublicPhone && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
+              locale={locale}
+              previewData={{
+                companyName: formData.name,
+                publicSpecialty: formData.publicSpecialty,
+                publicSummary: formData.publicSummary,
+                logo: formData.logo,
+              }}
             />
-          </div>
-        </div>
+          </SurfaceCard>
+        </TabsContent>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <HoursInputRow
-            label={t("weekdaysHours")}
-            value={formData.weekdaysHours}
-            disabled={!formData.canEdit || saving}
-            onChange={(value) => handleFieldChange("weekdaysHours", value)}
-            t={t}
-          />
-          <HoursInputRow
-            label={t("saturdayHours")}
-            value={formData.saturdayHours}
-            disabled={!formData.canEdit || saving}
-            onChange={(value) => handleFieldChange("saturdayHours", value)}
-            t={t}
-          />
-          <HoursInputRow
-            label={t("sundayHours")}
-            value={formData.sundayHours}
-            disabled={!formData.canEdit || saving}
-            onChange={(value) => handleFieldChange("sundayHours", value)}
-            t={t}
-          />
-        </div>
-      </section>
+        <TabsContent value="contact" className="mt-0">
+          <SurfaceCard variant="panel" className="gap-6 p-6 sm:p-8">
+            <section className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{t("contactSection")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("contactSectionDescription")}
+                </p>
+              </div>
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{t("socialSection")}</h2>
-          <p className="text-sm text-muted-foreground">{t("socialSectionDescription")}</p>
-        </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="publicEmail">{t("publicEmail")}</Label>
+                  <Input
+                    id="publicEmail"
+                    name="publicEmail"
+                    type="email"
+                    value={formData.publicEmail}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    inputMode="email"
+                    spellCheck={false}
+                    aria-invalid={invalidPublicEmail}
+                    className={cn(
+                      invalidPublicEmail && "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="publicPhone">{t("publicPhone")}</Label>
+                  <PhoneInput
+                    id="publicPhone"
+                    name="publicPhone"
+                    value={formData.publicPhone}
+                    onChange={(value) =>
+                      handleFieldChange("publicPhone", normalizePhoneInput(value || ""))
+                    }
+                    defaultCountry="US"
+                    international
+                    disabled={!formData.canEdit || saving}
+                    autoComplete="tel"
+                    aria-invalid={invalidPublicPhone}
+                    className={cn(
+                      invalidPublicPhone &&
+                        "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20",
+                    )}
+                  />
+                </div>
+              </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="website">{t("website")}</Label>
-            <Input id="website" name="website" type="url" value={formData.website} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://example.com" aria-invalid={invalidUrls.website} className={cn(invalidUrls.website && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="facebook">{t("facebook")}</Label>
-            <Input id="facebook" name="facebook" type="url" value={formData.facebook} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://facebook.com/..." aria-invalid={invalidUrls.facebook} className={cn(invalidUrls.facebook && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="instagram">{t("instagram")}</Label>
-            <Input id="instagram" name="instagram" type="url" value={formData.instagram} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://instagram.com/..." aria-invalid={invalidUrls.instagram} className={cn(invalidUrls.instagram && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="linkedin">{t("linkedin")}</Label>
-            <Input id="linkedin" name="linkedin" type="url" value={formData.linkedin} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://linkedin.com/..." aria-invalid={invalidUrls.linkedin} className={cn(invalidUrls.linkedin && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="twitter">{t("twitter")}</Label>
-            <Input id="twitter" name="twitter" type="url" value={formData.twitter} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://x.com/..." aria-invalid={invalidUrls.twitter} className={cn(invalidUrls.twitter && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tiktok">{t("tiktok")}</Label>
-            <Input id="tiktok" name="tiktok" type="url" value={formData.tiktok} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://tiktok.com/..." aria-invalid={invalidUrls.tiktok} className={cn(invalidUrls.tiktok && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="youtube">{t("youtube")}</Label>
-            <Input id="youtube" name="youtube" type="url" value={formData.youtube} onChange={handleChange} disabled={!formData.canEdit || saving} autoCapitalize="none" spellCheck={false} inputMode="url" placeholder="https://youtube.com/..." aria-invalid={invalidUrls.youtube} className={cn(invalidUrls.youtube && "border-red-500 ring-1 ring-red-500/20")} />
-          </div>
-        </div>
-      </section>
+              <div className="grid gap-6 md:grid-cols-3">
+                <HoursInputRow
+                  label={t("weekdaysHours")}
+                  value={formData.weekdaysHours}
+                  disabled={!formData.canEdit || saving}
+                  onChange={(value) => handleFieldChange("weekdaysHours", value)}
+                  t={t}
+                />
+                <HoursInputRow
+                  label={t("saturdayHours")}
+                  value={formData.saturdayHours}
+                  disabled={!formData.canEdit || saving}
+                  onChange={(value) => handleFieldChange("saturdayHours", value)}
+                  t={t}
+                />
+                <HoursInputRow
+                  label={t("sundayHours")}
+                  value={formData.sundayHours}
+                  disabled={!formData.canEdit || saving}
+                  onChange={(value) => handleFieldChange("sundayHours", value)}
+                  t={t}
+                />
+              </div>
+            </section>
+          </SurfaceCard>
+        </TabsContent>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={!formData.canEdit || saving}>
-          {saving ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {t("saving")}
-            </span>
-          ) : (
-            t("save")
-          )}
-        </Button>
-      </div>
+        <TabsContent value="social" className="mt-0">
+          <SurfaceCard variant="panel" className="gap-6 p-6 sm:p-8">
+            <section className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{t("socialSection")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {t("socialSectionDescription")}
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="website">{t("website")}</Label>
+                  <Input
+                    id="website"
+                    name="website"
+                    type="url"
+                    value={formData.website}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://example.com"
+                    aria-invalid={invalidUrls.website}
+                    className={cn(invalidUrls.website && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="facebook">{t("facebook")}</Label>
+                  <Input
+                    id="facebook"
+                    name="facebook"
+                    type="url"
+                    value={formData.facebook}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://facebook.com/..."
+                    aria-invalid={invalidUrls.facebook}
+                    className={cn(invalidUrls.facebook && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram">{t("instagram")}</Label>
+                  <Input
+                    id="instagram"
+                    name="instagram"
+                    type="url"
+                    value={formData.instagram}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://instagram.com/..."
+                    aria-invalid={invalidUrls.instagram}
+                    className={cn(
+                      invalidUrls.instagram && "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="linkedin">{t("linkedin")}</Label>
+                  <Input
+                    id="linkedin"
+                    name="linkedin"
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://linkedin.com/..."
+                    aria-invalid={invalidUrls.linkedin}
+                    className={cn(invalidUrls.linkedin && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="twitter">{t("twitter")}</Label>
+                  <Input
+                    id="twitter"
+                    name="twitter"
+                    type="url"
+                    value={formData.twitter}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://x.com/..."
+                    aria-invalid={invalidUrls.twitter}
+                    className={cn(invalidUrls.twitter && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tiktok">{t("tiktok")}</Label>
+                  <Input
+                    id="tiktok"
+                    name="tiktok"
+                    type="url"
+                    value={formData.tiktok}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://tiktok.com/..."
+                    aria-invalid={invalidUrls.tiktok}
+                    className={cn(invalidUrls.tiktok && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="youtube">{t("youtube")}</Label>
+                  <Input
+                    id="youtube"
+                    name="youtube"
+                    type="url"
+                    value={formData.youtube}
+                    onChange={handleChange}
+                    disabled={!formData.canEdit || saving}
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="url"
+                    placeholder="https://youtube.com/..."
+                    aria-invalid={invalidUrls.youtube}
+                    className={cn(invalidUrls.youtube && "border-red-500 ring-1 ring-red-500/20")}
+                  />
+                </div>
+              </div>
+            </section>
+          </SurfaceCard>
+        </TabsContent>
+      </Tabs>
     </form>
   );
 }

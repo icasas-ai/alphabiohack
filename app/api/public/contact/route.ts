@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPublicCompanyProfile } from "@/services/public-profile.service";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
 
 export async function GET() {
   try {
@@ -32,6 +33,13 @@ export async function GET() {
       website: company.website,
     });
   } catch (error) {
+    if (isPublicSiteUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Public site unavailable" },
+        { status: 503 }
+      );
+    }
+
     console.error("Error fetching contact info:", error);
     return NextResponse.json(
       { error: "Internal server error" },

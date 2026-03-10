@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isPublicSiteUnavailableError } from "@/services/company.service";
 import { getPublicProfile } from "@/services/public-profile.service";
 
 export async function GET() {
@@ -33,10 +34,19 @@ export async function GET() {
       },
     });
   } catch (error) {
+    if (isPublicSiteUnavailableError(error)) {
+      return NextResponse.json(
+        { success: false, error: "Public site unavailable" },
+        { status: 503 },
+      );
+    }
+
     console.error("Error fetching public therapist profile:", error);
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 },
+      { success: false, error: message },
+      { status: 500 }
     );
   }
 }

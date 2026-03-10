@@ -132,7 +132,6 @@ export const createLocation = async (data: CreateLocationData, companyId: string
         timezone,
       },
       {
-        businessHours: true,
         bookings: true,
       },
     );
@@ -147,13 +146,12 @@ export const createLocation = async (data: CreateLocationData, companyId: string
 export const getLocationById = async (id: string) => {
   try {
     const location = await findLocationByIdWithInclude(id, {
-        businessHours: true,
-        bookings: {
-          include: {
-            therapist: true,
-            patient: true,
-          },
+      bookings: {
+        include: {
+          therapist: true,
+          patient: true,
         },
+      },
     });
     return location;
   } catch (error) {
@@ -168,7 +166,6 @@ export const getAllLocations = async (companyId?: string) => {
     const locations = await findLocations(
       companyId ? { companyId } : undefined,
       {
-        businessHours: true,
         bookings: {
           include: {
             therapist: true,
@@ -201,7 +198,6 @@ export const searchLocationsByTitle = async (title: string, companyId?: string) 
         ],
       },
       {
-        businessHours: true,
         bookings: true,
       },
       { createdAt: "desc" },
@@ -229,7 +225,6 @@ export const searchLocationsByAddress = async (address: string, companyId?: stri
         ],
       },
       {
-        businessHours: true,
         bookings: true,
       },
       { createdAt: "desc" },
@@ -259,7 +254,6 @@ export const findNearbyLocations = async (
         ],
       },
       include: {
-        businessHours: true,
         bookings: true,
       },
     });
@@ -315,8 +309,7 @@ export const updateLocation = async (id: string, data: UpdateLocationData) => {
     }
 
     const location = await updateLocationRecord(id, payload, {
-        businessHours: true,
-        bookings: true,
+      bookings: true,
     });
     return location;
   } catch (error) {
@@ -328,34 +321,14 @@ export const updateLocation = async (id: string, data: UpdateLocationData) => {
 // Eliminar ubicación
 export const deleteLocation = async (id: string) => {
   try {
-    // Borrado en cascada manual para cumplir con FKs (Bookings no tiene onDelete: Cascade)
     const result = await prisma.$transaction(async (tx) => {
-      // 1) Eliminar bookings ligados a la ubicación
       await tx.booking.deleteMany({ where: { locationId: id } });
-
-      // 2) Eliminar la ubicación
-      //    BusinessHours, TimeSlots, DateOverrides y OverrideTimeSlots tienen onDelete: Cascade
-      //    y se eliminarán automáticamente al borrar Location
       const deletedLocation = await tx.location.delete({ where: { id } });
       return deletedLocation;
     });
     return result;
   } catch (error) {
     console.error("Error deleting location:", error);
-    throw error;
-  }
-};
-
-// Obtener horarios de atención de una ubicación
-export const getLocationBusinessHours = async (locationId: string) => {
-  try {
-    const businessHours = await prisma.businessHours.findMany({
-      where: { locationId },
-      orderBy: { dayOfWeek: "asc" },
-    });
-    return businessHours;
-  } catch (error) {
-    console.error("Error getting business hours:", error);
     throw error;
   }
 };

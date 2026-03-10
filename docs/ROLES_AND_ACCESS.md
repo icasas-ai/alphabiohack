@@ -185,10 +185,10 @@ These routes are guarded for `Therapist` and `Admin` only.
 | Endpoint | Method | Patient | FrontDesk | Therapist | Admin | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/api/personnel` | `GET` | No | No | Yes | Yes | Lists `FrontDesk` users for the managed therapist. |
-| `/api/personnel` | `POST` | No | No | Yes | Yes | Creates a `FrontDesk` user and sends invite email in local auth mode. |
+| `/api/personnel` | `POST` | No | No | Yes | Yes | Creates a `FrontDesk` user and sends a temporary-password invite email. |
 | `/api/personnel/[id]` | `PATCH` | No | No | Yes | Yes | Updates personnel record owned by managed therapist. |
 | `/api/personnel/[id]` | `DELETE` | No | No | Yes | Yes | Deletes personnel record owned by managed therapist. |
-| `/api/personnel/[id]/reset-password` | `POST` | No | No | Yes | Yes | Resends temp-password email in local auth mode. |
+| `/api/personnel/[id]/reset-password` | `POST` | No | No | Yes | Yes | Resends a temporary-password email. |
 
 Guarding files:
 
@@ -196,15 +196,15 @@ Guarding files:
 - [app/api/personnel/[id]/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/personnel/[id]/route.ts)
 - [app/api/personnel/[id]/reset-password/route.ts](/Users/davidguillen/Projects/david/alphabiohack/app/api/personnel/[id]/reset-password/route.ts)
 
-### Local Auth Support Routes
+### App Auth Support Routes
 
 These are auth flow routes, not business-role routes, but they matter for staff onboarding.
 
 | Endpoint | Method | Notes |
 | --- | --- | --- |
-| `/api/auth/local/login` | `POST` | Local auth sign-in. Returns `mustChangePassword` when applicable. |
-| `/api/auth/local/update-password` | `POST` | Used for forced first-login password change. |
-| `/api/auth/local/me` | `GET` | Returns current local-auth user/session state. |
+| `/api/auth/app/login` | `POST` | App auth sign-in. Returns `mustChangePassword` when applicable. |
+| `/api/auth/app/update-password` | `POST` | Used for forced first-login password change. |
+| `/api/auth/app/me` | `GET` | Returns current app-auth user/session state. |
 
 ## Public / Anonymous Access
 
@@ -219,7 +219,7 @@ Main public routes:
 
 Important:
 
-- `auth/sign-up` is no longer a public self-service path in the intended product flow
+- `auth/sign-up` is a public self-service path for patient accounts
 - the app now has a foundational `Company` + `CompanyMembership` model, but role enforcement is still mid-transition from global roles to company-scoped membership rules
 
 ## Current Caveats
@@ -247,16 +247,11 @@ Current linkage:
 
 This is enough for the current app, but the long-term production-ready model should move to explicit tenant membership and optional therapist/location assignments.
 
-### 3. Personnel Invite / Reset Is Local-Auth Only
+### 3. Personnel Invite / Reset Uses App-Managed Auth
 
-The personnel invite and temporary-password email flow is only implemented for local auth.
+The personnel invite and temporary-password email flow now uses the app-managed auth system.
 
-If Supabase auth is enabled:
-
-- personnel invite creation is blocked
-- personnel temp-password reset is blocked
-
-That limitation is intentional until a production-ready staff invite flow is implemented.
+That keeps staff onboarding inside the product, but the long-term production-ready direction should still move from reusable temporary passwords to expiring invite/reset links.
 
 ### 4. Some Generic Routes Are Broader Than The UI
 

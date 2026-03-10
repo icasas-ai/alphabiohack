@@ -1,11 +1,6 @@
 #!/bin/sh
 set -eu
 
-if [ -f ./.env.production ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . ./.env.production
-  set +a
-fi
+. ./scripts/load-env.sh ./.env.production
 
 exec npx tsx prisma/seeds/production.ts

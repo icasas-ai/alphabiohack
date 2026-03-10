@@ -14,12 +14,14 @@
     "test:unit:watch": "vitest --project unit",
     "db:seed": "sh ./scripts/seed-local.sh",
     "db:seed:prod": "sh ./scripts/seed-production.sh",
-    "db:reset": "sh ./scripts/prisma-local.sh migrate reset --force && npm run db:seed",
+    "db:seed:demo": "sh ./scripts/seed-demo.sh",
+    "db:reset": "sh ./scripts/db-reset.sh",
     "prisma:local": "sh ./scripts/prisma-local.sh",
     "db:migrate:deploy": "sh ./scripts/prisma-local.sh migrate deploy",
     "db:migrate:status": "sh ./scripts/prisma-local.sh migrate status",
     "db:generate": "sh ./scripts/prisma-local.sh generate",
-    "db:studio": "sh ./scripts/prisma-local.sh studio"
+    "db:studio": "sh ./scripts/prisma-local.sh studio",
+    "db:seed:e2e": "sh ./scripts/seed-e2e.sh"
   },
   "dependencies": {
     "@csstools/postcss-oklab-function": "^4.0.11",

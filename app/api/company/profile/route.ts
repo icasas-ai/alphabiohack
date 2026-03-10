@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { canOperateAppointments } from "@/lib/auth/authorization";
+import {
+  normalizeLandingPageConfig,
+  parseLandingPageConfig,
+  serializeLandingPageConfig,
+} from "@/lib/company/landing-page-config";
 import { getCurrentUser } from "@/lib/auth/session";
 import { isSupportedCompanyTimezone } from "@/lib/constants/supported-timezones";
 import { prisma } from "@/lib/prisma";
 import {
   isValidEmailInput,
   isValidPhoneInput,
-  isValidSlugInput,
   isValidUrlInput,
   normalizeEmailInput,
   normalizePhoneInput,
-  normalizeSlugInput,
   normalizeUrlInput,
   normalizeWhitespace,
 } from "@/lib/validation/form-fields";
@@ -28,6 +31,7 @@ const companyProfileSelect = {
   publicDescription: true,
   publicSummary: true,
   publicSpecialty: true,
+  landingPageConfig: true,
   defaultTimezone: true,
   weekdaysHours: true,
   saturdayHours: true,
@@ -75,6 +79,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...company,
+      landingPageConfig: parseLandingPageConfig(company.landingPageConfig),
       canEdit: canOperateAppointments(prismaUser),
     });
   } catch (error) {
@@ -104,7 +109,6 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const normalizedName = normalizeWhitespace(body.name);
-    const normalizedSlug = normalizeSlugInput(body.slug);
     const normalizedPublicEmail = normalizeEmailInput(body.publicEmail);
     const normalizedPublicPhone = normalizePhoneInput(body.publicPhone);
     const normalizedUrls = {
@@ -117,8 +121,8 @@ export async function PUT(request: NextRequest) {
       website: normalizeUrlInput(body.website),
     };
 
-    if (!normalizedName || !normalizedSlug || !isValidSlugInput(normalizedSlug)) {
-      return NextResponse.json({ error: "Company name and slug are required." }, { status: 400 });
+    if (!normalizedName) {
+      return NextResponse.json({ error: "Company name is required." }, { status: 400 });
     }
 
     if (
@@ -149,7 +153,6 @@ export async function PUT(request: NextRequest) {
       where: { id: companyId },
       data: {
         name: normalizedName,
-        slug: normalizedSlug,
         logo: body.logo?.trim() || null,
         headerLogo: body.headerLogo?.trim() || null,
         publicEmail: normalizedPublicEmail || null,
@@ -157,6 +160,9 @@ export async function PUT(request: NextRequest) {
         publicDescription: body.publicDescription?.trim() || null,
         publicSummary: body.publicSummary?.trim() || null,
         publicSpecialty: normalizeWhitespace(body.publicSpecialty) || null,
+        landingPageConfig: serializeLandingPageConfig(
+          normalizeLandingPageConfig(body.landingPageConfig),
+        ),
         defaultTimezone: body.defaultTimezone?.trim() || undefined,
         weekdaysHours: body.weekdaysHours?.trim() || null,
         saturdayHours: body.saturdayHours?.trim() || null,
@@ -172,7 +178,10 @@ export async function PUT(request: NextRequest) {
       select: companyProfileSelect,
     });
 
-    return NextResponse.json(updatedCompany);
+    return NextResponse.json({
+      ...updatedCompany,
+      landingPageConfig: parseLandingPageConfig(updatedCompany.landingPageConfig),
+    });
   } catch (error) {
     console.error("Error updating company profile:", error);
     return NextResponse.json(

@@ -6,9 +6,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useBookingWizard } from "@/contexts"
-import { useTherapistConfig, useTherapists } from "@/hooks"
+import { useTherapists } from "@/hooks"
 import { Stethoscope, User } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isSingleTherapistModeEnabled } from "@/lib/config/features"
 import { useCallback } from "react"
 import { useTranslations } from "next-intl"
 
@@ -18,7 +19,7 @@ interface TherapistSelectorProps {
 
 export function TherapistSelector({ showValidation = false }: TherapistSelectorProps) {
   const { data, update } = useBookingWizard()
-  const { isSingleTherapistMode } = useTherapistConfig()
+  const isSingleTherapistMode = isSingleTherapistModeEnabled()
   const { therapists, loading, error } = useTherapists({
     enabled: !isSingleTherapistMode,
   })

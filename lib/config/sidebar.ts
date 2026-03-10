@@ -1,12 +1,9 @@
 import {
-  BarChart3,
   BookOpen,
-  Clock,
   Cog,
   LayoutDashboard,
   LucideIcon,
   User,
-  Users,
   Monitor,
 } from "lucide-react";
 
@@ -21,16 +18,9 @@ export interface SidebarNavItem {
   }>;
 }
 
-export interface SidebarProject {
-  name: string;
-  url: string;
-  icon: LucideIcon;
-}
-
 export interface SidebarConfig {
   navMain: SidebarNavItem[];
   navSecondary: SidebarNavItem[];
-  projects: SidebarProject[];
 }
 
 export type SidebarRoleMode = "therapist" | "frontDesk" | "patient";
@@ -117,35 +107,6 @@ export const getSidebarConfig = (
     },
   ];
 
-  // Proyectos específicos por rol
-  const therapistProjects: SidebarProject[] = [
-    {
-      name: t("myStats"),
-      url: "/",
-      icon: BarChart3,
-    },
-    {
-      name: t("myPatients"),
-      url: "/",
-      icon: Users,
-    },
-  ];
-
-  const frontDeskProjects: SidebarProject[] = [];
-
-  const regularUserProjects: SidebarProject[] = [
-    {
-      name: t("myHistory"),
-      url: "/",
-      icon: Clock,
-    },
-    {
-      name: t("favorites"),
-      url: "/",
-      icon: BookOpen,
-    },
-  ];
-
   return {
     navMain:
       roleMode === "therapist"
@@ -165,11 +126,5 @@ export const getSidebarConfig = (
         icon: Monitor,
       },
     ],
-    projects:
-      roleMode === "therapist"
-        ? therapistProjects
-        : roleMode === "frontDesk"
-          ? frontDeskProjects
-          : regularUserProjects,
   };
 };

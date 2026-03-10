@@ -2,12 +2,14 @@ import { UserRole } from "@/lib/prisma-client";
 
 import {
   findCompanyWithSelect,
-  findFirstTherapistWithSelect,
-  findFirstUserWithSelect,
   findLocationsWithSelect,
   findUserByIdWithSelect,
 } from "@/repositories";
-import { getPublicCompany, getPublicTherapistForCompany } from "@/services/company.service";
+import {
+  PublicSiteUnavailableError,
+  getPublicCompany,
+  getPublicTherapistForCompany,
+} from "@/services/company.service";
 
 export const publicProfileSelect = {
   id: true,
@@ -40,6 +42,7 @@ export const publicCompanySelect = {
   publicDescription: true,
   publicSummary: true,
   publicSpecialty: true,
+  landingPageConfig: true,
   defaultTimezone: true,
   weekdaysHours: true,
   saturdayHours: true,
@@ -56,17 +59,11 @@ export const publicCompanySelect = {
 
 export async function getPublicCompanyProfile() {
   const company = await getPublicCompany();
-
-  if (!company) {
-    return null;
-  }
-
   return findCompanyWithSelect(company.id, publicCompanySelect);
 }
 
 export async function getPublicCompanyLocations() {
   const company = await getPublicCompany();
-  if (!company) return [];
 
   return findLocationsWithSelect(
     {
@@ -85,22 +82,24 @@ export async function getPublicCompanyLocations() {
 export async function getPublicProfile() {
   const company = await getPublicCompany();
 
-  if (company) {
-    const publicTherapist = await getPublicTherapistForCompany(
-      company.id,
-      company.publicTherapistId,
+  if (!company.publicTherapistId) {
+    throw new PublicSiteUnavailableError(
+      "missing_public_therapist",
+      `Configured public company "${company.slug}" is missing publicTherapistId.`,
     );
-
-    if (publicTherapist && publicTherapist.role?.includes?.(UserRole.Therapist)) {
-      return findUserByIdWithSelect(publicTherapist.id, publicProfileSelect);
-    }
   }
 
-  const firstTherapist = await findFirstTherapistWithSelect(publicProfileSelect);
+  const publicTherapist = await getPublicTherapistForCompany(
+    company.id,
+    company.publicTherapistId,
+  );
 
-  if (firstTherapist) {
-    return firstTherapist;
+  if (!publicTherapist || !publicTherapist.role?.includes?.(UserRole.Therapist)) {
+    throw new PublicSiteUnavailableError(
+      "invalid_public_therapist",
+      `Configured public therapist "${company.publicTherapistId}" is invalid for company "${company.slug}".`,
+    );
   }
 
-  return findFirstUserWithSelect(publicProfileSelect);
+  return findUserByIdWithSelect(publicTherapist.id, publicProfileSelect);
 }

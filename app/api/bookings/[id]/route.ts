@@ -32,7 +32,9 @@ async function canAccessBooking(bookingId: string) {
     prismaUser,
     booking.therapistId
   );
-  const isPatientOwner = prismaUser.email.toLowerCase() === booking.email.toLowerCase();
+  const isPatientOwner = booking.patientId
+    ? prismaUser.id === booking.patientId
+    : prismaUser.email.toLowerCase() === booking.email.toLowerCase();
 
   return {
     prismaUser,

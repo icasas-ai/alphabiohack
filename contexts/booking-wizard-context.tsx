@@ -4,8 +4,9 @@ import { BookingStatus, BookingType } from "@/lib/prisma-browser";
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { usePublicTherapist, useTherapistConfig } from "@/hooks";
+import { usePublicTherapist } from "@/hooks";
 import type { Therapist } from "@/types";
+import { isSingleTherapistModeEnabled } from "@/lib/config/features";
 import {
   isValidEmailInput,
   isValidPhoneInput,
@@ -46,7 +47,7 @@ export interface BookingFormData {
   patientId?: string;
   
   // Booking creado
-  createdBooking: any | null;
+  createdBooking: unknown | null;
 }
 
 // Tipo para el contexto
@@ -93,7 +94,7 @@ const BookingWizardContext = createContext<BookingWizardContextType | undefined>
 export function BookingWizardProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<BookingFormData>(defaultFormData);
   const t = useTranslations('Booking.Validation');
-  const { getTherapistIdForBooking, isSingleTherapistMode } = useTherapistConfig();
+  const isSingleTherapistMode = isSingleTherapistModeEnabled();
   const {
     therapist: publicTherapist,
     loading: publicTherapistLoading,
@@ -103,7 +104,7 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
   const initializedLocationFromQuery = useRef(false);
 
   useEffect(() => {
-    const defaultTherapistId = publicTherapist?.id || getTherapistIdForBooking();
+    const defaultTherapistId = publicTherapist?.id;
     if (isSingleTherapistMode && defaultTherapistId) {
       setData((prev) => {
         const shouldKeepCurrentTherapistId = Boolean(prev.therapistId);
@@ -128,8 +129,8 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
     }
   }, [
     data.therapistId,
-    getTherapistIdForBooking,
     isSingleTherapistMode,
+    publicTherapist,
     publicTherapist?.id,
   ]);
 
@@ -171,10 +172,10 @@ export function BookingWizardProvider({ children }: { children: ReactNode }) {
       // Si no se especifica therapistId y estamos en modo terapeuta único, usar el por defecto
       ...(updates.therapistId === undefined &&
         isSingleTherapistMode && {
-          therapistId: prev.therapistId || publicTherapist?.id || getTherapistIdForBooking()
+          therapistId: prev.therapistId || publicTherapist?.id
         })
     }));
-  }, [getTherapistIdForBooking, isSingleTherapistMode, publicTherapist?.id]);
+  }, [isSingleTherapistMode, publicTherapist?.id]);
 
   const reset = useCallback(() => {
     setData(defaultFormData);

@@ -1,10 +1,8 @@
 import {
   BadgeCheck,
-  Bell,
-  CreditCard,
+  CalendarPlus,
   LogOut,
   LucideIcon,
-  Sparkles,
 } from "lucide-react";
 
 export interface NavUserMenuItem {
@@ -16,8 +14,7 @@ export interface NavUserMenuItem {
 }
 
 export interface NavUserConfig {
-  upgradeItem: NavUserMenuItem;
-  accountItems: NavUserMenuItem[];
+  items: NavUserMenuItem[];
   logoutItem: NavUserMenuItem;
 }
 
@@ -26,26 +23,16 @@ export const getNavUserConfig = (
   logoutAction: () => void
 ): NavUserConfig => {
   return {
-    upgradeItem: {
-      label: t("upgradeToPro"),
-      icon: Sparkles,
-      url: "/upgrade",
-    },
-    accountItems: [
+    items: [
       {
         label: t("profile"),
         icon: BadgeCheck,
         url: "/profile",
       },
       {
-        label: t("billing"),
-        icon: CreditCard,
-        url: "/billing",
-      },
-      {
-        label: t("notifications"),
-        icon: Bell,
-        url: "/notifications",
+        label: t("newBooking"),
+        icon: CalendarPlus,
+        url: "/booking",
       },
     ],
     logoutItem: {

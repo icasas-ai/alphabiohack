@@ -29,7 +29,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { hasSupabaseAuth } from "@/lib/auth/config";
+import { hasSupabaseStorage } from "@/lib/auth/config";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -464,7 +464,7 @@ export function LocationForm({
                   </Button>
                 </div>
               </div>
-            ) : hasSupabaseAuth ? (
+            ) : hasSupabaseStorage ? (
               <div className="space-y-2">
                 <Dropzone {...logoUpload}>
                   <DropzoneEmptyState />
@@ -474,7 +474,7 @@ export function LocationForm({
               </div>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                {t("localUploadUnavailable")}
+                {t("storageUploadUnavailable")}
               </div>
             )}
 

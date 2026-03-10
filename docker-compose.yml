@@ -1,10 +1,10 @@
 services:
   db:
     image: postgres:16
-    container_name: alphabiohack-db
+    container_name: myalphapulse-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: alphabiohack
+      POSTGRES_DB: myalphapulse
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -12,14 +12,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d alphabiohack"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d myalphapulse"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   mailpit:
     image: axllent/mailpit:v1.26
-    container_name: alphabiohack-mailpit
+    container_name: myalphapulse-mailpit
     restart: unless-stopped
     ports:
       - "1025:1025"
@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: alphabiohack-app
+    container_name: myalphapulse-app
     depends_on:
       db:
         condition: service_healthy
@@ -38,14 +38,18 @@ services:
     env_file:
       - .env.local
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/alphabiohack?schema=public
-      DIRECT_URL: postgresql://postgres:postgres@db:5432/alphabiohack?schema=public
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: myalphapulse
+      DB_QUERY: schema=public
       EMAIL_PROVIDER: smtp
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       HOSTNAME: 0.0.0.0
     ports:
-      - "3000:3000"
+      - "9001:9001"
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules

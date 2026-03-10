@@ -5,7 +5,11 @@ import {
   CalendarIcon,
   CalendarRange,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
+  Info,
+  MapPin,
   Plus,
   Trash2,
   UserRound,
@@ -14,6 +18,17 @@ import {
 
 import { API_ENDPOINTS } from "@/constants";
 import { AvailabilityMonthSummaryBadges } from "@/components/availability/availability-month-summary-badges";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,12 +38,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useLocations } from "@/hooks";
 import { useUser } from "@/contexts";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 interface TimeRangeState {
   startTime: string;
@@ -98,6 +121,7 @@ interface PeriodFormState {
 
 const todayKey = new Date().toISOString().slice(0, 10);
 const currentMonthKey = todayKey.slice(0, 7);
+const REVIEW_DAYS_PER_PAGE = 10;
 
 const createEmptyTimeRange = (): TimeRangeState => ({
   startTime: "09:00",
@@ -177,8 +201,133 @@ function cloneDay(day: AvailabilityDayState): AvailabilityDayState {
   };
 }
 
+function timeToMinutes(time: string) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function getTimeRangeValidation(timeRanges: TimeRangeState[]) {
+  const invalidOrderIndexes = new Set<number>();
+  const overlappingIndexes = new Set<number>();
+
+  const normalized = timeRanges
+    .map((range, index) => ({
+      index,
+      startTime: range.startTime,
+      endTime: range.endTime,
+      isActive: range.isActive,
+    }))
+    .filter((range) => range.isActive !== false && range.startTime && range.endTime)
+    .map((range) => ({
+      ...range,
+      startMinutes: timeToMinutes(range.startTime),
+      endMinutes: timeToMinutes(range.endTime),
+    }))
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+
+  for (const range of normalized) {
+    if (range.endMinutes <= range.startMinutes) {
+      invalidOrderIndexes.add(range.index);
+    }
+  }
+
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = normalized[index - 1];
+    const current = normalized[index];
+
+    if (
+      !invalidOrderIndexes.has(previous.index) &&
+      !invalidOrderIndexes.has(current.index) &&
+      current.startMinutes < previous.endMinutes
+    ) {
+      overlappingIndexes.add(previous.index);
+      overlappingIndexes.add(current.index);
+    }
+  }
+
+  return {
+    invalidOrderIndexes,
+    overlappingIndexes,
+    hasInvalidOrder: invalidOrderIndexes.size > 0,
+    hasOverlap: overlappingIndexes.size > 0,
+    hasErrors: invalidOrderIndexes.size > 0 || overlappingIndexes.size > 0,
+  };
+}
+
+function InfoHint({
+  label,
+  content,
+}: {
+  label: string;
+  content: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="rounded-full text-muted-foreground transition hover:text-foreground"
+          aria-label={`${label} information`}
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-72 text-sm">{content}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function AvailabilityPeriodsSkeleton() {
+  return (
+    <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="rounded-lg border bg-background">
+        <div className="space-y-2 border-b px-4 py-3">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-44" />
+        </div>
+        <div className="space-y-2 p-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={`period-skeleton-${index}`} className="space-y-2 rounded-lg border px-4 py-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-6 w-20 rounded-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-28 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-lg border bg-background p-4">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-1/2" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-28 rounded-full" />
+          <Skeleton className="h-6 w-32 rounded-full" />
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={`day-skeleton-${index}`} className="space-y-2 rounded-lg border px-3 py-3">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AvailabilityPage() {
   const t = useTranslations("Availability");
+  const tc = useTranslations("Common");
   const toast = useAppToast();
   const { prismaUser, loading: userLoading } = useUser();
   const { locations, loading: locationsLoading, error: locationsError } = useLocations();
@@ -198,6 +347,9 @@ export function AvailabilityPage() {
   const [restoringExcludedDateId, setRestoringExcludedDateId] = useState<string | null>(null);
   const [selectedReviewPeriodId, setSelectedReviewPeriodId] = useState<string | null>(null);
   const [selectedReviewDayId, setSelectedReviewDayId] = useState<string | null>(null);
+  const [reviewDaysPage, setReviewDaysPage] = useState(1);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [periodIdToDelete, setPeriodIdToDelete] = useState<string | null>(null);
 
   const activeTherapistId = prismaUser?.id ?? null;
 
@@ -407,6 +559,16 @@ export function AvailabilityPage() {
       return;
     }
 
+    if (formTimeRangeValidation.hasInvalidOrder) {
+      toast.error(t("invalidTimeSlot"));
+      return;
+    }
+
+    if (formTimeRangeValidation.hasOverlap) {
+      toast.error(t("timeRangeOverlap"));
+      return;
+    }
+
     try {
       setSavingPeriod(true);
 
@@ -445,14 +607,16 @@ export function AvailabilityPage() {
     }
   };
 
-  const handleDeletePeriod = async (periodId: string) => {
-    if (!window.confirm(t("confirmDeletePeriod"))) {
-      return;
-    }
+  const handleDeletePeriod = (periodId: string) => {
+    setPeriodIdToDelete(periodId);
+    setDeleteDialogOpen(true);
+  };
 
+  const confirmDeletePeriod = async () => {
+    if (!periodIdToDelete) return;
     try {
-      setDeletingPeriodId(periodId);
-      const response = await fetch(API_ENDPOINTS.AVAILABILITY.PERIOD_BY_ID(periodId), {
+      setDeletingPeriodId(periodIdToDelete);
+      const response = await fetch(API_ENDPOINTS.AVAILABILITY.PERIOD_BY_ID(periodIdToDelete), {
         method: "DELETE",
       });
       const result = await response.json();
@@ -467,6 +631,8 @@ export function AvailabilityPage() {
       toast.error(error instanceof Error ? error.message : t("errorLoadingAvailability"));
     } finally {
       setDeletingPeriodId(null);
+      setDeleteDialogOpen(false);
+      setPeriodIdToDelete(null);
     }
   };
 
@@ -474,6 +640,17 @@ export function AvailabilityPage() {
     const day = editDays[dayId];
 
     if (!day) return;
+
+    const dayTimeRangeValidation = getTimeRangeValidation(day.timeRanges);
+    if (dayTimeRangeValidation.hasInvalidOrder) {
+      toast.error(t("invalidTimeSlot"));
+      return;
+    }
+
+    if (dayTimeRangeValidation.hasOverlap) {
+      toast.error(t("timeRangeOverlap"));
+      return;
+    }
 
     try {
       setSavingDayId(dayId);
@@ -545,6 +722,10 @@ export function AvailabilityPage() {
     return buildDefaultPeriodTitle(selectedLocation.title, form.startDate, form.endDate);
   }, [form.endDate, form.startDate, selectedLocation, t]);
   const createMonthKey = form.startDate ? form.startDate.slice(0, 7) : selectedMonth;
+  const formTimeRangeValidation = useMemo(
+    () => getTimeRangeValidation(form.timeRanges),
+    [form.timeRanges],
+  );
   const createMonthOpenDays = useMemo(() => {
     const openDates = new Set<string>();
 
@@ -579,19 +760,40 @@ export function AvailabilityPage() {
       reviewPeriods[0]
     );
   }, [reviewPeriods, selectedReviewPeriodId]);
+  const selectedReviewPeriodDays = useMemo(
+    () => selectedReviewPeriod?.visibleDays || [],
+    [selectedReviewPeriod],
+  );
+  const totalReviewDayPages = useMemo(
+    () => Math.max(1, Math.ceil(selectedReviewPeriodDays.length / REVIEW_DAYS_PER_PAGE)),
+    [selectedReviewPeriodDays.length],
+  );
+  const safeReviewDaysPage = Math.min(reviewDaysPage, totalReviewDayPages);
+  const paginatedReviewDays = useMemo(() => {
+    const start = (safeReviewDaysPage - 1) * REVIEW_DAYS_PER_PAGE;
+    return selectedReviewPeriodDays.slice(start, start + REVIEW_DAYS_PER_PAGE);
+  }, [safeReviewDaysPage, selectedReviewPeriodDays]);
+  const currentReviewRangeStart = selectedReviewPeriodDays.length
+    ? (safeReviewDaysPage - 1) * REVIEW_DAYS_PER_PAGE + 1
+    : 0;
+  const currentReviewRangeEnd = selectedReviewPeriodDays.length
+    ? Math.min(safeReviewDaysPage * REVIEW_DAYS_PER_PAGE, selectedReviewPeriodDays.length)
+    : 0;
   const selectedReviewDay = useMemo(() => {
-    if (!selectedReviewPeriod?.visibleDays.length) return null;
+    if (!paginatedReviewDays.length) return null;
 
     return (
-      selectedReviewPeriod.visibleDays.find((day) => day.id === selectedReviewDayId) ||
-      selectedReviewPeriod.visibleDays[0]
+      paginatedReviewDays.find((day) => day.id === selectedReviewDayId) ||
+      paginatedReviewDays[0]
     );
-  }, [selectedReviewDayId, selectedReviewPeriod]);
+  }, [paginatedReviewDays, selectedReviewDayId]);
   const createDisabledReason = useMemo(() => {
     if (!activeTherapistId) return t("createDisabledProfessional");
     if (!selectedLocationId) return t("createDisabledLocation");
     if (!form.startDate || !form.endDate) return t("createDisabledDates");
     if (!form.sessionDurationMinutes) return t("createDisabledSessionLength");
+    if (formTimeRangeValidation.hasInvalidOrder) return t("invalidTimeSlot");
+    if (formTimeRangeValidation.hasOverlap) return t("timeRangeOverlap");
     if (!form.timeRanges.some((range) => range.startTime && range.endTime)) {
       return t("createDisabledTimeRanges");
     }
@@ -601,6 +803,8 @@ export function AvailabilityPage() {
     form.endDate,
     form.sessionDurationMinutes,
     form.startDate,
+    formTimeRangeValidation.hasInvalidOrder,
+    formTimeRangeValidation.hasOverlap,
     form.timeRanges,
     selectedLocationId,
     t,
@@ -628,7 +832,7 @@ export function AvailabilityPage() {
   }, [reviewPeriods]);
 
   useEffect(() => {
-    if (!selectedReviewPeriod?.visibleDays.length) {
+    if (!paginatedReviewDays.length) {
       setSelectedReviewDayId(null);
       return;
     }
@@ -636,51 +840,87 @@ export function AvailabilityPage() {
     setSelectedReviewDayId((current) => {
       if (
         current &&
-        selectedReviewPeriod.visibleDays.some((day) => day.id === current)
+        paginatedReviewDays.some((day) => day.id === current)
       ) {
         return current;
       }
 
-      return selectedReviewPeriod.visibleDays[0].id;
+      return paginatedReviewDays[0].id;
     });
-  }, [selectedReviewPeriod]);
+  }, [paginatedReviewDays]);
+
+  useEffect(() => {
+    setReviewDaysPage(1);
+  }, [selectedReviewPeriod?.id]);
+
+  useEffect(() => {
+    if (reviewDaysPage > totalReviewDayPages) {
+      setReviewDaysPage(totalReviewDayPages);
+    }
+  }, [reviewDaysPage, totalReviewDayPages]);
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider delayDuration={150}>
+      <div className="motion-stagger space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-2 pb-3">
           <CardTitle>{t("plannerTitle")}</CardTitle>
           <p className="text-sm text-muted-foreground">{t("plannerDescription")}</p>
-          {plannerDisabledReason ? (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-              {plannerDisabledReason}
-            </div>
-          ) : null}
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-            <div className="flex items-center gap-2 font-medium text-foreground">
-              <UserRound className="h-4 w-4 text-primary" />
-              {activeProfessionalName || t("title")}
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="surface-panel space-y-3 px-4 py-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-semibold">{t("selectLocation")}</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {t("selectLocationDescription")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="max-w-xl space-y-2">
+                <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
+                  <SelectTrigger className="h-11 bg-background">
+                    <SelectValue placeholder={t("selectLocation")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id}>
+                        {location.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {locationsError ? (
+                  <p className="text-xs text-destructive">{t("errorLoadingLocations")}</p>
+                ) : null}
+                {plannerDisabledReason ? (
+                  <Alert variant="warning" className="mt-2">
+                    <AlertDescription>{plannerDisabledReason}</AlertDescription>
+                  </Alert>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>{t("selectLocation")}</Label>
-            <Select value={selectedLocationId} onValueChange={setSelectedLocationId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("selectLocation")} />
-              </SelectTrigger>
-              <SelectContent>
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id}>
-                    {location.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {locationsError ? (
-              <p className="text-xs text-destructive">{t("errorLoadingLocations")}</p>
-            ) : null}
+
+            <div className="surface-panel flex min-w-0 items-center gap-3 px-4 py-4 text-sm">
+              <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                <UserRound className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("professional")}
+                </p>
+                <p className="truncate font-medium text-foreground">
+                  {activeProfessionalName || t("title")}
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -694,20 +934,22 @@ export function AvailabilityPage() {
       ) : null}
 
       <Card>
-        <CardHeader>
-          <CardTitle>{t("manageAvailability")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6 pt-6">
           <Tabs defaultValue="review" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="review">{t("reviewTitle")}</TabsTrigger>
               <TabsTrigger value="create">{t("createPeriod")}</TabsTrigger>
             </TabsList>
-
             <TabsContent value="review" className="space-y-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="space-y-2">
-                  <Label>{t("selectedMonth")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>{t("selectedMonth")}</Label>
+                    <InfoHint
+                      label={t("selectedMonth")}
+                      content={t("help.selectedMonth")}
+                    />
+                  </div>
                   <Input
                     type="month"
                     value={selectedMonth}
@@ -723,7 +965,7 @@ export function AvailabilityPage() {
               </div>
 
               {!selectedLocationId ? (
-                <div className="rounded-xl border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-6 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
                   {t("chooseLocationToReview")}
                 </div>
               ) : (
@@ -739,7 +981,10 @@ export function AvailabilityPage() {
                   </div>
 
                   {loadingPeriods ? (
-                    <div className="text-sm text-muted-foreground">{t("loadingAvailability")}</div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">{t("loadingAvailability")}</p>
+                      <AvailabilityPeriodsSkeleton />
+                    </div>
                   ) : reviewPeriods.length === 0 ? (
                     <div className="text-sm text-muted-foreground">{t("noPeriods")}</div>
                   ) : (
@@ -760,14 +1005,21 @@ export function AvailabilityPage() {
                             const periodMonths = enumerateMonthKeys(period.startDate, period.endDate);
 
                             return (
-                              <button
+                              <div
                                 key={period.id}
-                                type="button"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => setSelectedReviewPeriodId(period.id)}
-                                className={`w-full rounded-lg border px-4 py-3 text-left transition ${
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSelectedReviewPeriodId(period.id);
+                                  }
+                                }}
+                                className={`w-full cursor-pointer rounded-lg border px-4 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                                   isActive
-                                    ? "border-primary bg-primary/5 shadow-sm"
-                                    : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"
+                                    ? "interactive-selected shadow-sm"
+                                    : "border-border/80 bg-card/70 hover:border-primary/40 hover:bg-primary/5"
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
@@ -789,21 +1041,27 @@ export function AvailabilityPage() {
                                   <Badge variant="outline" className="rounded-full">
                                     {period.location.title}
                                   </Badge>
-                                  <Badge variant="outline" className="rounded-full">
+                                  <Badge variant="info" className="rounded-full">
                                     {t("openDays")}: {openDays}
                                   </Badge>
                                   {period.visibleExcludedDates.length ? (
-                                    <Badge variant="outline" className="rounded-full">
+                                    <Badge variant="warning" className="rounded-full">
                                       {t("excludedDates")}: {period.visibleExcludedDates.length}
                                     </Badge>
                                   ) : null}
                                   {periodMonths.length > 1 ? (
-                                    <Badge variant="outline" className="rounded-full">
+                                    <Badge variant="secondary" className="rounded-full">
                                       {t("spansMonths", { count: periodMonths.length })}
+                                      <span className="ml-1 inline-flex">
+                                        <InfoHint
+                                          label={t("spansMonths", { count: periodMonths.length })}
+                                          content={t("help.spansMonths")}
+                                        />
+                                      </span>
                                     </Badge>
                                   ) : null}
                                 </div>
-                              </button>
+                              </div>
                             );
                           })}
                         </div>
@@ -822,13 +1080,24 @@ export function AvailabilityPage() {
                                     selectedReviewPeriod.startDate,
                                     selectedReviewPeriod.endDate,
                                   ).length > 1 ? (
-                                    <Badge variant="outline" className="rounded-full">
+                                    <Badge variant="secondary" className="rounded-full">
                                       {t("spansMonths", {
                                         count: enumerateMonthKeys(
                                           selectedReviewPeriod.startDate,
                                           selectedReviewPeriod.endDate,
                                         ).length,
                                       })}
+                                      <span className="ml-1 inline-flex">
+                                        <InfoHint
+                                          label={t("spansMonths", {
+                                            count: enumerateMonthKeys(
+                                              selectedReviewPeriod.startDate,
+                                              selectedReviewPeriod.endDate,
+                                            ).length,
+                                          })}
+                                          content={t("help.spansMonths")}
+                                        />
+                                      </span>
                                     </Badge>
                                   ) : null}
                                 </div>
@@ -859,11 +1128,11 @@ export function AvailabilityPage() {
                               <Badge variant="outline" className="rounded-full">
                                 {selectedReviewPeriod.location.title}
                               </Badge>
-                              <Badge variant="outline" className="rounded-full">
+                              <Badge variant="info" className="rounded-full">
                                 {t("openDays")}:{" "}
                                 {selectedReviewPeriod.visibleDays.filter((day) => day.isAvailable).length}
                               </Badge>
-                              <Badge variant="outline" className="rounded-full">
+                              <Badge variant="success" className="rounded-full">
                                 {t("remainingSessions")}:{" "}
                                 {selectedReviewPeriod.visibleDays.reduce((sum, day) => {
                                   const daySummary = summary?.days.find(
@@ -875,7 +1144,7 @@ export function AvailabilityPage() {
                             </div>
 
                             {selectedReviewPeriod.visibleExcludedDates.length ? (
-                              <div className="space-y-2 rounded-lg border bg-muted/20 p-4">
+                              <Alert variant="warning" className="space-y-2 p-4">
                                 <div className="flex items-center justify-between gap-3">
                                   <p className="text-sm font-medium text-foreground">
                                     {t("excludedDates")}
@@ -888,7 +1157,7 @@ export function AvailabilityPage() {
                                   {selectedReviewPeriod.visibleExcludedDates.map((excludedDate) => (
                                     <Badge
                                       key={excludedDate.id}
-                                      variant="outline"
+                                      variant="warning"
                                       className="gap-2 rounded-full px-3 py-1.5"
                                     >
                                       <span>{formatDateLabel(excludedDate.date)}</span>
@@ -907,24 +1176,59 @@ export function AvailabilityPage() {
                                           ? t("restoringExcludedDate")
                                           : t("restoreExcludedDate")}
                                       </button>
+                                      <InfoHint
+                                        label={t("restoreExcludedDate")}
+                                        content={t("help.restoreExcludedDate")}
+                                      />
                                     </Badge>
                                   ))}
                                 </div>
-                              </div>
+                              </Alert>
                             ) : null}
 
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-medium text-foreground">{t("timeRanges")}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {selectedReviewPeriod.visibleDays.length} {t("openDays").toLowerCase()}
-                                  </p>
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="font-medium text-foreground">{t("timeRanges")}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {selectedReviewPeriod.visibleDays.length} {t("openDays").toLowerCase()}
+                                    </p>
+                                  </div>
+                                  {totalReviewDayPages > 1 ? (
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs text-muted-foreground">
+                                        {currentReviewRangeStart}-{currentReviewRangeEnd} / {selectedReviewPeriodDays.length}
+                                      </p>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setReviewDaysPage((current) => Math.max(1, current - 1))}
+                                        disabled={safeReviewDaysPage === 1}
+                                      >
+                                        <ChevronLeft className="mr-1 h-4 w-4" />
+                                        {tc("previous")}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          setReviewDaysPage((current) =>
+                                            Math.min(totalReviewDayPages, current + 1),
+                                          )
+                                        }
+                                        disabled={safeReviewDaysPage === totalReviewDayPages}
+                                      >
+                                        {tc("next")}
+                                        <ChevronRight className="ml-1 h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ) : null}
                                 </div>
-                              </div>
 
                               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                                {selectedReviewPeriod.visibleDays.map((day) => {
+                                {paginatedReviewDays.map((day) => {
                                   const isActive = selectedReviewDay?.id === day.id;
                                   const daySummary = summary?.days.find(
                                     (summaryDay) => summaryDay.id === day.id,
@@ -937,10 +1241,10 @@ export function AvailabilityPage() {
                                       onClick={() => setSelectedReviewDayId(day.id)}
                                       className={`rounded-lg border px-3 py-3 text-left transition ${
                                         isActive
-                                          ? "border-primary bg-primary/5 shadow-sm"
-                                          : "border-border bg-background hover:border-primary/40 hover:bg-muted/30"
-                                      }`}
-                                    >
+                                          ? "interactive-selected shadow-sm"
+                                          : "border-border/80 bg-card/70 hover:border-primary/40 hover:bg-primary/5"
+                                        }`}
+                                      >
                                       <div className="flex items-start justify-between gap-3">
                                         <div>
                                           <p className="font-medium text-foreground">
@@ -965,6 +1269,9 @@ export function AvailabilityPage() {
 
                             {selectedReviewDay ? (() => {
                               const draft = editDays[selectedReviewDay.id] || cloneDay(selectedReviewDay);
+                              const draftTimeRangeValidation = getTimeRangeValidation(
+                                draft.timeRanges,
+                              );
                               const daySummary = summary?.days.find(
                                 (summaryDay) => summaryDay.id === selectedReviewDay.id,
                               );
@@ -997,14 +1304,24 @@ export function AvailabilityPage() {
                                       <Label htmlFor={`closed-${selectedReviewDay.id}`}>
                                         {t("markDayClosed")}
                                       </Label>
+                                      <InfoHint
+                                        label={t("markDayClosed")}
+                                        content={t("help.markDayClosed")}
+                                      />
                                     </div>
                                   </div>
 
                                   <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
-                                      <Label htmlFor={`duration-${selectedReviewDay.id}`}>
-                                        {t("sessionLength")}
-                                      </Label>
+                                      <div className="flex items-center gap-2">
+                                        <Label htmlFor={`duration-${selectedReviewDay.id}`}>
+                                          {t("sessionLength")}
+                                        </Label>
+                                        <InfoHint
+                                          label={t("sessionLength")}
+                                          content={t("help.sessionLength")}
+                                        />
+                                      </div>
                                       <Input
                                         id={`duration-${selectedReviewDay.id}`}
                                         type="number"
@@ -1026,9 +1343,15 @@ export function AvailabilityPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                      <Label htmlFor={`notes-${selectedReviewDay.id}`}>
-                                        {t("notes")}
-                                      </Label>
+                                      <div className="flex items-center gap-2">
+                                        <Label htmlFor={`notes-${selectedReviewDay.id}`}>
+                                          {t("notes")}
+                                        </Label>
+                                        <InfoHint
+                                          label={t("notes")}
+                                          content={t("help.notes")}
+                                        />
+                                      </div>
                                       <Input
                                         id={`notes-${selectedReviewDay.id}`}
                                         value={draft.notes || ""}
@@ -1047,7 +1370,13 @@ export function AvailabilityPage() {
 
                                   <div className="space-y-3">
                                     <div className="flex items-center justify-between">
-                                      <Label>{t("timeRanges")}</Label>
+                                      <div className="flex items-center gap-2">
+                                        <Label>{t("timeRanges")}</Label>
+                                        <InfoHint
+                                          label={t("timeRanges")}
+                                          content={t("help.timeRanges")}
+                                        />
+                                      </div>
                                       <Button
                                         type="button"
                                         variant="outline"
@@ -1059,48 +1388,72 @@ export function AvailabilityPage() {
                                       </Button>
                                     </div>
 
-                                    {draft.timeRanges.map((range, index) => (
-                                      <div
-                                        key={`${selectedReviewDay.id}-range-${index}`}
-                                        className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                                      >
-                                        <Input
-                                          type="time"
-                                          value={range.startTime}
-                                          onChange={(event) =>
-                                            updateDayRange(selectedReviewDay.id, index, {
-                                              startTime: event.target.value,
-                                            })
-                                          }
-                                        />
-                                        <Input
-                                          type="time"
-                                          value={range.endTime}
-                                          onChange={(event) =>
-                                            updateDayRange(selectedReviewDay.id, index, {
-                                              endTime: event.target.value,
-                                            })
-                                          }
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          onClick={() =>
-                                            removeDayRange(selectedReviewDay.id, index)
-                                          }
-                                          disabled={draft.timeRanges.length === 1}
+                                    {draft.timeRanges.map((range, index) => {
+                                      const rowInvalid =
+                                        draftTimeRangeValidation.invalidOrderIndexes.has(index) ||
+                                        draftTimeRangeValidation.overlappingIndexes.has(index);
+
+                                      return (
+                                        <div
+                                          key={`${selectedReviewDay.id}-range-${index}`}
+                                          className="space-y-2"
                                         >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
+                                          <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                                            <Input
+                                              type="time"
+                                              value={range.startTime}
+                                              aria-invalid={rowInvalid}
+                                              className={cn(
+                                                rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                                              )}
+                                              onChange={(event) =>
+                                                updateDayRange(selectedReviewDay.id, index, {
+                                                  startTime: event.target.value,
+                                                })
+                                              }
+                                            />
+                                            <Input
+                                              type="time"
+                                              value={range.endTime}
+                                              aria-invalid={rowInvalid}
+                                              className={cn(
+                                                rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                                              )}
+                                              onChange={(event) =>
+                                                updateDayRange(selectedReviewDay.id, index, {
+                                                  endTime: event.target.value,
+                                                })
+                                              }
+                                            />
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() =>
+                                                removeDayRange(selectedReviewDay.id, index)
+                                              }
+                                              disabled={draft.timeRanges.length === 1}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          {draftTimeRangeValidation.invalidOrderIndexes.has(index) ? (
+                                            <p className="text-sm text-red-500">{t("invalidTimeSlot")}</p>
+                                          ) : draftTimeRangeValidation.overlappingIndexes.has(index) ? (
+                                            <p className="text-sm text-red-500">{t("timeRangeOverlap")}</p>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
                                   </div>
 
                                   <Button
                                     type="button"
                                     onClick={() => handleSaveDay(selectedReviewDay.id)}
-                                    disabled={savingDayId === selectedReviewDay.id}
+                                    disabled={
+                                      savingDayId === selectedReviewDay.id ||
+                                      draftTimeRangeValidation.hasErrors
+                                    }
                                   >
                                     <Clock3 className="mr-2 h-4 w-4" />
                                     {savingDayId === selectedReviewDay.id
@@ -1112,9 +1465,9 @@ export function AvailabilityPage() {
                             })() : null}
                           </>
                         ) : (
-                          <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-                            {t("noPeriods")}
-                          </div>
+                          <Alert variant="info">
+                            <AlertDescription>{t("noPeriods")}</AlertDescription>
+                          </Alert>
                         )}
                       </div>
                     </div>
@@ -1125,20 +1478,26 @@ export function AvailabilityPage() {
 
             <TabsContent value="create" className="space-y-4">
               {createDisabledReason ? (
-                <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
-                  {createDisabledReason}
-                </div>
+                <Alert variant="warning">
+                  <AlertDescription>{createDisabledReason}</AlertDescription>
+                </Alert>
               ) : null}
 
-              <div className="rounded-xl border bg-muted/10 p-4">
+              <div className="surface-panel p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{t("openDays")}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{t("openDays")}</p>
+                      <InfoHint
+                        label={t("openDays")}
+                        content={t("help.createMonthOpenDays")}
+                      />
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {formatMonthLabel(createMonthKey)}
                     </p>
                   </div>
-                  <Badge variant="outline" className="rounded-full px-3 py-1 text-sm font-normal">
+                  <Badge variant="info" className="rounded-full px-3 py-1 text-sm font-normal">
                     <span className="text-muted-foreground">{t("openDays")}:</span>
                     <span className="ml-1 font-medium text-foreground">{createMonthOpenDays}</span>
                   </Badge>
@@ -1147,7 +1506,13 @@ export function AvailabilityPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="period-title">{t("periodTitle")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="period-title">{t("periodTitle")}</Label>
+                    <InfoHint
+                      label={t("periodTitle")}
+                      content={t("help.periodTitle")}
+                    />
+                  </div>
                   <Input
                     id="period-title"
                     placeholder={defaultPeriodTitle}
@@ -1158,7 +1523,13 @@ export function AvailabilityPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="session-duration">{t("sessionLength")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="session-duration">{t("sessionLength")}</Label>
+                    <InfoHint
+                      label={t("sessionLength")}
+                      content={t("help.sessionLength")}
+                    />
+                  </div>
                   <Input
                     id="session-duration"
                     type="number"
@@ -1175,7 +1546,13 @@ export function AvailabilityPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="start-date">{t("startDate")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="start-date">{t("startDate")}</Label>
+                    <InfoHint
+                      label={t("startDate")}
+                      content={t("help.startDate")}
+                    />
+                  </div>
                   <Input
                     id="start-date"
                     type="date"
@@ -1192,7 +1569,13 @@ export function AvailabilityPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="end-date">{t("endDate")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="end-date">{t("endDate")}</Label>
+                    <InfoHint
+                      label={t("endDate")}
+                      content={t("help.endDate")}
+                    />
+                  </div>
                   <Input
                     id="end-date"
                     type="date"
@@ -1210,7 +1593,13 @@ export function AvailabilityPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="period-notes">{t("notes")}</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="period-notes">{t("notes")}</Label>
+                  <InfoHint
+                    label={t("notes")}
+                    content={t("help.notes")}
+                  />
+                </div>
                 <Textarea
                   id="period-notes"
                   value={form.notes}
@@ -1221,7 +1610,13 @@ export function AvailabilityPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>{t("excludedDates")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>{t("excludedDates")}</Label>
+                    <InfoHint
+                      label={t("excludedDates")}
+                      content={t("help.excludedDates")}
+                    />
+                  </div>
                   <Popover open={excludedDateOpen} onOpenChange={setExcludedDateOpen}>
                     <PopoverTrigger asChild>
                       <Button type="button" variant="outline" size="sm">
@@ -1269,36 +1664,63 @@ export function AvailabilityPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>{t("timeRanges")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>{t("timeRanges")}</Label>
+                    <InfoHint
+                      label={t("timeRanges")}
+                      content={t("help.timeRanges")}
+                    />
+                  </div>
                   <Button type="button" variant="outline" size="sm" onClick={addFormRange}>
                     <Plus className="mr-2 h-4 w-4" />
                     {t("addTimeRange")}
                   </Button>
                 </div>
 
-                {form.timeRanges.map((range, index) => (
-                  <div key={`period-range-${index}`} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                    <Input
-                      type="time"
-                      value={range.startTime}
-                      onChange={(event) => updateFormRange(index, { startTime: event.target.value })}
-                    />
-                    <Input
-                      type="time"
-                      value={range.endTime}
-                      onChange={(event) => updateFormRange(index, { endTime: event.target.value })}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeFormRange(index)}
-                      disabled={form.timeRanges.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                {form.timeRanges.map((range, index) => {
+                  const rowInvalid =
+                    formTimeRangeValidation.invalidOrderIndexes.has(index) ||
+                    formTimeRangeValidation.overlappingIndexes.has(index);
+
+                  return (
+                    <div key={`period-range-${index}`} className="space-y-2">
+                      <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                        <Input
+                          type="time"
+                          value={range.startTime}
+                          aria-invalid={rowInvalid}
+                          className={cn(
+                            rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                          )}
+                          onChange={(event) => updateFormRange(index, { startTime: event.target.value })}
+                        />
+                        <Input
+                          type="time"
+                          value={range.endTime}
+                          aria-invalid={rowInvalid}
+                          className={cn(
+                            rowInvalid && "border-red-500 ring-1 ring-red-500/20",
+                          )}
+                          onChange={(event) => updateFormRange(index, { endTime: event.target.value })}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFormRange(index)}
+                          disabled={form.timeRanges.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {formTimeRangeValidation.invalidOrderIndexes.has(index) ? (
+                        <p className="text-sm text-red-500">{t("invalidTimeSlot")}</p>
+                      ) : formTimeRangeValidation.overlappingIndexes.has(index) ? (
+                        <p className="text-sm text-red-500">{t("timeRangeOverlap")}</p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
 
               <Button
@@ -1318,6 +1740,37 @@ export function AvailabilityPage() {
           <CardContent className="pt-6 text-sm text-destructive">{periodsError}</CardContent>
         </Card>
       ) : null}
-    </div>
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setPeriodIdToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("deletePeriod")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("confirmDeletePeriod")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(deletingPeriodId)}>
+              {t("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePeriod}
+              disabled={Boolean(deletingPeriodId)}
+            >
+              {deletingPeriodId ? t("loading") : t("deletePeriod")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </div>
+    </TooltipProvider>
   );
 }

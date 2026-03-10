@@ -1,136 +1,75 @@
 # Database Schema
 
-This document reflects the current Prisma schema in [prisma/schema.prisma](../prisma/schema.prisma).
+This document reflects the current Prisma schema in [prisma](../prisma).
 
 ## Overview
 
-The schema is split across five main domains:
+The schema is organized around four areas:
 
-- identity and profiles
-- locations
-- legacy weekly availability
+- tenant and identity
+- locations and catalog
 - dated availability
-- booking and catalog data
+- bookings
 
 ## Tables
 
+### `companies`
+
+Tenant root record for public profile and company-scoped data.
+
+### `company_memberships`
+
+Join table between `companies` and `users`, with the company-specific role.
+
 ### `users`
 
-Stores all application users.
-
-Key responsibilities:
-
-- account identity via `email`
-- auth mapping via `supabaseId` or local auth via `passwordHash`
-- therapist/admin/patient roles via `role[]`
-- public profile data such as `avatar`, `especialidad`, `summary`, and social links
-- ownership for therapist bookings and therapist availability
+Application users for therapist, admin, front desk, and patient identities.
 
 ### `locations`
 
-Stores practice locations.
-
-Key responsibilities:
-
-- address, title, description, logo
-- timezone per office
-- parent entity for bookings and availability
+Company-owned offices with address and timezone data.
 
 ### `specialties`
 
-Stores specialty categories.
+Company-owned service categories.
 
 ### `services`
 
-Stores bookable services under a specialty.
-
-Key responsibilities:
-
-- `description`
-- `cost`
-- `duration`
-
-### `bookings`
-
-Stores appointments.
-
-Key responsibilities:
-
-- patient contact information and consent
-- therapist, patient, specialty, service, and location linkage
-- booking date/time and status
-- `bookedDurationMinutes`, which stores the effective reserved slot duration used for downstream invite generation
+Bookable offerings under a specialty, with cost and duration.
 
 ### `availability_periods`
 
-Stores dated availability blocks for a therapist at a location.
-
-Key responsibilities:
-
-- owns a period title, note, start date, and end date
-- belongs to exactly one therapist and one location
-- parents concrete available days and excluded dates
+Dated availability blocks for one therapist at one location.
 
 ### `availability_days`
 
-Stores actual bookable days inside an availability period.
-
-Key responsibilities:
-
-- one row per therapist + location + date
-- `isAvailable`
-- `sessionDurationMinutes`
-- per-day notes
-- one or more time ranges
+Concrete bookable days derived from an availability period.
 
 ### `availability_time_ranges`
 
-Stores one or more time windows for a single available day.
-
-Example:
-
-- `09:00-12:00`
-- `14:00-17:00`
+One or more active time windows for a single availability day.
 
 ### `availability_excluded_dates`
 
-Stores dates that belong to a period range but were intentionally excluded.
-
-Key responsibilities:
-
-- preserves excluded dates as first-class records
-- allows a previously excluded day to be restored later
-- keeps its own session duration and time ranges for restoration
+Dates intentionally excluded from a period while preserving restoration metadata.
 
 ### `availability_excluded_time_ranges`
 
-Stores time windows attached to an excluded date record.
+Time windows stored for an excluded date.
 
-### `business_hours`
+### `bookings`
 
-Legacy weekly availability by location and day of week.
-
-This still exists in the schema, but it is no longer the primary source of truth for the newer dated booking flow.
-
-### `time_slots`
-
-Legacy time windows under `business_hours`.
-
-### `date_overrides`
-
-Legacy date exceptions for weekly business hours.
-
-### `override_time_slots`
-
-Legacy time windows attached to `date_overrides`.
+Appointments linking company, location, optional therapist/patient/service/specialty, and the scheduled datetime.
 
 ## Relationship Summary
 
-- one `user` can be a patient, therapist, admin, or a combination through roles
-- one `location` can have many bookings and many availability periods
-- one `specialty` has many services
-- one `booking` belongs to one location and may reference one therapist, one patient, one specialty, and one service
-- one `availability_period` belongs to one therapist and one location
+- one `company` has many `locations`, `specialties`, `services`, `bookings`, and availability records
+- one `company` has many `company_memberships`
+- one `user` has many `company_memberships`
+- one `specialty` has many `services`
+- one `booking` belongs to one `company` and one `location`
+- one `booking` may reference one `therapist`, one `patient`, one `specialty`, and one `service`
+- one `availability_period` belongs to one `company`, one `therapist`, and one `location`
 - one `availability_period` has many `availability_days`
 - one `availability_period` has many `availability_excluded_dates`
 - one `availability_day` has many `availability_time_ranges`
@@ -140,18 +79,30 @@ Legacy time windows attached to `date_overrides`.
 
 ```mermaid
 erDiagram
+    companies {
+        string id PK
+        string slug UK
+        string name
+        string publicTherapistId FK
+    }
+
+    company_memberships {
+        string id PK
+        string companyId FK
+        string userId FK
+        companymembershiprole role
+    }
+
     users {
         string id PK
         string email UK
-        string supabaseId UK
-        string firstname
-        string lastname
-        string passwordHash
+        string managedByTherapistId FK
         userrole[] role
     }
 
     locations {
         string id PK
+        string companyId FK
         string title
         string address
         string timezone
@@ -159,11 +110,13 @@ erDiagram
 
     specialties {
         string id PK
+        string companyId FK
         string name
     }
 
     services {
         string id PK
+        string companyId FK
         string specialtyId FK
         string description
         float cost
@@ -172,6 +125,7 @@ erDiagram
 
     bookings {
         string id PK
+        string companyId FK
         string locationId FK
         string specialtyId FK
         string serviceId FK
@@ -184,20 +138,20 @@ erDiagram
 
     availability_periods {
         string id PK
+        string companyId FK
         string therapistId FK
         string locationId FK
         date startDate
         date endDate
-        string title
     }
 
     availability_days {
         string id PK
         string availabilityPeriodId FK
+        string companyId FK
         string therapistId FK
         string locationId FK
         date date
-        boolean isAvailable
         int sessionDurationMinutes
     }
 
@@ -211,6 +165,7 @@ erDiagram
     availability_excluded_dates {
         string id PK
         string availabilityPeriodId FK
+        string companyId FK
         string therapistId FK
         string locationId FK
         date date
@@ -224,23 +179,103 @@ erDiagram
         string endTime
     }
 
-    users ||--o{ bookings : patient
-    users ||--o{ bookings : therapist
-    locations ||--o{ bookings : hosts
+    companies ||--o{ company_memberships : has
+    users ||--o{ company_memberships : belongs_to
+    users ||--o{ users : manages
+    users ||--o{ companies : public_therapist_for
+
+    companies ||--o{ locations : owns
+    companies ||--o{ specialties : owns
+    companies ||--o{ services : owns
     specialties ||--o{ services : groups
+
+    companies ||--o{ bookings : owns
+    locations ||--o{ bookings : hosts
     specialties ||--o{ bookings : categorizes
     services ||--o{ bookings : selected_for
+    users ||--o{ bookings : patient
+    users ||--o{ bookings : therapist
+
+    companies ||--o{ availability_periods : scopes
     users ||--o{ availability_periods : owns
     locations ||--o{ availability_periods : contains
     availability_periods ||--o{ availability_days : expands_to
     availability_periods ||--o{ availability_excluded_dates : excludes
     availability_days ||--o{ availability_time_ranges : has
     availability_excluded_dates ||--o{ availability_excluded_time_ranges : stores
-}
+```
+
+## Relationship Tree
+
+```text
+companies
+├── company_memberships
+│   └── users
+├── locations
+│   ├── bookings
+│   │   ├── users (patient)
+│   │   ├── users (therapist)
+│   │   ├── specialties
+│   │   └── services
+│   ├── availability_periods
+│   │   ├── users (therapist)
+│   │   ├── availability_days
+│   │   │   └── availability_time_ranges
+│   │   └── availability_excluded_dates
+│   │       └── availability_excluded_time_ranges
+│   ├── availability_days
+│   │   ├── users (therapist)
+│   │   └── availability_time_ranges
+│   └── availability_excluded_dates
+│       ├── users (therapist)
+│       └── availability_excluded_time_ranges
+├── specialties
+│   ├── services
+│   └── bookings
+├── services
+│   └── bookings
+├── bookings
+│   ├── users (patient)
+│   ├── users (therapist)
+│   ├── locations
+│   ├── specialties
+│   └── services
+├── availability_periods
+│   ├── users (therapist)
+│   ├── locations
+│   ├── availability_days
+│   │   └── availability_time_ranges
+│   └── availability_excluded_dates
+│       └── availability_excluded_time_ranges
+├── availability_days
+│   ├── users (therapist)
+│   ├── locations
+│   └── availability_time_ranges
+└── availability_excluded_dates
+    ├── users (therapist)
+    ├── locations
+    └── availability_excluded_time_ranges
+
+users
+├── company_memberships
+├── companies (publicTherapist)
+├── users (managedPersonnel / managedByTherapist)
+├── bookings (patient)
+├── bookings (therapist)
+├── availability_periods
+├── availability_days
+└── availability_excluded_dates
+
+specialties
+├── services
+└── bookings
+
+services
+└── bookings
 ```
 
 ## Notes
 
-- The schema is multi-user but not yet a true tenant model.
-- Public booking currently resolves the active therapist from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`.
-- The new booking flow uses dated availability, while legacy weekly availability tables still remain in the schema for compatibility.
+- Dated availability is the scheduling source of truth for booking.
+- Availability is keyed by therapist, location, and date; it is not service-specific.
+- `bookedDurationMinutes` stores the effective reserved slot length used when the booking was created.

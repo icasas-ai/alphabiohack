@@ -4,6 +4,7 @@ export interface CreateLocationData {
   logo?: string;
   title: string;
   description?: string;
+  timezone: string;
   lat?: number;
   lon?: number;
 }
@@ -14,6 +15,7 @@ export interface UpdateLocationData {
   logo?: string;
   title?: string;
   description?: string;
+  timezone?: string;
   lat?: number;
   lon?: number;
 }

@@ -14,8 +14,8 @@ export const routing = defineRouting({
     "/profile": {
       "es-MX": "/perfil",
     },
-    "/appointments": {
-      "es-MX": "/citas",
+    "/bookings": {
+      "es-MX": "/reservas",
     },
     "/contact": {
       "es-MX": "/contacto",

@@ -9,8 +9,3 @@ export type {
 
 export { UserProvider, useUser } from "./user-context";
 export type { User } from "./user-context";
-
-export {
-  AvailabilityProvider,
-  useAvailabilityContext,
-} from "./availability-context";

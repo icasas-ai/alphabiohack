@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyAlphaPulse Product Presentation</title>
+    <style>
+      :root {
+        --bg: #f4f8fc;
+        --fg: #10243d;
+        --muted: #5f7187;
+        --line: #d8e2ee;
+        --primary: #1172b8;
+        --primary-deep: #0d4673;
+        --accent: #79d4ff;
+        --panel: rgba(255, 255, 255, 0.88);
+        --panel-strong: rgba(255, 255, 255, 0.96);
+        --shadow: 0 28px 70px -38px rgba(16, 36, 61, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        display: grid;
+        justify-items: center;
+        gap: 24px;
+        padding: 24px 0 36px;
+        background-image:
+          radial-gradient(circle at top left, rgba(121, 212, 255, 0.28), transparent 26%),
+          radial-gradient(circle at top right, rgba(17, 114, 184, 0.14), transparent 28%),
+          linear-gradient(180deg, #f6fafe 0%, #eef5fb 100%);
+      }
+
+      @page {
+        size: 13.333in 7.5in;
+        margin: 0;
+      }
+
+      .slide {
+        width: 13.333in;
+        height: 7.5in;
+        page-break-after: always;
+        position: relative;
+        overflow: hidden;
+        padding: 0.52in 0.56in;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background:
+          radial-gradient(circle at top left, rgba(121, 212, 255, 0.22), transparent 28%),
+          radial-gradient(circle at 85% 15%, rgba(17, 114, 184, 0.12), transparent 22%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(245, 249, 253, 0.96));
+      }
+
+      .slide:last-child {
+        page-break-after: auto;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(17, 114, 184, 0.18);
+        background: rgba(17, 114, 184, 0.08);
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .title {
+        margin: 18px 0 0;
+        font-size: 38px;
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .subtitle {
+        margin: 14px 0 0;
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.55;
+      }
+
+      .hero-grid,
+      .two-col,
+      .three-col {
+        display: grid;
+        gap: 24px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 0.98fr 1.02fr;
+        align-items: start;
+        flex: 1;
+      }
+
+      .two-col {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+      }
+
+      .three-col {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .panel {
+        border: 1px solid rgba(216, 226, 238, 0.92);
+        border-radius: 26px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(14px);
+      }
+
+      .panel-strong {
+        background: var(--panel-strong);
+      }
+
+      .panel-tint {
+        border: 1px solid rgba(17, 114, 184, 0.14);
+        background:
+          linear-gradient(160deg, rgba(17, 114, 184, 0.08) 0%, rgba(121, 212, 255, 0.08) 100%);
+      }
+
+      .panel-showcase {
+        border: 1px solid rgba(17, 114, 184, 0.18);
+        background:
+          radial-gradient(circle at top left, rgba(121, 212, 255, 0.18), transparent 32%),
+          radial-gradient(circle at 80% 18%, rgba(17, 114, 184, 0.2), transparent 24%),
+          linear-gradient(155deg, rgba(8, 28, 49, 0.94) 0%, rgba(13, 70, 115, 0.9) 46%, rgba(17, 114, 184, 0.82) 100%);
+        color: white;
+      }
+
+      .panel-pad {
+        padding: 22px 24px;
+      }
+
+      .metric {
+        padding: 18px 20px;
+        border-radius: 22px;
+        border: 1px solid rgba(216, 226, 238, 0.92);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 21px;
+        line-height: 1;
+        margin-bottom: 8px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .bullet-list {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .bullet-list li {
+        margin: 0 0 10px;
+        color: var(--fg);
+        font-size: 15px;
+        line-height: 1.44;
+      }
+
+      .bullet-list li::marker {
+        color: var(--primary);
+      }
+
+      .small-list li {
+        font-size: 15px;
+        margin-bottom: 8px;
+      }
+
+      .card-title {
+        margin: 0 0 8px;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .card-copy {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .shot {
+        display: block;
+        width: 100%;
+        max-height: 3.9in;
+        border-radius: 20px;
+        border: 1px solid rgba(216, 226, 238, 0.9);
+        box-shadow: 0 26px 60px -42px rgba(16, 36, 61, 0.38);
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      .shot-frame {
+        padding: 12px;
+        border-radius: 28px;
+        border: 1px solid rgba(216, 226, 238, 0.9);
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        max-width: 100%;
+      }
+
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .tag {
+        padding: 9px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(17, 114, 184, 0.12);
+        color: var(--fg);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .cover-mark {
+        display: inline-block;
+        color: var(--primary);
+      }
+
+      .cover-grid {
+        display: grid;
+        grid-template-columns: 1.04fr 0.96fr;
+        gap: 24px;
+        align-items: center;
+        flex: 1;
+      }
+
+      .cover-box {
+        padding: 26px 28px;
+        border-radius: 30px;
+      }
+
+      .cover-box h3 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .cover-box p {
+        margin: 14px 0 0;
+        color: rgba(255, 255, 255, 0.78);
+        line-height: 1.7;
+        font-size: 15px;
+      }
+
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .roadmap .metric strong {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      .roadmap .metric span {
+        font-size: 14px;
+      }
+
+      @media print {
+        body {
+          display: block;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide">
+      <div class="cover-grid">
+        <div>
+          <div class="eyebrow">Product Review / March 2026</div>
+          <h1 class="title">
+            MyAlphaPulse
+            <span class="cover-mark">product presentation</span>
+          </h1>
+          <p class="subtitle">
+            A current-state product deck built from the live application surface,
+            route inventory, feature flags, and local UI review. This deck reflects
+            what the product is today, what it does well, and what should come next.
+          </p>
+          <div class="tag-row">
+            <span class="tag">Public website</span>
+            <span class="tag">Guided booking</span>
+            <span class="tag">Practice operations</span>
+            <span class="tag">Bilingual brand control</span>
+          </div>
+        </div>
+        <div class="panel panel-showcase cover-box">
+          <h3>Current deployment model</h3>
+          <p>
+            One company per deployment, one branded public site, one internal workspace,
+            app-managed auth, Supabase as infrastructure only.
+          </p>
+          <div class="tag-row">
+            <span class="tag">Next.js 15</span>
+            <span class="tag">Prisma</span>
+            <span class="tag">Postgres</span>
+            <span class="tag">Netlify</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Prepared from code audit + local UI capture</span>
+        <span>1</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Product Snapshot</div>
+        <h2 class="title">What the product already is</h2>
+        <p class="subtitle">
+          MyAlphaPulse is already more than a booking form. It combines a branded public
+          website, a conversion-focused booking flow, and a practical operations workspace
+          for a small therapist-led practice.
+        </p>
+      </div>
+      <div class="three-col">
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Patient-facing</h3>
+          <ul class="bullet-list small-list">
+            <li>Home and contact pages</li>
+            <li>Bilingual public experience</li>
+            <li>Guided multi-step booking wizard</li>
+            <li>Appointment summary request by email</li>
+          </ul>
+        </div>
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Practice-facing</h3>
+          <ul class="bullet-list small-list">
+            <li>Dashboard and bookings</li>
+            <li>Availability management</li>
+            <li>Locations and service catalog</li>
+            <li>Personnel and company settings</li>
+          </ul>
+        </div>
+        <div class="panel panel-tint panel-pad">
+          <h3 class="card-title">Operational model</h3>
+          <ul class="bullet-list small-list">
+            <li>App-managed auth</li>
+            <li>Supabase Postgres for storage</li>
+            <li>Optional Supabase Storage uploads</li>
+            <li>One company per deployment</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Current state, not aspirational scope</span>
+        <span>2</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Public Experience</div>
+        <h2 class="title">Branded public site with real conversion intent</h2>
+        <p class="subtitle">
+          The public experience is polished enough for demos and real practice use.
+          It already feels like a modern small-practice site, not just a utility workflow.
+        </p>
+      </div>
+      <div class="hero-grid">
+        <div class="shot-frame">
+          <img class="shot" src="./product-assets/home.png" alt="MyAlphaPulse home page" />
+        </div>
+        <div class="stack">
+          <div class="metric">
+            <strong>Localized by default</strong>
+            <span>Public pages and content support English and Spanish routes today.</span>
+          </div>
+          <div class="metric">
+            <strong>Brand-controlled</strong>
+            <span>Company-managed logos, summary, contact details, hours, and landing-page copy.</span>
+          </div>
+          <div class="metric">
+            <strong>Conversion-ready</strong>
+            <span>Clear booking entry points, contact pathways, and a polished visual system.</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Public routes: home, contact, auth</span>
+        <span>3</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Booking Flow</div>
+        <h2 class="title">A guided booking wizard that feels production-ready</h2>
+        <p class="subtitle">
+          The booking flow is one of the strongest parts of the product. It combines structure,
+          slot validation, therapist-aware availability, and patient data capture without feeling heavy.
+        </p>
+      </div>
+      <div class="hero-grid">
+        <div class="stack">
+          <div class="panel panel-tint panel-pad">
+            <h3 class="card-title">Current steps</h3>
+            <ul class="bullet-list small-list">
+              <li>Appointment type</li>
+              <li>Service selection</li>
+              <li>Date and time</li>
+              <li>Basic information</li>
+              <li>Confirmation</li>
+            </ul>
+          </div>
+          <div class="panel panel-strong panel-pad">
+            <h3 class="card-title">Important logic</h3>
+            <ul class="bullet-list small-list">
+              <li>Uses dated availability periods and time ranges</li>
+              <li>Phone-first lookup helps prefill repeat visitors</li>
+              <li>Identity linking is safe: exact email only</li>
+              <li>Creates patient records automatically when needed</li>
+            </ul>
+          </div>
+        </div>
+        <div class="shot-frame">
+          <img class="shot" src="./product-assets/booking.png" alt="MyAlphaPulse booking flow" />
+        </div>
+      </div>
+      <div class="footer">
+        <span>Best current product asset</span>
+        <span>4</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Practice Operations</div>
+        <h2 class="title">Internal workspace covers the core operating loop</h2>
+        <p class="subtitle">
+          Beyond booking, the protected workspace gives a small practice enough control to operate
+          scheduling, staff, catalog, and public presence from one system.
+        </p>
+      </div>
+      <div class="three-col">
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Operational views</h3>
+          <ul class="bullet-list small-list">
+            <li>Dashboard</li>
+            <li>Bookings</li>
+            <li>Availability</li>
+            <li>Appointments redirect</li>
+          </ul>
+        </div>
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Business management</h3>
+          <ul class="bullet-list small-list">
+            <li>Locations</li>
+            <li>Specialties and services</li>
+            <li>Personnel</li>
+            <li>Profile and account</li>
+          </ul>
+        </div>
+        <div class="panel panel-tint panel-pad">
+          <h3 class="card-title">Product reading</h3>
+          <p class="card-copy">
+            This is not just a therapist dashboard. It is becoming a small-practice operating
+            system with a real admin surface and ownership model.
+          </p>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Protected routes already cover real day-to-day workflows</span>
+        <span>5</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Brand and Content Control</div>
+        <h2 class="title">The company area already behaves like a lightweight site builder</h2>
+        <p class="subtitle">
+          Company settings now go beyond contact details. The app supports landing-page editing,
+          localized copy overrides, and preview workflows that make the site feel customer-manageable.
+        </p>
+      </div>
+      <div class="two-col">
+        <div class="shot-frame">
+          <img class="shot" src="./product-assets/contact.png" alt="MyAlphaPulse contact page" />
+        </div>
+        <div class="stack">
+          <div class="metric">
+            <strong>Landing-page builder</strong>
+            <span>Section visibility, localized copy, preview, and sticky/modal preview flow.</span>
+          </div>
+          <div class="metric">
+            <strong>Public content controls</strong>
+            <span>Brand logos, summary, specialty, hours, social links, and contact data.</span>
+          </div>
+          <div class="metric">
+            <strong>Why it matters</strong>
+            <span>The product can be positioned as website plus booking plus operations, not only scheduling.</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Strong differentiator for a small-practice audience</span>
+        <span>6</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Auth and Infrastructure</div>
+        <h2 class="title">Clear separation between infrastructure and product ownership</h2>
+        <p class="subtitle">
+          The current architecture is cleaner than before: Supabase handles infrastructure, while the app
+          owns users, sessions, password reset, and staff management.
+        </p>
+      </div>
+      <div class="two-col">
+        <div class="panel panel-showcase panel-pad">
+          <h3 class="card-title">Current stack</h3>
+          <ul class="bullet-list small-list">
+            <li>Next.js 15 app router</li>
+            <li>Prisma + PostgreSQL</li>
+            <li>Supabase Postgres for hosting</li>
+            <li>Optional Supabase Storage uploads</li>
+            <li>Netlify deployment</li>
+          </ul>
+        </div>
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Product implication</h3>
+          <ul class="bullet-list small-list">
+            <li>No Supabase Auth dependency for staff or patients</li>
+            <li>One company per deployment is the intended production shape</li>
+            <li>Operational setup is simpler and more predictable for rollout</li>
+            <li>Cleaner path for demo, sales, and support environments</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Infrastructure choice no longer dictates user experience</span>
+        <span>7</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Demo and Sales Readiness</div>
+        <h2 class="title">The product now has a believable demo environment</h2>
+        <p class="subtitle">
+          A realistic seed makes the app usable in sales calls and stakeholder walkthroughs without relying
+          on synthetic e2e-only data.
+        </p>
+      </div>
+      <div class="two-col">
+        <div class="panel panel-tint panel-pad">
+          <h3 class="card-title">Demo seed highlights</h3>
+          <ul class="bullet-list small-list">
+            <li>Practice: Harbor Balance Wellness</li>
+            <li>Named owner, therapists, front-desk staff, and patients</li>
+            <li>Realistic locations, services, and booking history</li>
+            <li>Upcoming availability for demo booking walkthroughs</li>
+          </ul>
+          <p class="note">
+            Commands: <code>npm run db:seed:demo</code> or <code>npm run db:reset -- --demo</code>
+          </p>
+        </div>
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Why this matters</h3>
+          <ul class="bullet-list small-list">
+            <li>Improves product storytelling immediately</li>
+            <li>Makes screenshots and demos look intentional</li>
+            <li>Reduces setup friction for internal sales or product review</li>
+            <li>Supports repeatable environment resets</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Sales-call-ready dataset is now part of the product workflow</span>
+        <span>8</span>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Roles And Access</div>
+        <p class="subtitle">
+          The current product uses four application roles, plus a company membership layer.
+          In practice, the operating model is clear: patients book, front desk operates appointments,
+          therapists run the practice workflow, and admins have broad internal access.
+        </p>
+      </div>
+      <div class="three-col">
+        <div class="panel panel-strong panel-pad">
+          <h3 class="card-title">Application roles</h3>
+          <ul class="bullet-list small-list">
+            <li><strong>Patient:</strong> public site, booking, own appointments, own profile</li>
+            <li><strong>FrontDesk:</strong> operates appointments for the managed therapist, but not locations, availability, specialties, or personnel</li>
+            <li><strong>Therapist:</strong> dashboard, bookings, availability, specialties, locations, personnel, and profile</li>
+            <li><strong>Admin:</strong> elevated internal operator with broad access across therapist-managed surfaces</li>
+          </ul>
+        </div>
+        <div class="panel panel-tint panel-pad">
+          <h3 class="card-title">What each role can do</h3>
+          <ul class="bullet-list small-list">
+            <li>Appointments can be operated by <strong>FrontDesk</strong>, <strong>Therapist</strong>, and <strong>Admin</strong></li>
+            <li>Availability can be managed by <strong>Therapist</strong> and <strong>Admin</strong></li>
+            <li>Personnel can be managed by <strong>Therapist</strong> and <strong>Admin</strong></li>
+            <li>Protected specialty, location, and company flows are intended for operator roles, not patients</li>
+          </ul>
+        </div>
+        <div class="panel panel-showcase panel-pad">
+          <h3 class="card-title">Company membership layer</h3>
+          <p class="card-copy" style="color: rgba(255,255,255,0.82);">
+            The database also has company membership roles: <strong>Owner</strong>,
+            <strong> Therapist</strong>, <strong>FrontDesk</strong>, and <strong>Patient</strong>.
+            The most important nuance is that <strong>Owner</strong> is a company membership role,
+            not a separate application role.
+          </p>
+        </div>
+      </div>
+      <div class="footer">
+        <span>Current role model from app auth + company membership</span>
+        <span>9</span>
+      </div>
+    </section>
+  </body>
+</html>

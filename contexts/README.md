@@ -46,7 +46,7 @@ interface BookingFormData {
 
 ### Important behavior
 
-- in single-therapist public mode, `therapistId` is auto-populated from `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- in single-therapist public mode, `therapistId` is auto-populated from the resolved public therapist profile
 - `sessionDurationMinutes` is updated from the selected availability day
 - step validation depends on therapist, location, specialty, service, date, time, and basic info depending on the step
 

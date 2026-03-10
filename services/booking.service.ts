@@ -1,17 +1,30 @@
-import type {
-  BookingFormData,
-  CreateBookingData,
-  UpdateBookingData,
-} from "@/types";
-import { BookingStatus, BookingType, DaysOfWeek  } from "@prisma/client";
-import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
-import { formatBookingToLocalStrings } from "@/lib/utils/timezone";
+import type { CreateBookingData, UpdateBookingData } from "@/types";
+import { BookingStatus, BookingType, Prisma } from "@/lib/prisma-client";
+import { formatBookingToLocalStrings, resolveTimeZone } from "@/lib/utils/timezone";
 
 import { prisma } from "@/lib/prisma";
+import { createBookingRecord, findLocationByIdWithSelect } from "@/repositories";
+import { generateBookingNumber } from "@/lib/utils/booking-number";
+import { ensurePatientProfileForBooking } from "@/services/patient-profile.service";
+
+const bookingCreateInclude = {
+  location: {
+    select: {
+      id: true,
+      title: true,
+      address: true,
+      timezone: true,
+    },
+  },
+  specialty: true,
+  service: true,
+  therapist: true,
+  patient: true,
+} as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mapBookingWithLocalTime = (booking: any ) => {
-  const tz = booking.location?.timezone ?? PST_TZ;
+  const tz = resolveTimeZone(booking.location?.timezone);
 
   const { dateString, timeString } = formatBookingToLocalStrings(
     booking.bookingSchedule,
@@ -20,81 +33,53 @@ const mapBookingWithLocalTime = (booking: any ) => {
 
   return {
     ...booking,
+    bookingTimeZone: tz,
     bookingLocalDate: dateString, // YYYY-MM-DD
     bookingLocalTime: timeString, // HH:mm
   };
 };
 
-// Función para mapear BookingFormData a CreateBookingData
-/**
- * Mapea los datos del formulario de reserva a la estructura de creación de cita.
- * Permite inyectar una zona horaria específica para combinar la fecha y la hora.
- * Si no se proporciona tz, se usa PST_TZ por defecto.
- */
-export const mapBookingFormDataToCreateData = (
-  formData: BookingFormData,
-  tz: string = PST_TZ
-): CreateBookingData => {
-  // Validar que los campos requeridos no sean null
-  if (!formData.selectedDate || !formData.locationId) {
-    throw new Error("Missing required fields: selectedDate and locationId");
-  }
+async function listBookingsWithLocalTime({
+  where,
+  orderBy = { createdAt: "desc" },
+  take,
+  include = bookingCreateInclude,
+}: {
+  where?: Prisma.BookingWhereInput;
+  orderBy?:
+    | Prisma.BookingOrderByWithRelationInput
+    | Prisma.BookingOrderByWithRelationInput[];
+  take?: number;
+  include?: Prisma.BookingInclude;
+}) {
+  const bookings = await prisma.booking.findMany({
+    where,
+    include,
+    orderBy,
+    take,
+  });
 
-  // Combinar fecha y hora usando la zona horaria proporcionada (por defecto PST)
-  const bookingSchedule = combineDateAndTimeToUtc(
-    formData.selectedDate,
-    formData.selectedTime,
-    tz
-  );
-
-  return {
-    bookingType: formData.appointmentType,
-    locationId: formData.locationId,
-    specialtyId: formData.specialtyId || undefined,
-    serviceId: formData.selectedServiceIds?.[0] || undefined,
-    bookedDurationMinutes: formData.sessionDurationMinutes || undefined,
-    firstname: formData.basicInfo.firstName,
-    lastname: formData.basicInfo.lastName,
-    phone: formData.basicInfo.phone,
-    email: formData.basicInfo.email,
-    givenConsent: formData.basicInfo.givenConsent,
-    therapistId: formData.therapistId || undefined,
-    patientId: formData.patientId || undefined,
-    bookingNotes: formData.basicInfo.bookingNotes,
-    bookingSchedule: bookingSchedule,
-    status: formData.status,
-  };
-};
-
-// Crear cita desde el formulario del wizard
-export const createBookingFromForm = async (formData: BookingFormData) => {
-  try {
-    // Obtener la zona horaria de la ubicación seleccionada. Si no existe, se usará PST_TZ por defecto.
-    let timezone = PST_TZ;
-    try {
-      if (formData.locationId) {
-        const location = await prisma.location.findUnique({
-          where: { id: formData.locationId },
-          select: { timezone: true },
-        });
-        timezone = location?.timezone ?? PST_TZ;
-      }
-    } catch (tzError) {
-      // En caso de error al obtener la ubicación, mantener la zona horaria por defecto.
-      console.error("Error fetching location timezone:", tzError);
-    }
-    const createData = mapBookingFormDataToCreateData(formData, timezone);
-    return await createBooking(createData);
-  } catch (error) {
-    console.error("Error creating booking from form:", error);
-    throw error;
-  }
-};
+  return bookings.map(mapBookingWithLocalTime);
+}
 
 // Crear cita
 export const createBooking = async (data: CreateBookingData) => {
   try {
     let bookedDurationMinutes = data.bookedDurationMinutes;
+    let companyId = data.companyId;
+    let patientId = data.patientId;
+
+    if (!companyId) {
+      const location = await findLocationByIdWithSelect(data.locationId, {
+        companyId: true,
+      });
+      companyId = location?.companyId;
+    }
+
+    if (!companyId) {
+      throw new Error("A company context is required to create a booking.");
+    }
+
     if (!bookedDurationMinutes && data.serviceId) {
       const service = await prisma.service.findUnique({
         where: { id: data.serviceId },
@@ -103,42 +88,72 @@ export const createBooking = async (data: CreateBookingData) => {
       bookedDurationMinutes = service?.duration;
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        bookingType: data.bookingType,
-        locationId: data.locationId,
-        specialtyId: data.specialtyId,
-        serviceId: data.serviceId,
-        bookedDurationMinutes,
+    if (!patientId) {
+      patientId = await ensurePatientProfileForBooking({
+        companyId,
         firstname: data.firstname,
         lastname: data.lastname,
-        phone: data.phone,
         email: data.email,
-        givenConsent: data.givenConsent,
-        therapistId: data.therapistId,
-        patientId: data.patientId,
-        bookingNotes: data.bookingNotes,
-        bookingSchedule: data.bookingSchedule,
-        status: data.status || "Pending",
-      },
-      include: {
-        location: {
-          select: {
-            id: true,
-            title: true,
-            address: true,
-            timezone: true,
-          },
-        },
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
-    });
+        phone: data.phone,
+      });
+    }
+
+    let booking = null;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        booking = await createBookingRecord({
+          companyId,
+          bookingNumber: generateBookingNumber(data.bookingSchedule),
+          bookingType: data.bookingType,
+          locationId: data.locationId,
+          specialtyId: data.specialtyId,
+          serviceId: data.serviceId,
+          bookedDurationMinutes,
+          firstname: data.firstname,
+          lastname: data.lastname,
+          phone: data.phone,
+          email: data.email,
+          givenConsent: data.givenConsent,
+          therapistId: data.therapistId,
+          patientId,
+          bookingNotes: data.bookingNotes,
+          bookingSchedule: data.bookingSchedule,
+          status: data.status || "Pending",
+        });
+        break;
+      } catch (error) {
+        const conflictTarget = error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.meta?.target
+          : null
+        const isBookingNumberConflict =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          (Array.isArray(conflictTarget)
+            ? conflictTarget.includes("bookingNumber")
+            : conflictTarget === "bookingNumber");
+
+        if (!isBookingNumberConflict) {
+          throw error;
+        }
+      }
+    }
+
+    if (!booking) {
+      throw new Error("Could not generate a unique booking number.");
+    }
     // Email/invitación se envía desde /api/bookings tras crear la cita
 
-    return booking;
+    const fullBooking = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      include: bookingCreateInclude,
+    });
+
+    if (!fullBooking) {
+      throw new Error("Booking was created but could not be reloaded.");
+    }
+
+    return mapBookingWithLocalTime(fullBooking);
   } catch (error) {
     console.error("Error creating booking:", error);
     throw error;
@@ -149,20 +164,7 @@ export const createBooking = async (data: CreateBookingData) => {
 export const getBookingById = async (id: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id },
-    include: {
-      location: {
-        select: {
-          id: true,
-          title: true,
-          address: true,
-          timezone: true,
-        },
-      },
-      specialty: true,
-      service: true,
-      therapist: true,
-      patient: true,
-    },
+    include: bookingCreateInclude,
   });
 
   return booking ? mapBookingWithLocalTime(booking) : null;
@@ -171,63 +173,38 @@ export const getBookingById = async (id: string) => {
 
 // Obtener todas las citas
 export const getAllBookings = async () => {
-  const bookings = await prisma.booking.findMany({
-    include: {
-      location: {
-        select: {
-          id: true,
-          title: true,
-          address: true,
-          timezone: true,
-        },
-      },
-      specialty: true,
-      service: true,
-      therapist: true,
-      patient: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return bookings.map(mapBookingWithLocalTime);
+  return listBookingsWithLocalTime({});
 };
 
 // Obtener citas por paciente
 export const getBookingsByPatient = async (patientId: string) => {
-  const bookings = await prisma.booking.findMany({
+  return listBookingsWithLocalTime({
     where: { patientId },
-    include: {
-      location: true,
-      therapist: true,
-    },
-    orderBy: { createdAt: "desc" },
   });
-
-  return bookings.map(mapBookingWithLocalTime);
 };
+
+export const getBookingsForUserIdentity = async (
+  userId: string,
+  email: string,
+) => {
+  return listBookingsWithLocalTime({
+    where: {
+      OR: [
+        { patientId: userId },
+        {
+          patientId: null,
+          email,
+        },
+      ],
+    },
+  })
+}
 
 // Obtener citas por terapeuta
 export const getBookingsByTherapist = async (therapistId: string) => {
-  const bookings = await prisma.booking.findMany({
+  return listBookingsWithLocalTime({
     where: { therapistId },
-    include: {
-      location: {
-        select: {
-          id: true,
-          title: true,
-          address: true,
-          timezone: true,
-        },
-      },
-      patient: true,
-      therapist: true,
-      specialty: true,
-      service: true,
-    },
-    orderBy: { createdAt: "desc" },
   });
-
-  return bookings.map(mapBookingWithLocalTime);
 };
 
 
@@ -256,15 +233,9 @@ export const getSpecialtiesAndServices = async () => {
 // Obtener citas por ubicación
 export const getBookingsByLocation = async (locationId: string) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: { locationId },
-      include: {
-        therapist: true,
-        patient: true,
-      },
-      orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by location:", error);
     throw error;
@@ -274,18 +245,9 @@ export const getBookingsByLocation = async (locationId: string) => {
 // Obtener citas por tipo
 export const getBookingsByType = async (bookingType: BookingType) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: { bookingType },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
-      orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by type:", error);
     throw error;
@@ -295,20 +257,42 @@ export const getBookingsByType = async (bookingType: BookingType) => {
 // Buscar citas por email
 export const getBookingsByEmail = async (email: string) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: { email },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
-      orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by email:", error);
+    throw error;
+  }
+};
+
+export const getUpcomingBookingsByEmailForCompany = async (
+  email: string,
+  companyId: string,
+  take = 12,
+) => {
+  try {
+    return await listBookingsWithLocalTime({
+      where: {
+        companyId,
+        email,
+        bookingSchedule: {
+          gte: new Date(),
+        },
+        status: {
+          in: [
+            BookingStatus.Pending,
+            BookingStatus.NeedsAttention,
+            BookingStatus.Confirmed,
+            BookingStatus.InProgress,
+          ],
+        },
+      },
+      orderBy: { bookingSchedule: "asc" },
+      take,
+    });
+  } catch (error) {
+    console.error("Error getting upcoming bookings by email for company:", error);
     throw error;
   }
 };
@@ -316,18 +300,9 @@ export const getBookingsByEmail = async (email: string) => {
 // Buscar citas por teléfono
 export const getBookingsByPhone = async (phone: string) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: { phone },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
-      orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by phone:", error);
     throw error;
@@ -340,7 +315,7 @@ export const getBookingsByName = async (
   lastname: string
 ) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: {
         firstname: {
           contains: firstname,
@@ -351,16 +326,8 @@ export const getBookingsByName = async (
           mode: "insensitive",
         },
       },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
       orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by name:", error);
     throw error;
@@ -373,23 +340,15 @@ export const getBookingsByDateRange = async (
   endDate: Date
 ) => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: {
         createdAt: {
           gte: startDate,
           lte: endDate,
         },
       },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
       orderBy: { createdAt: "desc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by date range:", error);
     throw error;
@@ -399,18 +358,10 @@ export const getBookingsByDateRange = async (
 // Obtener citas recientes
 export const getRecentBookings = async (limit: number = 10) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
+    return await listBookingsWithLocalTime({
       orderBy: { createdAt: "desc" },
       take: limit,
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting recent bookings:", error);
     throw error;
@@ -420,15 +371,10 @@ export const getRecentBookings = async (limit: number = 10) => {
 // Obtener citas pendientes (sin terapeuta asignado)
 export const getPendingBookings = async () => {
   try {
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: { therapistId: null },
-      include: {
-        location: true,
-        patient: true,
-      },
       orderBy: { createdAt: "asc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting pending bookings:", error);
     throw error;
@@ -486,7 +432,7 @@ export const updateBooking = async (id: string, data: UpdateBookingData) => {
         patient: true,
       },
     });
-    return booking;
+    return mapBookingWithLocalTime(booking);
   } catch (error) {
     console.error("Error updating booking:", error);
     throw error;
@@ -631,64 +577,6 @@ export const getBookingStatsByLocation = async (locationId: string) => {
   }
 };
 
-// Verificar disponibilidad de terapeuta
-export const checkTherapistAvailability = async (
-  therapistId: string,
-  date: Date
-) => {
-  try {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const bookings = await prisma.booking.count({
-      where: {
-        therapistId,
-        bookingSchedule: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    });
-
-    return {
-      isAvailable: bookings < 10, // Máximo 10 citas por día
-      bookingsCount: bookings,
-    };
-  } catch (error) {
-    console.error("Error checking therapist availability:", error);
-    throw error;
-  }
-};
-
-// Verificar disponibilidad de horario específico
-export const checkTimeSlotAvailability = async (
-  therapistId: string,
-  bookingSchedule: Date
-) => {
-  try {
-    const existingBooking = await prisma.booking.findFirst({
-      where: {
-        therapistId,
-        bookingSchedule,
-        status: {
-          not: "Cancelled",
-        },
-      },
-    });
-
-    return {
-      isAvailable: !existingBooking,
-      existingBooking,
-    };
-  } catch (error) {
-    console.error("Error checking time slot availability:", error);
-    throw error;
-  }
-};
-
 // Obtener citas por fecha específica
 export const getBookingsByDate = async (date: Date) => {
   try {
@@ -698,23 +586,15 @@ export const getBookingsByDate = async (date: Date) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: {
         bookingSchedule: {
           gte: startOfDay,
           lte: endOfDay,
         },
       },
-      include: {
-        location: true,
-        specialty: true,
-        service: true,
-        therapist: true,
-        patient: true,
-      },
       orderBy: { bookingSchedule: "asc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by date:", error);
     throw error;
@@ -733,131 +613,18 @@ export const getBookingsByTherapistAndDate = async (
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const bookings = await prisma.booking.findMany({
+    return await listBookingsWithLocalTime({
       where: {
         therapistId,
         bookingSchedule: {
           gte: startOfDay,
           lte: endOfDay,
         },
-      },
-      include: {
-        location: true,
-        patient: true,
       },
       orderBy: { bookingSchedule: "asc" },
     });
-    return bookings;
   } catch (error) {
     console.error("Error getting bookings by therapist and date:", error);
-    throw error;
-  }
-};
-
-// Obtener horarios disponibles para un terapeuta en una fecha
-export const getAvailableTimeSlots = async (
-  therapistId: string,
-  date: Date,
-  locationId: string
-) => {
-  try {
-    // Obtener horarios de atención de la ubicación
-    const dayOfWeek: DaysOfWeek = date.toLocaleDateString("en-US", {
-    weekday: "long",
-  }) as DaysOfWeek;
-    const businessHours = await prisma.businessHours.findFirst({
-      where: {
-        locationId,
-        dayOfWeek,
-        isActive: true,
-      },
-      include: {
-        timeSlots: {
-          where: {
-            isActive: true,
-          },
-          orderBy: {
-            startTime: "asc",
-          },
-        },
-      },
-    });
-
-    if (
-      !businessHours ||
-      !businessHours.timeSlots ||
-      businessHours.timeSlots.length === 0
-    ) {
-      return []; // No hay horarios de atención ese día
-    }
-
-    // Obtener citas existentes del terapeuta ese día
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const existingBookings = await prisma.booking.findMany({
-      where: {
-        therapistId,
-        bookingSchedule: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-        status: {
-          not: "Cancelled",
-        },
-      },
-      select: {
-        bookingSchedule: true,
-      },
-    });
-
-    const bookedTimes = existingBookings.map((b) => {
-      const time = new Date(b.bookingSchedule);
-      return `${time.getHours().toString().padStart(2, "0")}:${time
-        .getMinutes()
-        .toString()
-        .padStart(2, "0")}`;
-    });
-
-    // Generar horarios disponibles cada 30 minutos para cada time slot
-    const availableSlots = [];
-
-    // Convertir tiempo a minutos para facilitar cálculos
-    const timeToMinutes = (time: string) => {
-      const [hours, minutes] = time.split(":").map(Number);
-      return hours * 60 + minutes;
-    };
-
-    const minutesToTime = (minutes: number) => {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return `${hours.toString().padStart(2, "0")}:${mins
-        .toString()
-        .padStart(2, "0")}`;
-    };
-
-    // Procesar cada time slot
-    for (const timeSlot of businessHours.timeSlots) {
-      const startMinutes = timeToMinutes(timeSlot.startTime);
-      const endMinutes = timeToMinutes(timeSlot.endTime);
-
-      for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-        const timeSlotStr = minutesToTime(minutes);
-        if (!bookedTimes.includes(timeSlotStr)) {
-          // Crear DateTime completo para el slot
-          const slotDateTime = new Date(date);
-          slotDateTime.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-          availableSlots.push(slotDateTime);
-        }
-      }
-    }
-
-    return availableSlots;
-  } catch (error) {
-    console.error("Error getting available time slots:", error);
     throw error;
   }
 };
@@ -879,7 +646,7 @@ export const updateBookingStatus = async (
         patient: true,
       },
     });
-    return booking;
+    return mapBookingWithLocalTime(booking);
   } catch (error) {
     console.error("Error updating booking status:", error);
     throw error;

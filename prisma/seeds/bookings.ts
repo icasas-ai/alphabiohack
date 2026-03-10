@@ -6,7 +6,9 @@ import {
   Location as PrismaLocation,
   Service as PrismaService,
   User as PrismaUser,
-} from "@prisma/client";
+  UserRole,
+} from "@/lib/prisma-client";
+import { generateBookingNumber } from "@/lib/utils/booking-number";
 import { PST_TZ, combineDateAndTimeToUtc } from "@/lib/utils/timezone";
 
 // Fechas de ejemplo
@@ -19,12 +21,14 @@ const futureDate2 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 export async function seedDefaultBookings(
   prisma: PrismaClient,
   deps?: {
+    companyId?: string;
     users?: Partial<PrismaUser>[];
     locations?: Partial<PrismaLocation>[];
     services?: Partial<PrismaService>[];
   }
 ): Promise<Partial<PrismaBooking>[]> {
   const existing = await prisma.booking.findMany({
+    where: deps?.companyId ? { companyId: deps.companyId } : undefined,
     select: { id: true },
   });
   console.log(`Found ${existing.length} bookings`);
@@ -37,6 +41,7 @@ export async function seedDefaultBookings(
   let users = deps?.users;
   let locations = deps?.locations;
   let services = deps?.services;
+  const companyId = deps?.companyId;
 
   if (!users || users.length === 0) {
     users = await prisma.user.findMany({ select: { id: true, role: true } });
@@ -66,20 +71,22 @@ export async function seedDefaultBookings(
     | string
     | undefined;
   const tz0 =
-    (locations.find((l) => l.id === location0) as any)?.timezone ?? PST_TZ;
+    locations.find((location) => location.id === location0)?.timezone ?? PST_TZ;
   const tz1 =
-    (locations.find((l) => l.id === location1) as any)?.timezone ?? PST_TZ;
+    locations.find((location) => location.id === location1)?.timezone ?? PST_TZ;
   const tz2 =
-    (locations.find((l) => l.id === location2) as any)?.timezone ?? PST_TZ;
-  const therapistId = (users.find((u) => (u as any).role?.includes("Therapist"))
+    locations.find((location) => location.id === location2)?.timezone ?? PST_TZ;
+  const therapistId = (users.find((user) => user.role?.includes(UserRole.Therapist))
     ?.id ?? users[0].id) as string;
-  const patientId = (users.find((u) => (u as any).role?.includes("Patient"))
+  const patientId = (users.find((user) => user.role?.includes(UserRole.Patient))
     ?.id ?? users[0].id) as string;
   const serviceId = services[0].id as string;
 
   const toCreate = [
     {
+      bookingNumber: generateBookingNumber(futureDate),
       bookingType: BookingType.DirectVisit,
+      companyId: companyId as string,
       locationId: location1 as string,
       firstname: "Carlos",
       lastname: "Silva",
@@ -98,7 +105,9 @@ export async function seedDefaultBookings(
       serviceId,
     },
     {
+      bookingNumber: generateBookingNumber(pastDate),
       bookingType: BookingType.VideoCall,
+      companyId: companyId as string,
       locationId: location0 as string,
       firstname: "María",
       lastname: "García",
@@ -117,7 +126,9 @@ export async function seedDefaultBookings(
       serviceId,
     },
     {
+      bookingNumber: generateBookingNumber(futureDate2),
       bookingType: BookingType.HomeVisit,
+      companyId: companyId as string,
       locationId: location2 as string,
       firstname: "Roberto",
       lastname: "Fernández",

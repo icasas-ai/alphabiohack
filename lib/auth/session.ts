@@ -1,13 +1,12 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { hasSupabaseAuth } from "@/lib/auth/config";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
-import { createClient as createSupabaseClient } from "@/lib/supabase/server";
 
-const SESSION_COOKIE = "alphabiohack_session";
+const SESSION_COOKIE = "myalphapulse_session";
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7;
 
 type SessionPayload = {
@@ -16,13 +15,13 @@ type SessionPayload = {
 };
 
 function getSessionSecret() {
-  const secret = process.env.LOCAL_AUTH_SECRET;
+  const secret = process.env.APP_AUTH_SECRET;
   if (secret) {
     return secret;
   }
 
   throw new Error(
-    "LOCAL_AUTH_SECRET is required when Supabase auth is disabled.",
+    "APP_AUTH_SECRET is required for app-managed auth sessions.",
   );
 }
 
@@ -62,24 +61,9 @@ function decodeSession(raw: string): SessionPayload | null {
   }
 }
 
-export function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
+export { hashPassword, verifyPassword };
 
-export function verifyPassword(password: string, storedHash: string) {
-  const [salt, hash] = storedHash.split(":");
-  if (!salt || !hash) return false;
-
-  const derived = scryptSync(password, salt, 64).toString("hex");
-  if (hash.length !== derived.length) {
-    return false;
-  }
-  return timingSafeEqual(Buffer.from(hash), Buffer.from(derived));
-}
-
-export async function createLocalSession(userId: string) {
+export async function createAppSession(userId: string) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, encodeSession({
     userId,
@@ -93,12 +77,12 @@ export async function createLocalSession(userId: string) {
   });
 }
 
-export async function clearLocalSession() {
+export async function clearAppSession() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function getLocalSessionUser() {
+export async function getAppSessionUser() {
   const cookieStore = await cookies();
   const raw = cookieStore.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
@@ -112,30 +96,7 @@ export async function getLocalSessionUser() {
 }
 
 export async function getCurrentUser() {
-  if (hasSupabaseAuth) {
-    const supabase = await createSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { authUser: null, prismaUser: null };
-    }
-
-    const prismaUser = await prisma.user.findUnique({
-      where: { supabaseId: user.id },
-    });
-
-    return {
-      authUser: {
-        id: user.id,
-        email: user.email ?? "",
-      },
-      prismaUser,
-    };
-  }
-
-  const prismaUser = await getLocalSessionUser();
+  const prismaUser = await getAppSessionUser();
   if (!prismaUser) {
     return { authUser: null, prismaUser: null };
   }

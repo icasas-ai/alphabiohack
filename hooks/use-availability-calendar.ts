@@ -46,7 +46,8 @@ export function useAvailabilityCalendar(
 ) {
   const [monthSummary, setMonthSummary] = useState<AvailabilityMonthSummary | null>(null);
   const [daySlots, setDaySlots] = useState<AvailabilityDaySlots | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [monthLoading, setMonthLoading] = useState(false);
+  const [dayLoading, setDayLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchMonthSummary = useCallback(async () => {
@@ -56,7 +57,7 @@ export function useAvailabilityCalendar(
     }
 
     try {
-      setLoading(true);
+      setMonthLoading(true);
       setError(null);
       const qs = new URLSearchParams({
         therapistId,
@@ -78,7 +79,7 @@ export function useAvailabilityCalendar(
       setMonthSummary(null);
       return null;
     } finally {
-      setLoading(false);
+      setMonthLoading(false);
     }
   }, [therapistId, locationId, month]);
 
@@ -89,7 +90,7 @@ export function useAvailabilityCalendar(
     }
 
     try {
-      setLoading(true);
+      setDayLoading(true);
       setError(null);
       const qs = new URLSearchParams({
         therapistId,
@@ -112,7 +113,7 @@ export function useAvailabilityCalendar(
       setDaySlots(null);
       return null;
     } finally {
-      setLoading(false);
+      setDayLoading(false);
     }
   }, [therapistId, locationId, date]);
 
@@ -127,7 +128,9 @@ export function useAvailabilityCalendar(
   return {
     monthSummary,
     daySlots,
-    loading,
+    loading: monthLoading || dayLoading,
+    monthLoading,
+    dayLoading,
     error,
     refetchMonthSummary: fetchMonthSummary,
     refetchDaySlots: fetchDaySlots,

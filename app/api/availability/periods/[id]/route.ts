@@ -45,10 +45,11 @@ export async function DELETE(
       );
     }
 
-    await deleteAvailabilityPeriod(id);
+    const result = await deleteAvailabilityPeriod(id);
 
     return NextResponse.json({
       success: true,
+      data: result,
     });
   } catch (error) {
     console.error("Error deleting availability period:", error);

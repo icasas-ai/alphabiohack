@@ -64,43 +64,32 @@ Examples:
 
 Public booking does not use the logged-in user.
 
-It resolves the active therapist from single-therapist config:
+It resolves the active therapist from the configured company:
 
 - [lib/config/features.ts](../lib/config/features.ts)
-- [hooks/use-therapist-config.ts](../hooks/use-therapist-config.ts)
+- [hooks/use-public-therapist.ts](../hooks/use-public-therapist.ts)
 - [contexts/booking-wizard-context.tsx](../contexts/booking-wizard-context.tsx)
 
 The current public booking source is:
 
-- `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+- `DEFAULT_COMPANY_SLUG` -> `Company` -> `publicTherapistId`
 
-That value must be:
+That `publicTherapistId` must be:
 
 - a real `users.id`
 - for a user whose `role` includes `Therapist`
+- a member of the configured company
 
 Booking then fetches that user through:
 
 - [hooks/use-therapist.ts](../hooks/use-therapist.ts)
 - [app/api/therapists/[id]/route.ts](../app/api/therapists/[id]/route.ts)
 
+`singleTherapistMode` now only controls whether the therapist selector is shown in the booking UI. It no longer provides a hardcoded therapist fallback.
+
 ## How Public Home And Contact Resolve Profile Data
 
-Public home/contact pages currently do not use `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`.
-
-They fetch data from:
-
-- [app/api/public/hero/route.ts](../app/api/public/hero/route.ts)
-- [app/api/public/contact/route.ts](../app/api/public/contact/route.ts)
-
-Those endpoints currently use `prisma.user.findFirst(...)`.
-
-So today:
-
-- public booking therapist is config-driven
-- public hero/contact profile is first-user-driven
-
-This is an architectural inconsistency.
+Public home/contact/profile data now resolve from the configured company and that company's `publicTherapistId`, so the public site no longer depends on first-user fallbacks.
 
 ## Do We Have Tenants
 
@@ -124,10 +113,10 @@ There are effectively three different identity sources in the app:
    - logged-in `prismaUser`
 
 2. Public booking therapist identity
-   - `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
+   - `DEFAULT_COMPANY_SLUG` -> company `publicTherapistId`
 
 3. Public site profile identity
-   - first user returned by the database
+   - same company `publicTherapistId`
 
 If those do not point to the same person, different parts of the app can show different therapist/business data.
 
@@ -137,7 +126,7 @@ For local development:
 
 - keep a dedicated therapist user in `users`
 - ensure that user has `Therapist` in `role`
-- set `NEXT_PUBLIC_DEFAULT_THERAPIST_ID` to that user's `id`
+- set that user as the company's `publicTherapistId`
 
 Do not use a patient-only user as the default booking therapist.
 

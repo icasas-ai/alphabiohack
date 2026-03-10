@@ -26,7 +26,13 @@ export const PROTECTED_ROUTES = [
   "/protected",
   "/dashboard",
   "/profile",
-  "/appointments",
+  "/company",
+  "/account",
+  "/bookings",
+  "/availability",
+  "/locations",
+  "/specialties",
+  "/personnel",
 ] as const;
 
 // Rutas de API públicas

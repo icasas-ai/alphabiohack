@@ -1,4 +1,4 @@
-import { PST_TZ, combineDateAndTimeToUtc, formatInTZ} from "@/lib/utils/timezone";
+import { PST_TZ, combineDateAndTimeToUtc, formatInTZ } from "@/lib/utils/timezone";
 
 export type CalendarEventInput = {
   title: string;
@@ -10,7 +10,7 @@ export type CalendarEventInput = {
   endTimeHHmm: string;
 };
 
-function toGoogleDateUTC(date: Date): string {
+function toUtcCalendarStamp(date: Date): string {
   // yyyymmddThhmmssZ
   const pad = (n: number) => n.toString().padStart(2, "0");
   const yyyy = date.getUTCFullYear();
@@ -19,8 +19,7 @@ function toGoogleDateUTC(date: Date): string {
   const hh = pad(date.getUTCHours());
   const mm = pad(date.getUTCMinutes());
   const ss = pad(date.getUTCSeconds());
-  //return `${yyyy}${MM}${dd}T${hh}${mm}${ss}Z`;
-   return `${yyyy}${MM}${dd}T${hh}${mm}${ss}`; // removing the: Z`
+  return `${yyyy}${MM}${dd}T${hh}${mm}${ss}Z`;
 }
 
 function formatLocalForGoogle(date: Date, tz: string): string {
@@ -34,7 +33,6 @@ export function buildGoogleCalendarUrl(
 ): string {
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
-  //const dates = `${toGoogleDateUTC(startUtc)}/${toGoogleDateUTC(endUtc)}`;
   const dates = `${formatLocalForGoogle(startUtc, tz)}/${formatLocalForGoogle(endUtc, tz)}`;
   const params = new URLSearchParams({
     action: "TEMPLATE",
@@ -44,6 +42,14 @@ export function buildGoogleCalendarUrl(
     location: input.location || "",
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}&ctz=${encodeURIComponent(tz)}`; //for g calendar
+}
+
+function escapeICSValue(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
 }
 
 export function buildICS(
@@ -56,9 +62,7 @@ export function buildICS(
 ): string {
   const startUtc = combineDateAndTimeToUtc(input.date, input.startTimeHHmm, tz);
   const endUtc = combineDateAndTimeToUtc(input.date, input.endTimeHHmm, tz);
-  const dtstamp = toGoogleDateUTC(new Date());
-  //const dtstart = toGoogleDateUTC(startUtc);
-  //const dtend = toGoogleDateUTC(endUtc);
+  const dtstamp = toUtcCalendarStamp(new Date());
   const dtstart = formatLocalForGoogle(startUtc, tz);
   const dtend = formatLocalForGoogle(endUtc, tz);
   const organizer = `ORGANIZER;CN=Location:mailto:${input.organizerEmail}`;
@@ -66,21 +70,23 @@ export function buildICS(
     input.attendeeEmail ?
       `\nATTENDEE;RSVP=TRUE;CN=Professional;ROLE=REQ-PARTICIPANT:mailto:${input.attendeeEmail}`
     : "";
-  const desc = (input.description || "").replace(/\n/g, "\\n");
-  const loc = (input.location || "").replace(/\n/g, " ");
+  const desc = escapeICSValue(input.description || "");
+  const loc = escapeICSValue((input.location || "").replace(/\n/g, " "));
+  const summary = escapeICSValue(input.title);
   return [
     "BEGIN:VCALENDAR",
     "PRODID:-//booking-saas//EN",
     "VERSION:2.0",
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
+    `X-WR-TIMEZONE:${tz}`,
     "BEGIN:VEVENT",
+    `UID:${input.uid}`,
     `DTSTAMP:${dtstamp}`,
     `DTSTART;TZID=${tz}:${dtstart}`,
     `DTEND;TZID=${tz}:${dtend}`,
-    `DTEND:${dtend}`,
     organizer,
-    `SUMMARY:${input.title}`,
+    `SUMMARY:${summary}`,
     `DESCRIPTION:${desc}`,
     `LOCATION:${loc}`,
     "STATUS:CONFIRMED",

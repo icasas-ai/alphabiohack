@@ -8,7 +8,7 @@ import {
   shouldShowPrices,
   type FeatureFlags,
 } from "@/lib/config/features";
-import { BookingType } from "@prisma/client";
+import { BookingType } from "@/lib/prisma-browser";
 import { useMemo } from "react";
 
 /**

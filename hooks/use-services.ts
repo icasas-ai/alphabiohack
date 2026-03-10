@@ -4,12 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { Service } from "@/types";
 
+const servicesCache = new Map<string, Service[]>();
+const servicesPromiseCache = new Map<string, Promise<Service[]>>();
+const serviceByIdCache = new Map<string, Service>();
+
 export function useServices(specialtyId?: string) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchServices = useCallback(async (specialtyId?: string) => {
+  const fetchServices = useCallback(async (specialtyId?: string, force = false) => {
+    const cacheKey = specialtyId || "__all__";
+
+    if (!force && servicesCache.has(cacheKey)) {
+      const cached = servicesCache.get(cacheKey) || [];
+      setServices(cached);
+      setError(null);
+      return cached;
+    }
+
+    if (!force && servicesPromiseCache.has(cacheKey)) {
+      setLoading(true);
+      try {
+        const pending = await (servicesPromiseCache.get(cacheKey) as Promise<Service[]>);
+        setServices(pending);
+        setError(null);
+        return pending;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -18,15 +43,23 @@ export function useServices(specialtyId?: string) {
         ? `/api/services?specialtyId=${specialtyId}`
         : "/api/services";
 
-      const response = await fetch(url);
-      const result = await response.json();
+      const requestPromise = (async () => {
+        const response = await fetch(url);
+        const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || "Error al cargar servicios");
-      }
+        if (!result.success) {
+          throw new Error(result.error || "Error al cargar servicios");
+        }
 
-      setServices(result.data);
-      return result.data;
+        return result.data as Service[];
+      })();
+      servicesPromiseCache.set(cacheKey, requestPromise);
+
+      const data = await requestPromise;
+      servicesCache.set(cacheKey, data);
+      data.forEach((service) => serviceByIdCache.set(service.id, service));
+      setServices(data);
+      return data;
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Error desconocido";
@@ -34,6 +67,7 @@ export function useServices(specialtyId?: string) {
       console.error("Error fetching services:", err);
       return [];
     } finally {
+      servicesPromiseCache.delete(cacheKey);
       setLoading(false);
     }
   }, []);
@@ -44,6 +78,10 @@ export function useServices(specialtyId?: string) {
         setLoading(true);
         setError(null);
 
+        if (serviceByIdCache.has(id)) {
+          return serviceByIdCache.get(id) || null;
+        }
+
         const response = await fetch(`/api/services/${id}`);
         const result = await response.json();
 
@@ -51,7 +89,9 @@ export function useServices(specialtyId?: string) {
           throw new Error(result.error || "Error al cargar servicio");
         }
 
-        return result.data;
+        const service = result.data as Service;
+        serviceByIdCache.set(service.id, service);
+        return service;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Error desconocido";
@@ -110,6 +150,6 @@ export function useServices(specialtyId?: string) {
     fetchServices,
     fetchServiceById,
     searchServices,
-    refetch: () => fetchServices(specialtyId),
+    refetch: () => fetchServices(specialtyId, true),
   };
 }

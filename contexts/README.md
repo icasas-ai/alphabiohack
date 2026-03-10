@@ -1,62 +1,18 @@
-# 🧙‍♂️ Booking Wizard Context - Simple
+# Contexts
 
-Un contexto simple para manejar los datos del formulario del booking wizard.
+This folder contains the main React context providers used by the app.
 
-## 📁 Archivos
+## Booking Wizard Context
 
-```
-contexts/
-├── booking-wizard-context.tsx    # Contexto principal
-└── index.ts                      # Exportaciones
+Primary file:
 
-components/booking/
-├── booking-wizard-with-context.tsx   # Wrapper con provider
-└── booking-wizard-example.tsx        # Ejemplo de uso
-```
+- [booking-wizard-context.tsx](./booking-wizard-context.tsx)
 
-## 🚀 Uso Básico
+The booking wizard context stores the shared state for the public booking flow.
 
-### 1. Envolver con el Provider
+### Current data shape
 
-```tsx
-import { BookingWizardProvider } from "@/contexts";
-
-function App() {
-  return (
-    <BookingWizardProvider>
-      <YourComponent />
-    </BookingWizardProvider>
-  );
-}
-```
-
-### 2. Usar el contexto
-
-```tsx
-import { useBookingWizard } from "@/contexts";
-
-function MyComponent() {
-  const { formData, updateFormData } = useBookingWizard();
-
-  const handleUpdate = () => {
-    updateFormData({
-      appointmentType: BookingType.VideoCall,
-      locationId: "location-123",
-    });
-  };
-
-  return (
-    <div>
-      <p>Tipo: {formData.appointmentType}</p>
-      <button onClick={handleUpdate}>Actualizar</button>
-    </div>
-  );
-}
-```
-
-## 📊 Estructura de Datos
-
-```typescript
+```ts
 interface BookingFormData {
   appointmentType: BookingType;
   locationId: string | null;
@@ -65,6 +21,7 @@ interface BookingFormData {
   selectedDate: Date | null;
   selectedTime: string;
   therapistId: string | null;
+  sessionDurationMinutes: number | null;
   basicInfo: {
     firstName: string;
     lastName: string;
@@ -74,53 +31,56 @@ interface BookingFormData {
     bookingNotes: string;
   };
   status: BookingStatus;
+  createdBooking: unknown | null;
 }
 ```
 
-## 🎯 Funciones Disponibles
+### Exposed API
 
-- `formData`: Los datos actuales del formulario
-- `updateFormData(updates)`: Actualiza los datos (merge parcial)
-- `resetFormData()`: Resetea a los valores por defecto
+- `data`
+- `update(updates)`
+- `reset()`
+- `setData(...)`
+- `canProceedToStep(step)`
+- `getStepValidation(step)`
 
-## 💡 Ejemplos de Uso
+### Important behavior
 
-### Actualizar campos individuales
+- in single-therapist public mode, `therapistId` is auto-populated from the resolved public therapist profile
+- `sessionDurationMinutes` is updated from the selected availability day
+- step validation depends on therapist, location, specialty, service, date, time, and basic info depending on the step
 
-```tsx
-updateFormData({ appointmentType: BookingType.VideoCall });
-updateFormData({ locationId: "location-123" });
-```
-
-### Actualizar basicInfo
-
-```tsx
-updateFormData({
-  basicInfo: {
-    firstName: "Juan",
-    lastName: "Pérez",
-    email: "juan@email.com",
-  },
-});
-```
-
-### Actualizar múltiples campos
+### Example
 
 ```tsx
-updateFormData({
-  appointmentType: BookingType.DirectVisit,
-  locationId: "location-456",
-  selectedDate: new Date(),
-  basicInfo: {
-    firstName: "María",
-    givenConsent: true,
-  },
-});
+import { BookingWizardProvider, useBookingWizard } from "@/contexts";
+
+function Example() {
+  const { data, update } = useBookingWizard();
+
+  return (
+    <button
+      onClick={() =>
+        update({
+          locationId: "location-id",
+          selectedTime: "10:00",
+        })
+      }
+    >
+      Current time: {data.selectedTime}
+    </button>
+  );
+}
+
+export function WrappedExample() {
+  return (
+    <BookingWizardProvider>
+      <Example />
+    </BookingWizardProvider>
+  );
+}
 ```
 
-## ✨ Características
+## Other Contexts
 
-- **Merge inteligente**: Los objetos se fusionan correctamente
-- **TypeScript**: Tipado completo
-- **Valores por defecto**: Configuración inicial automática
-- **Simple**: Solo lo esencial para manejar datos
+This folder also contains other state providers used by protected and admin views, such as the user/session context and specialties context. The booking wizard context is the most important one for public booking behavior.

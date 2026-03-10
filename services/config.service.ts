@@ -1,3 +1,5 @@
+import { resolveTimeZone } from "@/lib/utils/timezone";
+
 export interface EmailConfig {
   from: string;
   bcc?: string | string[];
@@ -31,5 +33,5 @@ export function getSmtpConfig() {
 }
 
 export function getTimeZoneOrDefault(locationTz?: string): string {
-  return locationTz && locationTz.trim() ? locationTz : "America/Los_Angeles";
+  return resolveTimeZone(locationTz);
 }

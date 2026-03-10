@@ -1,0 +1,54 @@
+model Company {
+  id                        String                   @id @default(cuid())
+  name                      String
+  slug                      String                   @unique
+  logo                      String?                  @db.Text
+  headerLogo                String?                  @db.Text
+  publicEmail               String?
+  publicPhone               String?
+  publicDescription         String?                  @db.Text
+  publicSummary             String?                  @db.Text
+  publicSpecialty           String?
+  landingPageConfig         String?                  @db.Text
+  defaultTimezone           String                   @default("America/Los_Angeles")
+  publicTherapistId         String?
+  weekdaysHours             String?                  @default("9:00 AM - 6:00 PM")
+  saturdayHours             String?                  @default("9:00 AM - 2:00 PM")
+  sundayHours               String?                  @default("Closed")
+  facebook                  String?
+  instagram                 String?
+  linkedin                  String?
+  twitter                   String?
+  tiktok                    String?
+  youtube                   String?
+  website                   String?
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  publicTherapist           User?                    @relation("CompanyPublicTherapist", fields: [publicTherapistId], references: [id], onDelete: SetNull)
+  memberships               CompanyMembership[]
+  locations                 Location[]
+  specialties               Specialty[]
+  services                  Service[]
+  bookings                  Booking[]
+  availabilityPeriods       AvailabilityPeriod[]
+  availabilityDays          AvailabilityDay[]
+  availabilityExcludedDates AvailabilityExcludedDate[]
+
+  @@map("companies")
+}
+
+model CompanyMembership {
+  id        String                @id @default(cuid())
+  companyId String
+  userId    String
+  role      CompanyMembershipRole
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([companyId, role])
+  @@index([userId, role])
+  @@map("company_memberships")
+}

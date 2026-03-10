@@ -1,15 +1,11 @@
 import { routing } from "@/i18n/routing";
-import { updateSession } from "@/lib/supabase/middleware";
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest } from "next/server";
 
 const handleI18nRouting = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-  const response = handleI18nRouting(request);
-
-  // Otherwise, handle Supabase session updates
-  return await updateSession(request, response);
+  return handleI18nRouting(request);
 }
 
 export const config = {
@@ -21,8 +17,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public images and static assets
      * - API routes (handled separately)
+     * - standalone non-localized document routes
      */
-    "/((?!_next/static|_next/image|favicon.ico|images/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images/|api/|product-presentation(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)",
     "/",
   ],
 };

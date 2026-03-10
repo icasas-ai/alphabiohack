@@ -4,7 +4,6 @@ import {
   getPatientBookings,
   getTherapistBookings,
   getUserById,
-  getUserBySupabaseId,
   updateUser,
 } from "@/services";
 
@@ -27,12 +26,6 @@ export async function GET(
     const user = await getUserById(id);
 
     if (!user) {
-      const userBySupabaseId = await getUserBySupabaseId(id);
-
-      if (userBySupabaseId) {
-        return NextResponse.json({ success: true, data: userBySupabaseId });
-      }
-
       return NextResponse.json(
         { success: false, error: "User not found" },
         { status: 404 }

@@ -5,6 +5,25 @@ import { useCallback, useState } from "react";
 
 import { API_ENDPOINTS } from "@/constants";
 import { BookingFormData } from "@/contexts";
+import { buildCreateBookingRequestFromWizard } from "@/lib/utils/booking-request";
+
+async function getLocationTimezone(locationId: string) {
+  const response = await fetch(API_ENDPOINTS.LOCATIONS.BY_ID(locationId), {
+    cache: "no-store",
+  });
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(result?.errorCode || "internal_error");
+  }
+
+  const timezone = result?.data?.location?.timezone || result?.data?.timezone;
+  if (!timezone || !String(timezone).trim()) {
+    throw new Error("validation.location_timezone_required");
+  }
+
+  return timezone as string;
+}
 
 export function useCreateBooking() {
   const [loading, setLoading] = useState(false);
@@ -17,24 +36,9 @@ export function useCreateBooking() {
         setLoading(true);
         setError(null);
 
-        // El backend hará la conversión correcta usando la zona horaria de la ubicación
-        // Solo enviar fecha y hora como strings
-        const requestData: CreateBookingRequest = {
-          bookingType: formData.appointmentType,
-          locationId: formData.locationId!,
-          specialtyId: formData.specialtyId || undefined,
-          serviceId: formData.selectedServiceIds?.[0] || undefined,
-          firstname: formData.basicInfo.firstName,
-          lastname: formData.basicInfo.lastName,
-          phone: formData.basicInfo.phone,
-          email: formData.basicInfo.email,
-          givenConsent: formData.basicInfo.givenConsent,
-          therapistId: formData.therapistId || undefined,
-          bookingNotes: formData.basicInfo.bookingNotes || undefined,
-          selectedDate: formData.selectedDate!.toISOString().split('T')[0], // YYYY-MM-DD
-          selectedTime: formData.selectedTime, // HH:mm
-          status: formData.status,
-        };
+        const timezone = await getLocationTimezone(formData.locationId!);
+        const requestData: CreateBookingRequest =
+          buildCreateBookingRequestFromWizard(formData, timezone);
 
         const res = await fetch(API_ENDPOINTS.BOOKINGS.BASE, {
           method: "POST",
@@ -53,7 +57,9 @@ export function useCreateBooking() {
       } catch (err) {
         console.error("Error creating booking:", err);
         const code =
-          (err as { errorCode?: string })?.errorCode || "internal_error";
+          (err as { errorCode?: string })?.errorCode ||
+          (err instanceof Error ? err.message : undefined) ||
+          "internal_error";
         setError(code);
         return { success: false, error: code } as CreateBookingResponse;
       } finally {

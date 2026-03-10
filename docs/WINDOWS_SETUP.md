@@ -1,6 +1,6 @@
 # Windows Setup
 
-This guide is for running AlphaBioHack on a Windows machine using:
+This guide is for running MyAlphaPulse on a Windows machine using:
 
 - Docker Desktop for infrastructure
 - PowerShell for commands
@@ -84,7 +84,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 
 # Local Mailpit
@@ -109,7 +109,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 ```

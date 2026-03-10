@@ -9,7 +9,7 @@ export type SeedUser = {
   role: UserRole[];
 };
 
-export const DEFAULT_SEED_USER_PASSWORD = "AlphaBioHack123!";
+export const DEFAULT_SEED_USER_PASSWORD = "MyAlphaPulse123!";
 
 export const DEFAULT_SEED_USERS: SeedUser[] = [
   {

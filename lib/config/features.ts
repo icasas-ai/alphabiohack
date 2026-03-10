@@ -90,7 +90,7 @@ export const featureFlags: FeatureFlags = {
 
   // Sistema de terapeuta único
   therapist: {
-    singleTherapistMode: true, // Modo de terapeuta único deshabilitado por defecto
+    singleTherapistMode: true, // Oculta el selector y usa el publicTherapistId resuelto para el sitio
   },
 };
 

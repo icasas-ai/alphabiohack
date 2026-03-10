@@ -6,7 +6,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 
-const SESSION_COOKIE = "alphabiohack_session";
+const SESSION_COOKIE = "myalphapulse_session";
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 7;
 
 type SessionPayload = {

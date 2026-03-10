@@ -13,9 +13,6 @@ export {
   useFeatureFlags,
 } from "./use-feature-flags";
 
-export { useTherapistConfig } from "./use-therapist-config";
-export type { DefaultTherapist } from "./use-therapist-config";
-
 export { useTherapist } from "./use-therapist";
 export { useTherapists } from "./use-therapists";
 export { usePublicTherapist } from "./use-public-therapist";

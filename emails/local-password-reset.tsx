@@ -35,7 +35,7 @@ export function LocalPasswordResetEmail({
 
   return (
     <EmailLayout
-      eyebrow="AlphaBioHack"
+      eyebrow="MyAlphaPulse"
       title={copy.title}
       intro={copy.intro}
       footer={copy.footer}

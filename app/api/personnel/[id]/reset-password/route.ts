@@ -74,7 +74,7 @@ export async function POST(
     await sendEmail({
       context: "personnel.reset_password",
       to: personnel.email,
-      subject: "Your AlphaBioHack temporary password",
+      subject: "Your MyAlphaPulse temporary password",
       react: PersonnelInviteEmail({
         recipientName: personnel.firstname,
         therapistName,

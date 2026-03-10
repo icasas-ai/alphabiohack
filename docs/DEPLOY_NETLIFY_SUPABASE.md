@@ -95,10 +95,10 @@ Important shell detail:
 - Example:
 
 ```env
-BOOTSTRAP_COMPANY_NAME="AlphaBioHack Practice"
+BOOTSTRAP_COMPANY_NAME="MyAlphaPulse Practice"
 BOOTSTRAP_PUBLIC_DESCRIPTION="Therapist-led practice profile used for the public website."
 BOOTSTRAP_PUBLIC_SUMMARY="Book appointments, review availability, and stay connected with your care team."
-BOOKING_FROM_EMAIL="AlphaBioHack <noreply@yourdomain.com>"
+BOOKING_FROM_EMAIL="MyAlphaPulse <noreply@yourdomain.com>"
 BOOTSTRAP_OWNER_PASSWORD="replace-with-a-strong-random-password"
 ```
 
@@ -112,11 +112,11 @@ set +a
 
 Notes:
 
-- The Prisma and seed wrapper scripts now support `ALPHABIOHACK_ENV_FILE`, so you can target `.env.production` directly without sourcing it first.
+- The Prisma and seed wrapper scripts now support `MYALPHAPULSE_ENV_FILE`, so you can target `.env.production` directly without sourcing it first.
 - Example:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
 ```
 
 ## 6. Initialize Database Schema
@@ -124,7 +124,7 @@ ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
 Normal case:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
 ```
 
 ### Fresh DB in this repository state
@@ -159,7 +159,7 @@ DB_HOST='db.[project].supabase.co' DB_PORT='5432' DB_QUERY='sslmode=require&usel
 ## 7. Run Production Bootstrap Seed
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:prod
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:prod
 ```
 
 If your runtime `.env.production` uses the Supabase pooler, but the one-off seed fails with TLS or pooler issues, temporarily run the seed against the direct database host and drop `pgbouncer=true` for that run:
@@ -195,9 +195,9 @@ Instead:
 3. Run the demo seed against `.env.production` explicitly:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 ```
 
 What the demo seed gives you:
@@ -244,7 +244,7 @@ DEFAULT_COMPANY_SLUG=your-company-slug
 
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=...
-BOOKING_FROM_EMAIL="AlphaBioHack <noreply@yourdomain.com>"
+BOOKING_FROM_EMAIL="MyAlphaPulse <noreply@yourdomain.com>"
 BOOKING_REPLY_TO=support@yourdomain.com
 ```
 
@@ -333,17 +333,17 @@ Use this order for a clean production rollout:
 3. For a real bootstrap release, run:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:prod
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:prod
 ```
 
 4. For a demo release, run:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 ```
 
 5. Then load the production env in your shell and build:
@@ -391,9 +391,9 @@ cp .env.production.example .env.production
 4. Prepare the database against `.env.production` explicitly:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 ```
 
 5. Build locally with the production env loaded:

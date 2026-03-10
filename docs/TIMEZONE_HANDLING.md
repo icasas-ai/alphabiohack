@@ -1,6 +1,6 @@
 # Timezone Handling
 
-This document explains the current timezone model used by AlphaBioHack.
+This document explains the current timezone model used by MyAlphaPulse.
 
 ## Source Of Truth
 

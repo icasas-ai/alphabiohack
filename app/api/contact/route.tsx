@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const companyName = company?.name || "AlphaBioHack";
+    const companyName = company?.name || "MyAlphaPulse";
     const subject =
       emailLanguage === "es"
         ? `Nueva consulta de contacto - ${companyName}`

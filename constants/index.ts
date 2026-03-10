@@ -15,7 +15,7 @@ export const CONTACT_INFO = { // this is the footer information;
 };
 
 export const SITE_DATA = {
-  name: "Alphabiohack",
+  name: "MyAlphaPulse",
   logo: "/images/favicon.png",
   description: "By MyAlphaPulse",
   email: "icasas@tenmacontrol.com",
@@ -25,50 +25,6 @@ export const SITE_DATA = {
 export const PLATFORM_INFO = {
   BRAND_NAME: "MyAlphaPulse",
   LOGO: "/images/logo.png",
-};
-
-export const PROFESSIONAL_INFO = {
-  BRAND_NAME: "Alphabiohack",
-  EMAIL: "alphabiohack@gmail.com",
-  PHONE: "+19158675506",
-  ADDRESS:
-    "10000 N 31st Ave Phoenix, AZ 85051 United States Building C - Suite 126",
-  SOCIAL_MEDIA: {
-    FACEBOOK: "https://www.facebook.com/alphabiohack",
-    TWITTER: "https://www.twitter.com/alphabiohack",
-    LINKEDIN: "https://www.linkedin.com/company/alphabiohack",
-    INSTAGRAM: "https://www.instagram.com/alphabiohack",
-  },
-};
-/**
- * Configuración del terapeuta por defecto
- *
- * Esta constante define los datos del terapeuta que se usará cuando
- * el sistema esté configurado en modo de terapeuta único.
- *
- * Para habilitar el modo de terapeuta único:
- * 1. Cambiar `singleTherapistMode: true` en lib/config/features.ts
- * 2. Configurar el `defaultTherapistId` con el ID real del terapeuta
- * 3. Actualizar los datos aquí con la información real del terapeuta
- */
-export const DEFAULT_THERAPIST = {
-  id: "cmfd14syi0002c9kohiinmuc1", // Cambiar por el ID real del terapeuta
-  firstName: "Dr. Juan",
-  lastName: "Pérez",
-  email: "dr.juan.perez@tenmacontrol.com",
-  phone: "+16194682741",
-  specialties: ["Psicología", "Terapia Cognitivo-Conductual"],
-  bio: "Psicólogo clínico con más de 10 años de experiencia en terapia cognitivo-conductual y tratamiento de ansiedad y depresión.",
-  profileImage: "/images/smiling-doctor.png",
-  qualifications: [
-    "Licenciatura en Psicología",
-    "Maestría en Terapia Cognitivo-Conductual",
-    "Certificación en Terapia de Parejas",
-  ],
-  languages: ["Español", "Inglés"],
-  experience: "10+ años",
-  rating: 4.9,
-  totalPatients: 500,
 };
 
 /**

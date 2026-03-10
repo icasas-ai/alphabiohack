@@ -37,7 +37,7 @@ export function PersonnelInviteEmail({
 
   return (
     <EmailLayout
-      eyebrow="AlphaBioHack"
+      eyebrow="MyAlphaPulse"
       title={t.title}
       intro={t.intro}
       footer={t.footer}

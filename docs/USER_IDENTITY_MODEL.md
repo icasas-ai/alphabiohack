@@ -64,10 +64,10 @@ Examples:
 
 Public booking does not use the logged-in user.
 
-It resolves the active therapist from single-therapist config:
+It resolves the active therapist from the configured company:
 
 - [lib/config/features.ts](../lib/config/features.ts)
-- [hooks/use-therapist-config.ts](../hooks/use-therapist-config.ts)
+- [hooks/use-public-therapist.ts](../hooks/use-public-therapist.ts)
 - [contexts/booking-wizard-context.tsx](../contexts/booking-wizard-context.tsx)
 
 The current public booking source is:
@@ -84,6 +84,8 @@ Booking then fetches that user through:
 
 - [hooks/use-therapist.ts](../hooks/use-therapist.ts)
 - [app/api/therapists/[id]/route.ts](../app/api/therapists/[id]/route.ts)
+
+`singleTherapistMode` now only controls whether the therapist selector is shown in the booking UI. It no longer provides a hardcoded therapist fallback.
 
 ## How Public Home And Contact Resolve Profile Data
 

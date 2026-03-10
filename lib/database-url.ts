@@ -1,7 +1,7 @@
 type EnvLike = Record<string, string | undefined>;
 
 const DEFAULT_LOCAL_DATABASE_URL =
-  "postgresql://postgres:postgres@localhost:5432/alphabiohack?schema=public";
+  "postgresql://postgres:postgres@localhost:5432/myalphapulse?schema=public";
 
 function trimValue(value: string | undefined) {
   const trimmed = value?.trim();

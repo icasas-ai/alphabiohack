@@ -1,6 +1,6 @@
 # Local Development
 
-This guide documents the current local development workflow for AlphaBioHack.
+This guide documents the current local development workflow for MyAlphaPulse.
 
 Recommended workflow:
 
@@ -52,7 +52,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 
 # Local Mailpit
@@ -245,7 +245,7 @@ If there is a space around `=`, shell sourcing can fail before Prisma starts.
 If you intentionally want to target another env file for a one-off command, override it explicitly:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
 ```
 
 ### 2. Check for a host port conflict
@@ -267,7 +267,7 @@ If the listener is `ssh` or some other service:
 ```bash
 docker compose up -d db
 docker compose ps db
-docker logs alphabiohack-db --tail 50
+docker logs myalphapulse-db --tail 50
 ```
 
 ### 4. Retry the normal migration flow

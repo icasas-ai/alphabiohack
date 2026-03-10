@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
     await sendEmail({
       context: "personnel.invite",
       to: normalizedEmail,
-      subject: `Your AlphaBioHack staff access`,
+      subject: `Your MyAlphaPulse staff access`,
       react: PersonnelInviteEmail({
         recipientName: user.firstname,
         therapistName,

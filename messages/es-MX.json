@@ -1,6 +1,6 @@
 {
   "HomePage": {
-    "title": "Bienvenido a AlphaBioHack",
+    "title": "Bienvenido a MyAlphaPulse",
     "subtitle": "Alberto Estrada - Alphabiotista y Terapeuta",
     "cta": "Reservar Ahora"
   },
@@ -1254,7 +1254,7 @@
     },
     "addressDetails": "10000 N 31st Ave Phoenix, <br />AZ  85051 United States, <br />Building C - Suite 126",
     "phoneNumber": "+1 (915) 867 5506",
-    "emailAddress": "alphabiohack@gmail.com"
+    "emailAddress": "myalphapulse@gmail.com"
   },
   "SpecialtiesUI": {
     "pageTitle": "Especialidades",

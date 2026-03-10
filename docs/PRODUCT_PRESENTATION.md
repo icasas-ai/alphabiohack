@@ -1,4 +1,4 @@
-# AlphaBioHack Product Presentation
+# MyAlphaPulse Product Presentation
 
 Prepared from:
 - route and component audit
@@ -7,7 +7,7 @@ Prepared from:
 
 ## 1. Product Snapshot
 
-AlphaBioHack is a therapist booking and practice operations platform built around one branded public site and one internal workspace per deployment.
+MyAlphaPulse is a therapist booking and practice operations platform built around one branded public site and one internal workspace per deployment.
 
 Core shape today:
 - public landing page

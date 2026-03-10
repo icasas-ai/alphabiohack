@@ -1,6 +1,6 @@
 # Production Readiness
 
-This document describes what needs to change to take AlphaBioHack from its current single-therapist / app-managed-auth shape into a production-ready multi-tenant platform.
+This document describes what needs to change to take MyAlphaPulse from its current single-therapist / app-managed-auth shape into a production-ready multi-tenant platform.
 
 It focuses on:
 

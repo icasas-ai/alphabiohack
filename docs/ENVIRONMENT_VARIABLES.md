@@ -1,6 +1,6 @@
 # Environment Variables
 
-This document lists the environment variables currently used or expected by AlphaBioHack, what they do, and when they should be set.
+This document lists the environment variables currently used or expected by MyAlphaPulse, what they do, and when they should be set.
 
 Use it together with [.env.example](/Users/davidguillen/Projects/david/alphabiohack/.env.example).
 
@@ -200,7 +200,7 @@ Notes:
 - Example:
 
 ```env
-BOOKING_FROM_EMAIL="AlphaBioHack <noreply@example.com>"
+BOOKING_FROM_EMAIL="MyAlphaPulse <noreply@example.com>"
 ```
 
 Notes:
@@ -328,7 +328,7 @@ They are not needed for `npm run db:seed:demo`.
 If you are doing a hosted demo release, leave these unset and use:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 ```
 
 ### `BOOTSTRAP_COMPANY_SLUG`
@@ -430,7 +430,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 
 EMAIL_PROVIDER=smtp
@@ -467,7 +467,7 @@ DEFAULT_COMPANY_SLUG=default-company
 
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=[resend-api-key]
-BOOKING_FROM_EMAIL="AlphaBioHack <noreply@example.com>"
+BOOKING_FROM_EMAIL="MyAlphaPulse <noreply@example.com>"
 BOOKING_REPLY_TO=support@example.com
 ```
 

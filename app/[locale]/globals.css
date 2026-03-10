@@ -83,7 +83,7 @@
 
 @layer base {
   :root {
-    /* Light theme: AlphaBioHack blues with cooler clinical surfaces */
+    /* Light theme: MyAlphaPulse blues with cooler clinical surfaces */
     --interactive-selected-rgb: 17 114 184;
     --interactive-selected-strong-rgb: 13 70 115;
     --background: 0.985 0.006 229;
@@ -117,7 +117,7 @@
   }
 
   .dark {
-    /* Dark theme: AlphaBioHack deep navy with bright signal blues */
+    /* Dark theme: MyAlphaPulse deep navy with bright signal blues */
     --interactive-selected-rgb: 121 212 255;
     --interactive-selected-strong-rgb: 17 114 184;
     --background: 0.18 0.026 249;

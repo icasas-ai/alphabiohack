@@ -6,7 +6,7 @@ It is intentionally opinionated and selective.
 
 ## Current Product Direction
 
-AlphaBioHack is evolving from a single-therapist booking app into a therapist operations platform with:
+MyAlphaPulse is evolving from a single-therapist booking app into a therapist operations platform with:
 
 - public booking
 - therapist/admin management views

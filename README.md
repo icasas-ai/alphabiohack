@@ -1,6 +1,6 @@
-# AlphaBioHack
+# MyAlphaPulse
 
-AlphaBioHack is a therapist booking and practice operations platform built with Next.js 15, Prisma, and PostgreSQL.
+MyAlphaPulse is a therapist booking and practice operations platform built with Next.js 15, Prisma, and PostgreSQL.
 
 It combines:
 
@@ -173,7 +173,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 
 EMAIL_PROVIDER=smtp
@@ -213,7 +213,7 @@ For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT
 All Prisma and seed wrapper scripts default to `.env.local`, but you can point them at another env file when needed:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
 ```
 
 ### Demo Seed
@@ -239,9 +239,9 @@ If you want a hosted demo environment with the realistic demo data, use the prod
 cp .env.production.example .env.production
 # fill the production values, then:
 
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:generate
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 
 set -a
 source ./.env.production
@@ -270,7 +270,7 @@ DB_USER=postgres
 DB_PASS=postgres
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=alphabiohack
+DB_NAME=myalphapulse
 DB_QUERY=schema=public
 ```
 
@@ -293,7 +293,7 @@ If you see `ssh` or another process instead of PostgreSQL, stop that process or 
 ```bash
 docker compose up -d db
 docker compose ps db
-docker logs alphabiohack-db --tail 50
+docker logs myalphapulse-db --tail 50
 ```
 
 4. Retry the normal flow:

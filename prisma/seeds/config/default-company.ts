@@ -3,7 +3,7 @@ import { DEFAULT_SEED_COMPANY_CONTENT } from "@/prisma/seeds/config/default-comp
 export const DEFAULT_SEED_COMPANY = {
   id: "default-company",
   slug: "default-company",
-  name: "AlphaBioHack Practice",
+  name: "MyAlphaPulse Practice",
   logo: null,
   publicEmail: "therapist@example.com",
   publicPhone: "+15551234567",

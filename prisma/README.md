@@ -66,8 +66,8 @@ npm run db:studio
 To run any Prisma or seed wrapper against a non-local env file, override the default env file explicitly:
 
 ```bash
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:migrate:deploy
-ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
 ```
 
 ## Notes
@@ -84,5 +84,5 @@ ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo
 - `npm run db:seed:e2e` creates synthetic users, locations, catalog data, bookings, and bookable dated availability
 - `db:seed:prod` does not create demo bookings, demo locations, or seed users with fake passwords
 - `db:seed:prod` expects bootstrap env vars such as `BOOTSTRAP_COMPANY_SLUG`, `BOOTSTRAP_COMPANY_NAME`, and `BOOTSTRAP_OWNER_EMAIL`
-- for a hosted demo environment, use `ALPHABIOHACK_ENV_FILE=./.env.production npm run db:seed:demo` and set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
+- for a hosted demo environment, use `MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo` and set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
 - for a hosted demo environment, do not keep `BOOTSTRAP_*` env vars unless you also intend to run `db:seed:prod`

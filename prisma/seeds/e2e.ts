@@ -49,7 +49,7 @@ async function ensureCompany() {
     data: {
       slug: COMPANY_SLUG,
       name: "E2E Validation Company",
-      publicEmail: "e2e+company@alphabiohack.local",
+      publicEmail: "e2e+company@myalphapulse.local",
       publicPhone: "+15550000000",
       publicDescription: "E2E seed company for high-volume validation.",
       publicSummary: "Contains synthetic records to validate end-to-end flows.",
@@ -88,7 +88,7 @@ async function ensureUsers(companyId: string): Promise<UserSeed[]> {
 
     const created = await prisma.user.create({
       data: {
-        email: `e2e.user+${index}@alphabiohack.local`,
+        email: `e2e.user+${index}@myalphapulse.local`,
         firstname: `E2E${index}`,
         lastname: "User",
         role,
@@ -296,7 +296,7 @@ async function ensureBookings(params: {
         firstname: `Past${offset}`,
         lastname: "Patient",
         phone: `+155501${(1000 + offset).toString().slice(-4)}`,
-        email: `e2e.booking+past${offset}@alphabiohack.local`,
+        email: `e2e.booking+past${offset}@myalphapulse.local`,
         givenConsent: true,
         therapistId: therapist.id,
         patientId: patient.id,
@@ -327,7 +327,7 @@ async function ensureBookings(params: {
         firstname: `Future${offset}`,
         lastname: "Patient",
         phone: `+155509${(1000 + offset).toString().slice(-4)}`,
-        email: `e2e.booking+future${offset}@alphabiohack.local`,
+        email: `e2e.booking+future${offset}@myalphapulse.local`,
         givenConsent: true,
         therapistId: therapist.id,
         patientId: patient.id,

@@ -1,13 +1,14 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { useBookingWizard } from "@/contexts"
-import { useTherapist, useTherapistConfig } from "@/hooks"
+import { useTherapist } from "@/hooks"
+import { isSingleTherapistModeEnabled } from "@/lib/config/features"
 
 import { Fingerprint } from "lucide-react"
 
 export function DoctorInfo() {
   const { data, publicTherapist, publicTherapistLoading, publicTherapistError } = useBookingWizard()
-  const { isSingleTherapistMode } = useTherapistConfig()
+  const isSingleTherapistMode = isSingleTherapistModeEnabled()
   const { therapist, loading, error } = useTherapist(
     !isSingleTherapistMode ? (data.therapistId || undefined) : undefined
   )

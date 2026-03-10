@@ -75,8 +75,8 @@ export async function POST(request: NextRequest) {
         to: user.email,
         subject:
           language === "es"
-            ? "Tu contrasena temporal de AlphaBioHack"
-            : "Your AlphaBioHack temporary password",
+            ? "Tu contrasena temporal de MyAlphaPulse"
+            : "Your MyAlphaPulse temporary password",
         react: LocalPasswordResetEmail({
           recipientName: user.firstname || user.email,
           temporaryPassword,

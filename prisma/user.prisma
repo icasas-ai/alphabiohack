@@ -1,0 +1,36 @@
+model User {
+  id                        String                   @id @default(cuid())
+  email                     String                   @unique
+  managedByTherapistId      String?
+  firstname                 String
+  lastname                  String
+  avatar                    String?                  @db.Text
+  telefono                  String?
+  informacionPublica        String?
+  especialidad              String?
+  summary                   String?                  @db.Text
+  passwordHash              String?
+  mustChangePassword        Boolean                  @default(false)
+  facebook                  String?
+  instagram                 String?
+  linkedin                  String?
+  twitter                   String?
+  tiktok                    String?
+  youtube                   String?
+  website                   String?
+  role                      UserRole[]
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime                 @updatedAt
+  patientBookings           Booking[]                @relation("PatientBookings")
+  therapistBookings         Booking[]                @relation("TherapistBookings")
+  managedByTherapist        User?                    @relation("TherapistPersonnel", fields: [managedByTherapistId], references: [id], onDelete: SetNull)
+  managedPersonnel          User[]                   @relation("TherapistPersonnel")
+  publicCompanies           Company[]                @relation("CompanyPublicTherapist")
+  companyMemberships        CompanyMembership[]
+  availabilityPeriods       AvailabilityPeriod[]
+  availabilityDays          AvailabilityDay[]
+  availabilityExcludedDates AvailabilityExcludedDate[]
+
+  @@index([managedByTherapistId])
+  @@map("users")
+}

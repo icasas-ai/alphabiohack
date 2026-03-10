@@ -71,7 +71,7 @@ export async function PUT(
     }
 
     if (body.name) {
-      const duplicate = await getSpecialtyByName(body.name);
+      const duplicate = await getSpecialtyByName(body.name, existingSpecialty.companyId);
       if (duplicate && duplicate.id !== id) {
         return NextResponse.json(
           { success: false, error: "Specialty already exists" },

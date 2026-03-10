@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { type LandingPageResolvedSimpleSection } from "@/lib/company/landing-page-config"
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 
@@ -51,10 +52,17 @@ const blogPosts = [
   },
 ]
 
-export function BlogSection() {
+export function BlogSection({
+  content = null,
+}: {
+  content?: LandingPageResolvedSimpleSection | null
+}) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const itemsPerView = 4
   const t = useTranslations('Blog')
+  const publicCardRadiusClass = "rounded-[24px]"
+  const sectionTitle = content?.title || t("title")
+  const sectionSubtitle = content?.description || t("subtitle")
 
   const nextSlide = () => {
     setCurrentIndex((prev) => (prev + itemsPerView >= blogPosts.length ? 0 : prev + 1))
@@ -67,12 +75,12 @@ export function BlogSection() {
   const visiblePosts = blogPosts.slice(currentIndex, currentIndex + itemsPerView)
 
   return (
-    <section className="py-16 bg-muted/30">
+    <section id="home-blog" className="py-16 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-12">
           <div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">{t('title')}</h2>
-            <p className="text-muted-foreground">{t('subtitle')}</p>
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">{sectionTitle}</h2>
+            <p className="text-muted-foreground">{sectionSubtitle}</p>
           </div>
 
           <div className="hidden md:flex space-x-2">
@@ -92,9 +100,9 @@ export function BlogSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {visiblePosts.map((post) => (
-            <Card key={post.id} className="group hover:shadow-lg transition-all duration-300 cursor-pointer p-0">
+            <Card key={post.id} className={`group cursor-pointer p-0 transition-all duration-300 hover:shadow-lg ${publicCardRadiusClass}`}>
               <CardContent className="p-0">
-                <div className="relative overflow-hidden rounded-t-lg">
+                <div className={`relative overflow-hidden rounded-t-[24px]`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={post.image || "/placeholder.svg"}

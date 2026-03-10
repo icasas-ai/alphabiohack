@@ -1,686 +1,365 @@
-# AlphaBioHack - Healthcare Booking Platform
+# MyAlphaPulse
 
-A modern, full-stack healthcare appointment booking platform built with Next.js 15, enabling patients to book appointments with therapists and medical specialists.
+MyAlphaPulse is a therapist booking and practice operations platform built with Next.js 15, Prisma, and PostgreSQL.
 
-For local setup with Dockerized PostgreSQL and local auth, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
-For the current user/therapist identity model and how public vs authenticated views resolve the active therapist, see [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md).
+It combines:
 
-## 📋 Table of Contents
+- a public website
+- a guided booking wizard
+- therapist/location availability management
+- specialties and services management
+- appointment operations
+- internal protected views for practice management
 
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Environment Variables](#environment-variables)
-- [Database Setup](#database-setup)
-- [Project Structure](#project-structure)
-- [Available Scripts](#available-scripts)
-- [API Endpoints](#api-endpoints)
-- [Deployment](#deployment)
+## What The App Does
 
-## 🏥 Project Overview
+The current product surface includes:
 
-AlphaBioHack is a healthcare booking platform that connects patients with therapists and medical specialists. The platform supports multiple appointment types, location management, service catalogs, and a comprehensive availability system with business hours and date overrides.
+- public home and contact pages
+- public booking flow with:
+  - appointment type
+  - specialty and service selection
+  - therapist/location-aware date and time selection
+  - phone-first basic info capture with saved-detail suggestions
+  - confirmation flow that creates or links patient profiles automatically
+- therapist/admin management views for:
+  - locations
+  - specialties and services
+  - availability
+  - appointments
+  - profile
+- email appointment invites
+- local development with PostgreSQL, Mailpit, and app-managed auth
 
-### User Roles
+## Main Capabilities
 
-- **Patients**: Browse services, book appointments, manage bookings
-- **Therapists**: Manage availability, view and manage appointments, configure services
-- **Admin**: Full system administration
+### Booking
 
-## ✨ Features
+- multiple booking types
+- service-based booking flow
+- therapist-aware booking
+- phone-based patient detail lookup during booking
+- automatic patient profile creation on booking confirmation
+- exact-email matching for safe patient linking
+- slot validation before booking creation
+- invite email generation after booking
 
-### Booking System
-- Multiple booking types: Direct visits, Video calls, Phone calls, Home visits
-- Service selection with duration and cost tracking
-- Booking status workflow: Pending → Confirmed → In Progress → Completed
-- Email notifications for appointment confirmations
+### Availability
 
-### Availability Management
-- Location-based availability configuration
-- Weekly business hours with customizable time slots
-- Date overrides for holidays and special closures
-- Timezone support per location
+- dated availability periods
+- availability owned by `therapist + location`
+- multiple time ranges per day
+- per-day session duration
+- excluded dates that can be restored later
+- month-level review of booking inventory
 
-### Multi-Location Support
-- Multiple practice locations with addresses and coordinates
-- Per-location business hours and availability
-- Location-specific services
+### Catalog and Operations
 
-### Internationalization (i18n)
-- English (en-US) and Spanish (es-MX) support
-- Fully translated UI and API responses
+- specialties
+- services with cost and duration
+- locations with timezone support
+- appointment views and status handling
 
-## 🛠 Tech Stack
+### Auth
 
-| Category | Technology |
-|----------|------------|
-| **Framework** | Next.js 15 (App Router) |
-| **Language** | TypeScript |
-| **Frontend** | React 19, Tailwind CSS 4, shadcn/ui |
-| **Database** | PostgreSQL (via Supabase) |
-| **ORM** | Prisma |
-| **Authentication** | Supabase Auth |
-| **Email** | Resend |
-| **State Management** | React Context, React Hook Form |
-| **Testing** | Vitest, Playwright |
-| **Component Docs** | Storybook |
-| **Deployment** | Netlify |
+- app-managed auth with signed cookies
+- password hashes stored in Prisma users
+- Supabase is not used for auth or password reset
+- optional Supabase Storage when project env vars are present
 
-## 📦 Prerequisites
+### Email
 
-Before you begin, ensure you have the following installed:
+- Resend for non-local environments
+- SMTP/Mailpit for local development
 
-- **Node.js** 18.x or higher
-- **npm** 9.x or higher (or yarn/pnpm)
-- **PostgreSQL** database (or a [Supabase](https://supabase.com) account)
+## Important Architecture Notes
 
-## 🚀 Quick Start
+### 0. Supabase Is Infrastructure Here, Not Identity
 
-### 1. Clone the repository
+Current split:
+
+- Supabase Postgres can host the database
+- Supabase Storage is optional for uploads
+- users, sessions, password reset, and personnel password flows are app-managed
+- no Supabase Auth users are required
+
+This matters for deployment and operations:
+
+- production bootstrapping creates staff users in Prisma
+- forgot-password and personnel reset happen through the app email flows
+- Netlify env should include storage vars only if you actually use uploads
+
+### 1. Dated Availability Is The Primary Scheduling Direction
+
+The booking flow is based on explicit dated availability.
+
+Core availability tables:
+
+- `availability_periods`
+- `availability_days`
+- `availability_time_ranges`
+- `availability_excluded_dates`
+- `availability_excluded_time_ranges`
+
+### 2. The App Is Multi-User, But Not Yet Truly Multi-Tenant
+
+The app now has a foundational `Company` + `CompanyMembership` model, but the full app is still mid-transition toward tenant-aware production behavior.
+
+Current tenant-owned records include:
+
+- locations
+- specialties
+- services
+- bookings
+- availability periods / days
+
+The app still also uses one `users` table for:
+
+- patients
+- therapists
+- admins
+
+A therapist is a `users` row whose `role` includes `Therapist`.
+
+Current public identity behavior:
+
+- public site resolves the company from the server-side `DEFAULT_COMPANY_SLUG`
+- public booking/profile resolve therapist identity from that company's `publicTherapistId`
+- some internal flows still need deeper tenant-aware authorization refactoring
+
+For more detail, see [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md).
+
+### 3. Local Sign-Up Does Not Create Therapists
+
+Local self-signup creates `Patient` users.
+
+If you want public booking to work in local development:
+
+- create or seed a therapist user
+- assign that user as the company's `publicTherapistId`
+
+## Recommended Local Development Workflow
+
+Use Docker for infrastructure and run the app on the host:
+
+1. start PostgreSQL and Mailpit
+2. run Prisma setup commands
+3. run the Next.js app locally
+
+### Quick Start
 
 ```bash
-git clone git@github.com:icasas-ai/alphabiohack.git
-cd alphabiohack
-```
-
-### 2. Install dependencies
-
-```bash
+cp .env.example .env.local
+docker compose up db mailpit
 npm install
-```
-
-### 3. Set up environment variables
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local` and fill in your credentials (see [Environment Variables](#environment-variables)).
-
-### 4. Set up the database
-
-```bash
-# Generate Prisma client
-npx prisma generate
-
-# Run database migrations
-npx prisma migrate dev
-
-# Seed the database with initial data
+npm run db:generate
+npm run db:migrate:deploy
 npm run db:seed
-```
-
-### Docker option: local PostgreSQL
-
-If you want to run the app with PostgreSQL in Docker, this repository now includes a `docker-compose.yml` with:
-
-- `db`: PostgreSQL 16
-- `app`: Next.js app with Prisma
-
-1. Copy the env file:
-
-```bash
-cp .env.example .env.local
-```
-
-2. Fill in at least these values in `.env.local`:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-anon-key
-RESEND_API_KEY=re_your_api_key
-
-SINGLE_THERAPIST=true
-SINGLE_THERAPIST_EMAIL=therapist@example.com
-SINGLE_THERAPIST_SUPABASE_ID=your-supabase-user-id
-SINGLE_THERAPIST_FIRSTNAME=John
-SINGLE_THERAPIST_LASTNAME=Doe
-SINGLE_THERAPIST_AVATAR=https://example.com/avatar.jpg
-```
-
-`DATABASE_URL` and `DIRECT_URL` are injected by Docker Compose for the local `db` container.
-
-3. Start the stack:
-
-```bash
-docker compose up --build
-```
-
-4. In another terminal, seed the database:
-
-```bash
-docker compose exec app npm run db:seed
-```
-
-The app will be available at [http://localhost:3000](http://localhost:3000).
-
-Important: this project still depends on Supabase Auth and parts of Supabase Storage. Running PostgreSQL in Docker replaces the database only; it does not replace Supabase Auth. If you want everything local, use the Supabase CLI local stack instead of plain PostgreSQL.
-
-### Local auth without Supabase
-
-The project also supports a local authentication mode when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` are left empty.
-
-In that mode:
-
-- authentication uses the local PostgreSQL database
-- sessions are stored in an HTTP-only cookie
-- new users can sign up and log in without Supabase
-
-Optional:
-
-```env
-LOCAL_AUTH_SECRET=change-this-in-shared-environments
-```
-
-Notes:
-
-- password reset and email confirmation remain Supabase-only flows
-- existing seeded users do not have local passwords unless you add them manually
-
-### 5. Start the development server
-
-```bash
 npm run dev
 ```
 
-The app should now be running at [http://localhost:3000](http://localhost:3000).
+Then open:
 
-## 🔐 Environment Variables
+- app: `http://localhost:9001`
+- Mailpit inbox: `http://localhost:8025`
 
-Create a `.env.local` file in the root directory with the following variables:
+### Minimum `.env.local` For Host-Run Local Dev
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=your-anon-key
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
 
-# Database Connection (Supabase PostgreSQL)
-DATABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres?pgbouncer=true
-DIRECT_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myalphapulse
+DB_QUERY=schema=public
 
-# Email Service (Resend)
-RESEND_API_KEY=re_your_api_key
+EMAIL_PROVIDER=smtp
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_SECURE=false
 
-# Default Therapist Configuration (for single-therapist mode)
-SINGLE_THERAPIST=true
-SINGLE_THERAPIST_EMAIL=therapist@example.com
-SINGLE_THERAPIST_SUPABASE_ID=your-supabase-user-id
-SINGLE_THERAPIST_FIRSTNAME=John
-SINGLE_THERAPIST_LASTNAME=Doe
-SINGLE_THERAPIST_AVATAR=https://example.com/avatar.jpg
-NEXT_PUBLIC_DEFAULT_THERAPIST_ID=your-prisma-therapist-user-id
+APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
+DEFAULT_COMPANY_SLUG=default-company
 ```
 
 Important:
 
-- local sign-up creates `Patient` users
-- public booking uses `NEXT_PUBLIC_DEFAULT_THERAPIST_ID`
-- that value must be the Prisma `users.id` of a user whose `role` includes `Therapist`
+- `.env.local` is sourced by a shell wrapper, so use `KEY=value` with no spaces around `=`
+- `APP_AUTH_SECRET` is required because auth is app-managed
+- `DEFAULT_COMPANY_SLUG` must match the single company row for this deployment
+- that company must have a valid `publicTherapistId` that points to a therapist-role user
 
-### Getting Credentials
+For the full local guide, see [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
 
-- **Supabase**: Create a project at [supabase.com](https://supabase.com) and find credentials in Project Settings → API
-- **Resend**: Sign up at [resend.com](https://resend.com) and create an API key
+## Common Commands
 
-## 🗄 Database Setup
+- `npm run dev` - run the app locally
+- `npm run dev:docker` - app startup flow inside Docker
+- `npm run db:generate` - generate Prisma client using `.env.local` by default
+- `npm run db:migrate:deploy` - apply committed migrations using `.env.local` by default
+- `npm run db:migrate:status` - check migration status
+- `npm run db:seed` - seed local data
+- `npm run db:seed:demo` - seed a realistic demo practice with polished sales-call data and bookable availability
+- `npm run db:seed:e2e` - seed high-volume synthetic e2e validation data with bookable availability
+- `npm run db:seed:prod` - bootstrap a real company and owner user without demo data
+- `npm run db:reset` - reset and reseed the database
+- `npm run db:reset -- --demo` - reset and reseed with the realistic demo dataset
+- `npm run db:reset -- --e2e` - reset and reseed with synthetic e2e data
+- `npm run db:studio` - open Prisma Studio using `.env.local` by default
 
-### Using Prisma Migrations
+All Prisma and seed wrapper scripts default to `.env.local`, but you can point them at another env file when needed:
 
 ```bash
-# Create a new migration
-npx prisma migrate dev --name your_migration_name
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+```
 
-# Apply migrations to production
-npx prisma migrate deploy
+### Demo Seed
 
-# Reset database (WARNING: deletes all data)
+Use the demo seed when you want a sales-call-ready practice instead of bare local fixtures or synthetic e2e data:
+
+```bash
+npm run db:reset -- --demo
+```
+
+Important:
+
+- set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
+- the seeded company name is `Harbor Balance Wellness`
+- all seeded demo users share the password `HarborDemo123!`
+- the demo seed creates realistic staff, patients, locations, upcoming availability, and mixed booking history
+
+### Demo Release
+
+If you want a hosted demo environment with the realistic demo data, use the production env file but run the demo seed instead of the production bootstrap seed:
+
+```bash
+cp .env.production.example .env.production
+# fill the production values, then:
+
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:generate
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:migrate:deploy
+MYALPHAPULSE_ENV_FILE=./.env.production npm run db:seed:demo
+
+set -a
+source ./.env.production
+set +a
+npm run build
+```
+
+For a demo release:
+
+- set `DEFAULT_COMPANY_SLUG=harbor-balance-wellness`
+- do not run `npm run db:seed:prod`
+- you do not need `BOOTSTRAP_*` variables unless you intentionally want the real production bootstrap instead of demo data
+- use an isolated database and isolated auth secret because the demo users all share `HarborDemo123!`
+- main demo admin login: `sofia.ramirez@example.com` / `HarborDemo123!`
+
+For the full hosted runbook, including which Netlify secrets to update, see [docs/DEPLOY_NETLIFY_SUPABASE.md](docs/DEPLOY_NETLIFY_SUPABASE.md).
+
+## Migration Troubleshooting
+
+If `npm run db:migrate:deploy` fails locally, check these first:
+
+1. `.env.local` syntax must be valid shell syntax:
+
+```env
+DB_USER=postgres
+DB_PASS=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myalphapulse
+DB_QUERY=schema=public
+```
+
+Bad example:
+
+```env
+DB_USER= postgres
+```
+
+2. Confirm PostgreSQL actually owns the configured host port:
+
+```bash
+lsof -nP -iTCP:5432 -sTCP:LISTEN
+```
+
+If you see `ssh` or another process instead of PostgreSQL, stop that process or move the Docker mapping to another host port such as `5433`, then update `DB_PORT` in `.env.local`.
+
+3. Make sure the database container is healthy:
+
+```bash
+docker compose up -d db
+docker compose ps db
+docker logs myalphapulse-db --tail 50
+```
+
+4. Retry the normal flow:
+
+```bash
+npm run db:generate
+npm run db:migrate:status
+npm run db:migrate:deploy
+```
+
+Recovery options:
+
+- If Prisma marks a migration as failed and you need to retry it without wiping local data:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260312000000_add_booking_number
+npm run db:migrate:deploy
+```
+
+- If you are in local development and can safely rebuild the database:
+
+```bash
 npm run db:reset
 ```
 
-### Database Schema Overview
+Do not use `db:reset` against production data.
 
-The main entities in the database are:
-
-- **User**: Patients, therapists, and admins
-- **Location**: Practice locations with addresses and timezone
-- **BusinessHours**: Weekly availability per location
-- **TimeSlot**: Time slots within business hours
-- **DateOverride**: Special date overrides (holidays, closures)
-- **Specialty**: Medical specialties offered
-- **Service**: Services with duration and cost
-- **Booking**: Patient appointments
-
-See [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) for table descriptions and an ER diagram.
-
-## 📁 Project Structure
-
-```
-alphabiohack/
-├── app/
-│   ├── [locale]/           # Internationalized pages
-│   │   ├── (protected)/    # Authenticated routes
-│   │   ├── (public)/       # Public routes
-│   │   ├── auth/           # Authentication pages
-│   │   └── booking/        # Booking flow pages
-│   └── api/                # API route handlers
-├── components/
-│   ├── ui/                 # shadcn/ui components
-│   ├── booking/            # Booking-related components
-│   ├── availability/       # Availability management
-│   ├── dashboard/          # Dashboard components
-│   └── ...
-├── contexts/               # React Context providers
-├── hooks/                  # Custom React hooks
-├── lib/                    # Utility functions and configurations
-├── prisma/
-│   ├── schema.prisma       # Database schema
-│   ├── migrations/         # Database migrations
-│   └── seeds/              # Seed data
-├── services/               # Business logic services
-├── types/                  # TypeScript type definitions
-├── messages/               # i18n translation files
-├── docs/                   # Additional documentation
-└── stories/                # Storybook stories
-```
-
-## 📜 Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run storybook` | Start Storybook dev server |
-| `npm run build-storybook` | Build Storybook |
-| `npm run db:seed` | Seed the database |
-| `npm run db:reset` | Reset and reseed database |
-
-## 🔌 API Endpoints
-
-The API follows RESTful conventions. Main endpoint groups:
-
-| Endpoint | Description |
-|----------|-------------|
-| `/api/user` | Current user operations |
-| `/api/users` | User management |
-| `/api/therapists` | Therapist profiles and bookings |
-| `/api/locations` | Location CRUD operations |
-| `/api/business-hours` | Business hours management |
-| `/api/overrides` | Date override management |
-| `/api/specialties` | Medical specialties |
-| `/api/services` | Services catalog |
-| `/api/bookings` | Booking operations |
-| `/api/dashboard` | Dashboard statistics |
-| `/api/contact` | Contact form |
-
-See [docs/API_ENDPOINTS_README.md](docs/API_ENDPOINTS_README.md) for detailed API documentation.
-
-## 🚢 Deployment
-
-### Netlify
-
-The project is configured for Netlify deployment. Push to your connected branch to trigger a deploy.
-
-```toml
-# netlify.toml
-[build]
-  command = "npm run build"
-
-[build.environment]
-  TZ = "America/Los_Angeles"
-```
-
-### Environment Variables for Production
-
-Ensure all environment variables from `.env.example` are configured in your deployment platform.
-
-## 📚 Additional Documentation
-
-- [API Endpoints](docs/API_ENDPOINTS_README.md)
-- [Availability System](docs/AVAILABILITY_SYSTEM.md)
-- [Supabase Storage Setup](docs/SUPABASE_STORAGE_SETUP.md)
-- [Dropzone Component](docs/DROPZONE_README.md)
-
-## 🧑‍💻 Development Guide
-
-### Architecture Overview
-
-The project follows a layered architecture pattern:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    UI Components                        │
-│              (components/, app/[locale]/)               │
-├─────────────────────────────────────────────────────────┤
-│                   React Contexts                        │
-│    (contexts/) - Global state: user, booking wizard     │
-├─────────────────────────────────────────────────────────┤
-│                   Custom Hooks                          │
-│  (hooks/) - Data fetching, form logic, API calls        │
-├─────────────────────────────────────────────────────────┤
-│                   API Routes                            │
-│          (app/api/) - REST endpoints                    │
-├─────────────────────────────────────────────────────────┤
-│                    Services                             │
-│    (services/) - Business logic, Prisma queries         │
-├─────────────────────────────────────────────────────────┤
-│                    Database                             │
-│         (prisma/) - PostgreSQL via Prisma               │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Data Flow Pattern
-
-1. **Contexts** (`contexts/`) - Provide global state (user session, booking wizard state)
-2. **Hooks** (`hooks/`) - Handle data fetching and local state, call API endpoints
-3. **API Routes** (`app/api/`) - Handle HTTP requests, validate input, call services
-4. **Services** (`services/`) - Contain business logic, interact with Prisma/database
-
-**Example flow for fetching locations:**
-
-```
-useLocations hook → fetch('/api/locations') → locationService.getAllLocations() → Prisma → DB
-```
-
-### Common Development Tasks
-
-#### Adding a New API Endpoint
-
-1. **Create the service function** in `services/`:
-
-```typescript
-// services/example.service.ts
-import { prisma } from "@/lib/prisma";
-
-export const getExampleById = async (id: string) => {
-  return prisma.example.findUnique({ where: { id } });
-};
-```
-
-2. **Export from services index**:
-
-```typescript
-// services/index.ts
-export * from "./example.service";
-```
-
-3. **Create the API route** in `app/api/`:
-
-```typescript
-// app/api/example/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getExampleById } from "@/services";
-import { errorResponse, successResponse } from "@/services/api-errors.service";
-
-export async function GET(request: NextRequest) {
-  try {
-    const data = await getExampleById("...");
-    return NextResponse.json(successResponse(data));
-  } catch (error) {
-    const { body, status } = errorResponse("internal_error", null, 500);
-    return NextResponse.json(body, { status });
-  }
-}
-```
-
-4. **Add endpoint constant** in `constants/index.ts`:
-
-```typescript
-EXAMPLE: {
-  BASE: "/api/example",
-  BY_ID: (id: string) => `/api/example/${id}`,
-},
-```
-
-5. **Create a hook** in `hooks/`:
-
-```typescript
-// hooks/use-example.ts
-import { API_ENDPOINTS } from "@/constants";
-
-export function useExample() {
-  const fetchExample = async (id: string) => {
-    const response = await fetch(API_ENDPOINTS.EXAMPLE.BY_ID(id));
-    return response.json();
-  };
-  return { fetchExample };
-}
-```
-
-#### Adding a New Page
-
-1. Create the page in `app/[locale]/(public)/` or `app/[locale]/(protected)/`:
-
-```typescript
-// app/[locale]/(public)/example/page.tsx
-export default function ExamplePage() {
-  return <div>Example Page</div>;
-}
-```
-
-- `(public)` - Accessible without authentication
-- `(protected)` - Requires authentication
-
-#### Adding Translations (i18n)
-
-1. Add keys to both translation files:
-
-```json
-// messages/en-US.json
-{
-  "ExamplePage": {
-    "title": "Example Title",
-    "description": "Example description"
-  }
-}
-```
-
-```json
-// messages/es-MX.json
-{
-  "ExamplePage": {
-    "title": "Título de Ejemplo",
-    "description": "Descripción de ejemplo"
-  }
-}
-```
-
-2. Use translations in components:
-
-```typescript
-import { useTranslations } from "next-intl";
-
-export function ExampleComponent() {
-  const t = useTranslations("ExamplePage");
-  return <h1>{t("title")}</h1>;
-}
-```
-
-#### Creating Components with Storybook
-
-1. Create your component in `components/`:
-
-```typescript
-// components/example/example-card.tsx
-interface ExampleCardProps {
-  title: string;
-  description?: string;
-}
-
-export function ExampleCard({ title, description }: ExampleCardProps) {
-  return (
-    <div className="p-4 border rounded-lg">
-      <h3>{title}</h3>
-      {description && <p>{description}</p>}
-    </div>
-  );
-}
-```
-
-2. Create a story in `stories/`:
-
-```typescript
-// stories/ExampleCard.stories.tsx
-import type { Meta, StoryObj } from "@storybook/react";
-import { ExampleCard } from "../components/example/example-card";
-
-const meta: Meta<typeof ExampleCard> = {
-  title: "Components/ExampleCard",
-  component: ExampleCard,
-  parameters: { layout: "centered" },
-  tags: ["autodocs"],
-};
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
-export const Default: Story = {
-  args: {
-    title: "Example Title",
-    description: "Example description",
-  },
-};
-
-export const WithoutDescription: Story = {
-  args: {
-    title: "Title Only",
-  },
-};
-```
-
-3. Run Storybook: `npm run storybook`
-
-### Testing
-
-#### Running Tests
+If you want the reset flow to seed the synthetic e2e dataset instead:
 
 ```bash
-# Run all tests
-npx vitest
-
-# Run tests in watch mode
-npx vitest --watch
-
-# Run tests with coverage
-npx vitest --coverage
-
-# Run Storybook tests (component tests)
-npm run storybook
-# Then in another terminal:
-npx vitest --project=storybook
+npm run db:reset -- --e2e
 ```
 
-#### Test Configuration
+## Main Project Areas
 
-- **Vitest** is configured in `vitest.config.ts`
-- **Storybook integration** - Component stories are automatically tested
-- **Playwright** is available for E2E tests
+- [app](/Users/davidguillen/Projects/david/alphabiohack/app) - App Router pages and API routes
+- [components/booking](/Users/davidguillen/Projects/david/alphabiohack/components/booking) - booking wizard UI
+- [components/availability](/Users/davidguillen/Projects/david/alphabiohack/components/availability) - availability admin UI
+- [services](/Users/davidguillen/Projects/david/alphabiohack/services) - business logic
+- [prisma](/Users/davidguillen/Projects/david/alphabiohack/prisma) - schema, migrations, seeds
+- [docs](/Users/davidguillen/Projects/david/alphabiohack/docs) - supporting documentation
 
-### Code Conventions
+## Supporting Docs
 
-#### File Naming
-- Components: `kebab-case.tsx` (e.g., `example-card.tsx`)
-- Hooks: `use-kebab-case.ts` (e.g., `use-example.ts`)
-- Services: `kebab-case.service.ts` (e.g., `example.service.ts`)
-- Types: `kebab-case.ts` (e.g., `example.ts`)
+- [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) - local setup, Docker, Prisma commands, Mailpit
+- [docs/DEPLOY_NETLIFY_SUPABASE.md](docs/DEPLOY_NETLIFY_SUPABASE.md) - production runbook for Netlify + Supabase (env, migrations, seed, and checks)
+- [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) - complete env var reference, required modes, and deployment notes
+- [docs/WINDOWS_SETUP.md](docs/WINDOWS_SETUP.md) - Windows downloads, PowerShell commands, Prisma setup, and startup flow
+- [docs/AVAILABILITY_SYSTEM.md](docs/AVAILABILITY_SYSTEM.md) - current availability architecture
+- [docs/TIMEZONE_HANDLING.md](docs/TIMEZONE_HANDLING.md) - how office timezone affects booking, availability, and invites
+- [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - schema overview and ER diagram
+- [docs/USER_IDENTITY_MODEL.md](docs/USER_IDENTITY_MODEL.md) - user roles and therapist identity resolution
+- [docs/ROLES_AND_ACCESS.md](docs/ROLES_AND_ACCESS.md) - current roles, protected pages, and role-guarded API access
+- [docs/COMPANY_MODEL.md](docs/COMPANY_MODEL.md) - current company / tenant foundation, memberships, seed behavior, and public-site resolution
+- [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) - production architecture gaps, tenant model, staff auth, and rollout plan
+- [docs/HANDOFF_CONTEXT.md](docs/HANDOFF_CONTEXT.md) - concise current-state handoff for continuing work in a new chat
+- [docs/API_ENDPOINTS_README.md](docs/API_ENDPOINTS_README.md) - API endpoint constants overview
+- [docs/SUPABASE_STORAGE_SETUP.md](docs/SUPABASE_STORAGE_SETUP.md) - Supabase Storage setup for upload flows
 
-#### Component Structure
-```typescript
-"use client"; // Only if using client-side features
+## Current Gaps / Known Direction
 
-import { useState } from "react"; // React imports first
-import { useTranslations } from "next-intl"; // Third-party imports
-import { Button } from "@/components/ui/button"; // Internal imports
-import type { ExampleType } from "@/types"; // Type imports last
+These are the main product and architecture gaps still visible in the codebase:
 
-interface Props {
-  // Props interface
-}
+- no true tenant/subdomain ownership model yet
+- therapist creation is still not a first-class admin flow
+- public profile identity still needs to be fully unified
+- some storage/upload flows still depend on Supabase when uploads are enabled
 
-export function ComponentName({ prop }: Props) {
-  // Component implementation
-}
-```
-
-#### API Response Format
-```typescript
-// Success response
-{ success: true, data: {...}, message?: "success_key" }
-
-// Error response
-{ success: false, errorCode: "error_key", message: "..." }
-```
-
-### Troubleshooting
-
-#### Common Issues
-
-**1. Prisma Client not generated**
-```bash
-npx prisma generate
-```
-
-**2. Database connection issues**
-- Verify `DATABASE_URL` and `DIRECT_URL` in `.env.local`
-- Ensure Supabase project is running
-
-**3. Authentication not working**
-- Check `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
-- Verify Supabase Auth settings in dashboard
-
-**4. Migrations out of sync**
-```bash
-npx prisma migrate dev
-```
-
-**5. TypeScript errors after schema changes**
-```bash
-npx prisma generate
-# Restart your IDE/editor
-```
-
-**6. Storybook not loading components**
-```bash
-# Clear Storybook cache
-rm -rf node_modules/.cache/storybook
-npm run storybook
-```
-
-### Useful Commands Reference
-
-```bash
-# Development
-npm run dev                    # Start dev server
-npm run storybook              # Start Storybook
-
-# Database
-npx prisma studio              # Open Prisma Studio (DB GUI)
-npx prisma migrate dev         # Create and apply migrations
-npx prisma db push             # Push schema without migration
-npm run db:seed                # Seed database
-npm run db:reset               # Reset and reseed
-
-# Code Quality
-npm run lint                   # Run ESLint
-npx tsc --noEmit               # Type check without building
-
-# Build
-npm run build                  # Production build
-npm run start                  # Start production server
-```
-
-## 🤝 Contributing
-
-1. Create a feature branch from `master`
-2. Make your changes following the code conventions above
-3. Add/update translations if adding user-facing text
-4. Write or update tests for your changes
-5. Run linting: `npm run lint`
-6. Submit a pull request
-
-## 📄 License
-
-This project is private and proprietary.
+That means the app already works well as a booking and therapist operations platform, but the next major evolution is a cleaner multi-tenant identity model.

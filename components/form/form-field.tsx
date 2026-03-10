@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type BaseProps = {
   id: string;
@@ -13,6 +14,13 @@ type BaseProps = {
   className?: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  autoComplete?: React.ComponentProps<"input">["autoComplete"];
+  inputMode?: React.ComponentProps<"input">["inputMode"];
+  maxLength?: number;
+  autoCapitalize?: React.ComponentProps<"input">["autoCapitalize"];
+  spellCheck?: boolean;
+  error?: string;
 };
 
 type FieldType = "input" | "textarea";
@@ -31,11 +39,18 @@ export function FormField({
   className,
   value,
   onChange,
+  onBlur,
   type = "input",
   inputType = "text",
+  autoComplete,
+  inputMode,
+  maxLength,
+  autoCapitalize,
+  spellCheck,
+  error,
 }: FormFieldProps) {
   return (
-    <div className={`space-y-2 ${className || ""}`}>
+    <div className={cn("space-y-2", className)}>
       <Label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </Label>
@@ -46,9 +61,13 @@ export function FormField({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           required={required}
           rows={5}
-          className="w-full resize-none"
+          maxLength={maxLength}
+          spellCheck={spellCheck}
+          aria-invalid={Boolean(error)}
+          className={cn("w-full resize-none", error && "border-red-500 ring-1 ring-red-500/20")}
         />
       ) : (
         <Input
@@ -58,12 +77,18 @@ export function FormField({
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           required={required}
-          className="w-full"
+          autoComplete={autoComplete}
+          inputMode={inputMode}
+          maxLength={maxLength}
+          autoCapitalize={autoCapitalize}
+          spellCheck={spellCheck}
+          aria-invalid={Boolean(error)}
+          className={cn("w-full", error && "border-red-500 ring-1 ring-red-500/20")}
         />
       )}
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
     </div>
   );
 }
-
-

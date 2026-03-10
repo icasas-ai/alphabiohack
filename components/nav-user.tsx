@@ -53,12 +53,7 @@ interface NavUserData {
 }
 
 interface NavUserConfig {
-  upgradeItem: {
-    icon: React.ComponentType;
-    label: string;
-    url?: string;
-  };
-  accountItems: Array<{
+  items: Array<{
     icon: React.ComponentType;
     label: string;
     url?: string;
@@ -120,14 +115,7 @@ function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPr
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => config.upgradeItem.url && onNavigate(config.upgradeItem.url)}>
-            <config.upgradeItem.icon />
-            {config.upgradeItem.label}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          {config.accountItems.map((item, index) => (
+          {config.items.map((item, index) => (
             <DropdownMenuItem 
               key={index}
               onClick={() => item.url && onNavigate(item.url)}

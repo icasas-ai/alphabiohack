@@ -2,12 +2,11 @@ import {
   createUser,
   getAllUsers,
   getUserByEmail,
-  getUserBySupabaseId,
   getUsersByRole,
 } from "@/services";
 import { NextRequest, NextResponse } from "next/server";
 
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/lib/prisma-client";
 
 // GET /api/users - Obtener todos los usuarios
 export async function GET(request: NextRequest) {
@@ -15,7 +14,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role");
     const email = searchParams.get("email");
-    const supabaseId = searchParams.get("supabaseId");
 
     let users;
 
@@ -23,9 +21,6 @@ export async function GET(request: NextRequest) {
       users = await getUsersByRole(role as UserRole);
     } else if (email) {
       const user = await getUserByEmail(email);
-      users = user ? [user] : [];
-    } else if (supabaseId) {
-      const user = await getUserBySupabaseId(supabaseId);
       users = user ? [user] : [];
     } else {
       users = await getAllUsers();
@@ -46,7 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     // Validaciones básicas
-    if (!body.email || !body.supabaseId) {
+    if (!body.email || !body.firstname || !body.lastname) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }

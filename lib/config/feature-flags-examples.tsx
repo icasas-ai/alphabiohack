@@ -4,7 +4,7 @@
 import { PST_TZ, dateKeyInTZ } from '@/lib/utils/timezone';
 import { useAppointmentTypes, useBookingSettings, useFeatureFlags } from '@/hooks';
 
-import { BookingType } from '@prisma/client';
+import { BookingType } from '@/lib/prisma-browser';
 
 // Ejemplo 1: Componente que muestra solo tipos de citas habilitados
 export function AppointmentTypeDisplay() {

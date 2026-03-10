@@ -64,9 +64,6 @@ SMTP_SECURE=false
 # App auth cookie signing
 APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
-# Optional: derive location coordinates/timezone from full address
-GOOGLE_MAPS_API_KEY=
-
 DEFAULT_COMPANY_SLUG=default-company
 ```
 
@@ -78,7 +75,6 @@ Notes:
 - that company must have a valid `publicTherapistId`
 - local sign-up creates `Patient`, not `Therapist`
 - `RESEND_API_KEY` is not needed for local Mailpit testing
-- `GOOGLE_MAPS_API_KEY` is optional; if set, location save can try to derive coordinates and timezone from the full office address
 - default local seed users now live in [prisma/seeds/config/default-users.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-users.ts)
 - the default local company profile lives in [prisma/seeds/config/default-company.ts](/Users/davidguillen/Projects/david/alphabiohack/prisma/seeds/config/default-company.ts)
 - if you want a different seeded therapist profile, edit that file instead of setting env vars

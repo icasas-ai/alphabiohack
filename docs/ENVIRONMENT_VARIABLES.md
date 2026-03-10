@@ -249,19 +249,6 @@ Notes:
 - The configured company must also have a valid `publicTherapistId` for public profile and booking flows.
 - For the realistic demo dataset created by `npm run db:seed:demo`, set this to `harbor-balance-wellness`.
 
-## Location Geocoding
-
-### `GOOGLE_MAPS_API_KEY`
-
-- Public: `no`
-- Required: optional
-- Used for: geocoding office addresses when creating or updating locations
-
-Notes:
-
-- If unset, automatic address-to-coordinate lookup is skipped.
-- Manual coordinates and timezone selection can still work without it.
-
 ## Internationalization And Demo Toggles
 
 ### `NEXT_PUBLIC_USE_CASE`
@@ -286,16 +273,7 @@ Notes:
 Notes:
 
 - Prefer setting this explicitly on Netlify and other non-Vercel platforms.
-
-### `NEXT_PUBLIC_SITE_URL`
-
-- Public: `yes`
-- Required: optional but recommended to keep aligned with `SITE_URL`
-- Used for: public mirror of the canonical site URL
-
-Notes:
-
-- The current metadata code can fall back to this if `SITE_URL` is not set.
+- If unset, the current resolver falls back to platform URL variables like `URL`, `DEPLOY_PRIME_URL`, `DEPLOY_URL`, or `VERCEL_URL`.
 
 ### `NODE_ENV`
 
@@ -451,7 +429,6 @@ Important:
 
 ```env
 SITE_URL=https://your-site.netlify.app
-NEXT_PUBLIC_SITE_URL=https://your-site.netlify.app
 
 DB_USER=postgres.[project-ref]
 DB_PASS=[db-password]
@@ -488,7 +465,6 @@ On Netlify, classify env vars like this to avoid false-positive build failures.
 - `RESEND_API_KEY`
 - `APP_AUTH_SECRET`
 - `SMTP_PASS` (if SMTP auth is configured)
-- `GOOGLE_MAPS_API_KEY` (optional, policy-dependent)
 
 ### Should Be Non-Secret
 

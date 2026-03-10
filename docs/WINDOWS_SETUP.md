@@ -96,9 +96,6 @@ SMTP_SECURE=false
 # App auth cookie signing
 APP_AUTH_SECRET=replace-this-with-a-strong-random-secret
 
-# Optional: derive location coordinates/timezone from full address
-GOOGLE_MAPS_API_KEY=
-
 DEFAULT_COMPANY_SLUG=default-company
 ```
 

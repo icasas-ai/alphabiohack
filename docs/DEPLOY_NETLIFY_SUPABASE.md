@@ -27,6 +27,8 @@ Operationally that means:
 - Supabase project created.
 - Netlify site connected to this Git repository.
 - A production domain (or Netlify subdomain) decided.
+- If you use Resend, a verified sending domain or subdomain is ready in Resend.
+- A monitored inbox exists for `BOOKING_REPLY_TO` if you want operators to receive replies.
 - Local `.env.production` file prepared (do not commit it).
 
 ## 2. Get Values from Supabase
@@ -229,7 +231,6 @@ Minimum required for this app:
 
 ```env
 SITE_URL=https://your-site.netlify.app
-NEXT_PUBLIC_SITE_URL=https://your-site.netlify.app
 
 DB_USER=postgres.[project-ref]
 DB_PASS=...
@@ -253,7 +254,6 @@ Optional:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
 - `BOOKING_EMAIL_BCC`
-- `GOOGLE_MAPS_API_KEY`
 - `NEXT_PUBLIC_BOOKING_FROM_EMAIL`
 
 Bootstrap vars are only needed where you run `npm run db:seed:prod`; they do not need to stay in Netlify after bootstrap.
@@ -267,13 +267,64 @@ For a demo release:
 
 Do not add any Supabase Auth settings for login, password reset, or staff management. The app does not use them.
 
+### Resend Setup For Outbound Email
+
+Use this when `EMAIL_PROVIDER=resend`.
+
+1. In Resend, create or select a sending domain.
+2. Verify the DNS records Resend asks for before using the domain in production.
+3. Create a Resend API key for this environment.
+4. Set the production env vars:
+
+```env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_...
+BOOKING_FROM_EMAIL="MyAlphaPulse <noreply@mail.yourdomain.com>"
+BOOKING_REPLY_TO=support@yourdomain.com
+NEXT_PUBLIC_BOOKING_FROM_EMAIL=noreply@mail.yourdomain.com
+```
+
+Recommended domain pattern:
+
+- use a dedicated sending subdomain such as `mail.yourdomain.com`
+- keep the visible sender aligned with that verified domain
+- use a real monitored inbox for `BOOKING_REPLY_TO`
+
+What each value does:
+
+- `BOOKING_FROM_EMAIL`: the sender shown on booking, invite, contact, and password-reset emails
+- `BOOKING_REPLY_TO`: where replies should go when recipients click Reply
+- `NEXT_PUBLIC_BOOKING_FROM_EMAIL`: optional UI/display value; keep it aligned with the real sender when possible
+
+### Receiving Replies Vs Inbound Email
+
+This repository currently sends email through Resend, but it does not implement inbound email parsing or Resend webhook handlers.
+
+Operationally that means:
+
+- outgoing email works with `EMAIL_PROVIDER=resend` and `RESEND_API_KEY`
+- recipient replies go to `BOOKING_REPLY_TO`
+- the app itself does not ingest or process inbound email yet
+
+If you only need staff to "get emails", set `BOOKING_REPLY_TO` to a monitored mailbox such as:
+
+- Google Workspace inbox
+- Microsoft 365 inbox
+- another mailbox provider you already manage for the domain
+
+If you later want true inbound email processing inside the app:
+
+- add an API route/webhook endpoint for inbound events
+- configure Resend inbound/receive settings against that endpoint
+- store the Resend webhook secret in Netlify as a secret env var
+- prefer a dedicated receiving subdomain if your root domain already has MX records for normal staff mail
+
 ### Netlify Secret Flag Rules (Important)
 
 Do not mark these as secret in Netlify:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
-- `NEXT_PUBLIC_SITE_URL`
 - `SITE_URL`
 - `DB_USER`
 - `DB_HOST`
@@ -299,7 +350,6 @@ Keep these as secret:
 - `RESEND_API_KEY`
 - `APP_AUTH_SECRET`
 - `SMTP_PASS` (if SMTP auth is used)
-- `GOOGLE_MAPS_API_KEY` (if your policy treats it as sensitive)
 
 Remove from Netlify runtime env after bootstrap:
 
@@ -309,7 +359,7 @@ Remove from Netlify runtime env after bootstrap:
 Optional scanner fallback (if your team policy forces secret flags on public values):
 
 ```env
-SECRETS_SCAN_OMIT_KEYS=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY,NEXT_PUBLIC_SITE_URL,SITE_URL,DB_PORT,DB_NAME,DB_QUERY,BOOKING_FROM_EMAIL,BOOKING_REPLY_TO,BOOKING_EMAIL_BCC,NEXT_PUBLIC_BOOKING_FROM_EMAIL,NEXT_PUBLIC_DEFAULT_TIMEZONE,DEFAULT_COMPANY_SLUG,EMAIL_PROVIDER
+SECRETS_SCAN_OMIT_KEYS=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY,SITE_URL,DB_PORT,DB_NAME,DB_QUERY,BOOKING_FROM_EMAIL,BOOKING_REPLY_TO,BOOKING_EMAIL_BCC,NEXT_PUBLIC_BOOKING_FROM_EMAIL,NEXT_PUBLIC_DEFAULT_TIMEZONE,DEFAULT_COMPANY_SLUG,EMAIL_PROVIDER
 SECRETS_SCAN_OMIT_PATHS=.env.example,.env.production.example,.netlify/.next/cache/**,.next/cache/**
 ```
 
@@ -371,7 +421,6 @@ cp .env.production.example .env.production
 2. Fill `.env.production` with the demo environment values:
 
 - `SITE_URL`
-- `NEXT_PUBLIC_SITE_URL`
 - `DB_USER`
 - `DB_PASS`
 - `DB_HOST`
@@ -415,6 +464,7 @@ npm run build
 - login works for `sofia.ramirez@example.com` with `HarborDemo123!`
 - a booking can be created
 - outgoing email works
+- replying to an app email lands in the monitored `BOOKING_REPLY_TO` inbox
 
 8. Keep the environment isolated:
 
@@ -434,7 +484,6 @@ After bootstrap succeeds, remove `BOOTSTRAP_*` values from long-lived runtime en
 If this is a new demo deployment or a new Netlify site, update these production secrets:
 
 - `SITE_URL`
-- `NEXT_PUBLIC_SITE_URL`
 - `DB_USER`
 - `DB_PASS`
 - `DB_HOST`
@@ -452,7 +501,6 @@ Update these only if you use the related feature:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY`
-- `GOOGLE_MAPS_API_KEY`
 - `BOOKING_EMAIL_BCC`
 - `NEXT_PUBLIC_BOOKING_FROM_EMAIL`
 
@@ -462,7 +510,7 @@ For a demo release specifically:
 - do not keep `BOOTSTRAP_*` secrets in Netlify unless you are also using `db:seed:prod`
 - rotate `APP_AUTH_SECRET` if this is a fresh demo environment
 - keep the demo database isolated because demo users share the same password
-- update `SITE_URL`, `NEXT_PUBLIC_SITE_URL`, database credentials, and email provider credentials any time you switch Netlify site, Supabase project, or sending domain
+- update `SITE_URL`, database credentials, and email provider credentials any time you switch Netlify site, Supabase project, or sending domain
 
 ## 10. Post-Deploy Checks
 
@@ -480,6 +528,7 @@ Then verify:
 - booking creates a new patient when the email is new
 - booking links to an existing patient only when the email matches exactly
 - invite email sends
+- reply-to headers point to the monitored `BOOKING_REPLY_TO` inbox
 - `/auth/login` works with the owner user created by `db:seed:prod`
 - forgot-password sends the app-managed reset flow
 - availability creation and booking slot enforcement work

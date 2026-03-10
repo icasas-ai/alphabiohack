@@ -5,83 +5,28 @@ import { isSupportedCompanyTimezone } from "@/lib/constants/supported-timezones"
 import { prisma } from "@/lib/prisma";
 import {
   createLocationRecord,
-  deleteLocationRecord,
   findLocationByIdWithInclude,
   findLocationByIdWithSelect,
   findLocations,
   updateLocationRecord,
 } from "@/repositories";
 
-interface GeocodedAddress {
-  lat: number;
-  lon: number;
-}
-
-async function geocodeAddress(address: string): Promise<GeocodedAddress | null> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-
-  if (!apiKey || !address.trim()) {
-    return null;
-  }
-
-  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
-  url.searchParams.set("address", address);
-  url.searchParams.set("key", apiKey);
-
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to geocode the office address.");
-  }
-
-  const result = await response.json();
-
-  if (result.status !== "OK" || !result.results?.length) {
-    return null;
-  }
-
-  const location = result.results[0]?.geometry?.location;
-
-  if (typeof location?.lat !== "number" || typeof location?.lng !== "number") {
-    return null;
-  }
-
-  return {
-    lat: location.lat,
-    lon: location.lng,
-  };
-}
-
 async function resolveLocationTimezoneAndCoordinates(data: {
-  address?: string;
   timezone?: string;
   lat?: number;
   lon?: number;
 }) {
-  let lat = data.lat;
-  let lon = data.lon;
+  const lat = data.lat;
+  const lon = data.lon;
   let timezone = data.timezone?.trim();
 
   if (!timezone && lat !== undefined && lon !== undefined) {
     timezone = tzlookup(lat, lon);
   }
 
-  if (!timezone && data.address) {
-    const geocoded = await geocodeAddress(data.address);
-
-    if (geocoded) {
-      lat = geocoded.lat;
-      lon = geocoded.lon;
-      timezone = tzlookup(geocoded.lat, geocoded.lon);
-    }
-  }
-
   if (!timezone) {
     throw new Error(
-      "Unable to determine the office timezone. Select a timezone manually or verify the full address."
+      "Unable to determine the office timezone. Select a timezone manually or provide valid coordinates."
     );
   }
 

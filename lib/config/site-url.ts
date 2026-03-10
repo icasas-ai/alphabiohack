@@ -14,7 +14,6 @@ function normalizeSiteUrl(value?: string | null) {
 export function getSiteUrl() {
   return (
     normalizeSiteUrl(process.env.SITE_URL) ||
-    normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
     normalizeSiteUrl(process.env.URL) ||
     normalizeSiteUrl(process.env.DEPLOY_PRIME_URL) ||
     normalizeSiteUrl(process.env.DEPLOY_URL) ||

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, Loader2, Mail, Phone } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -27,9 +27,14 @@ export function AppointmentsEmailRequest({
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitLockRef = useRef(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (submitLockRef.current) {
+      return;
+    }
 
     const normalizedEmail = normalizeEmailInput(email);
 
@@ -40,6 +45,7 @@ export function AppointmentsEmailRequest({
     }
 
     try {
+      submitLockRef.current = true;
       setSubmitting(true);
       setError(null);
       setSuccess(false);
@@ -62,6 +68,7 @@ export function AppointmentsEmailRequest({
       setSuccess(false);
       setError(t("error"));
     } finally {
+      submitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -110,6 +117,7 @@ export function AppointmentsEmailRequest({
             spellCheck={false}
             placeholder={t("emailPlaceholder")}
             aria-invalid={Boolean(error)}
+            disabled={submitting}
             className={cn(
               "h-12 rounded-xl bg-background/88",
               error && "border-red-500 ring-1 ring-red-500/20",

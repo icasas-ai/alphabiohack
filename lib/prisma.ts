@@ -10,6 +10,19 @@ const globalForPrisma = globalThis as unknown as {
   prismaPool: Pool | undefined;
 };
 
+function parsePositiveIntEnv(name: string, fallback: number) {
+  const value = process.env[name];
+  const parsed = value ? Number.parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const isServerlessRuntime = Boolean(
+  process.env.NETLIFY ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.AWS_EXECUTION_ENV ||
+  process.env.VERCEL,
+);
+
 const { url: databaseUrl } = resolveDatabaseUrl();
 
 if (!databaseUrl) {
@@ -18,11 +31,23 @@ if (!databaseUrl) {
   );
 }
 
+const poolMax = parsePositiveIntEnv(
+  "DB_POOL_MAX",
+  isServerlessRuntime ? 1 : 10,
+);
+const poolIdleTimeoutMillis = parsePositiveIntEnv(
+  "DB_POOL_IDLE_TIMEOUT_MS",
+  isServerlessRuntime ? 5000 : 30000,
+);
+
 const prismaPool =
   globalForPrisma.prismaPool ??
   new Pool({
     connectionString: databaseUrl,
+    max: poolMax,
     connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: poolIdleTimeoutMillis,
+    allowExitOnIdle: isServerlessRuntime,
   });
 
 const prismaAdapter = new PrismaPg(prismaPool);
@@ -40,7 +65,5 @@ export const prisma =
     adapter: prismaAdapter,
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-  globalForPrisma.prismaPool = prismaPool;
-}
+globalForPrisma.prisma = prisma;
+globalForPrisma.prismaPool = prismaPool;

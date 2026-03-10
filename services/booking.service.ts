@@ -272,7 +272,7 @@ export const getUpcomingBookingsByEmailForCompany = async (
   take = 12,
 ) => {
   try {
-    return await listBookingsWithLocalTime({
+    const bookings = await prisma.booking.findMany({
       where: {
         companyId,
         email,
@@ -288,9 +288,39 @@ export const getUpcomingBookingsByEmailForCompany = async (
           ],
         },
       },
+      select: {
+        bookingNumber: true,
+        bookingType: true,
+        bookingSchedule: true,
+        bookingNotes: true,
+        location: {
+          select: {
+            title: true,
+            timezone: true,
+          },
+        },
+        service: {
+          select: {
+            description: true,
+          },
+        },
+        specialty: {
+          select: {
+            name: true,
+          },
+        },
+        therapist: {
+          select: {
+            firstname: true,
+            lastname: true,
+          },
+        },
+      },
       orderBy: { bookingSchedule: "asc" },
       take,
     });
+
+    return bookings.map(mapBookingWithLocalTime);
   } catch (error) {
     console.error("Error getting upcoming bookings by email for company:", error);
     throw error;

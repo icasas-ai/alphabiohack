@@ -13,6 +13,34 @@ import {
   normalizeEmailInput,
 } from "@/lib/validation/form-fields";
 
+const REQUEST_COOLDOWN_MS = 30_000;
+
+const globalForAppointmentsSummary = globalThis as unknown as {
+  inFlightAppointmentsSummaryByEmail?: Map<string, Promise<void>>;
+  recentAppointmentsSummaryByEmail?: Map<string, number>;
+};
+
+const inFlightAppointmentsSummaryByEmail =
+  globalForAppointmentsSummary.inFlightAppointmentsSummaryByEmail ??
+  new Map<string, Promise<void>>();
+
+const recentAppointmentsSummaryByEmail =
+  globalForAppointmentsSummary.recentAppointmentsSummaryByEmail ??
+  new Map<string, number>();
+
+globalForAppointmentsSummary.inFlightAppointmentsSummaryByEmail =
+  inFlightAppointmentsSummaryByEmail;
+globalForAppointmentsSummary.recentAppointmentsSummaryByEmail =
+  recentAppointmentsSummaryByEmail;
+
+function clearExpiredRecentRequests(now: number) {
+  for (const [key, expiresAt] of recentAppointmentsSummaryByEmail.entries()) {
+    if (expiresAt <= now) {
+      recentAppointmentsSummaryByEmail.delete(key);
+    }
+  }
+}
+
 type RequestBody = {
   email?: string;
 };
@@ -31,55 +59,77 @@ export async function POST(request: Request) {
       );
     }
 
-    const company = await getPublicCompanyProfile();
+    const now = Date.now();
+    clearExpiredRecentRequests(now);
 
-    if (!company) {
-      return NextResponse.json(
-        { success: false, error: "Company not found." },
-        { status: 404 },
-      );
+    const recentExpiry = recentAppointmentsSummaryByEmail.get(email);
+    if (recentExpiry && recentExpiry > now) {
+      return NextResponse.json({ success: true, duplicateSuppressed: true });
     }
 
-    const appointments = await getUpcomingBookingsByEmailForCompany(email, company.id);
-    const formattedAppointments = appointments.map((appointment) => ({
-      bookingNumber: appointment.bookingNumber,
-      bookingType: appointment.bookingType,
-      bookingSchedule: appointment.bookingSchedule,
-      bookingTimeZone: appointment.bookingTimeZone,
-      locationTitle: appointment.location?.title,
-      serviceDescription: appointment.service?.description,
-      specialtyName: appointment.specialty?.name,
-      therapistName:
-        appointment.therapist?.firstname && appointment.therapist?.lastname
-          ? `${appointment.therapist.firstname} ${appointment.therapist.lastname}`
-          : appointment.therapist?.firstname || null,
-      notes: appointment.bookingNotes,
-    }));
+    let inFlightRequest = inFlightAppointmentsSummaryByEmail.get(email);
 
-    const subject =
-      language === "es"
-        ? `Resumen de tus proximas citas - ${company.name}`
-        : `Your upcoming appointments - ${company.name}`;
+    if (!inFlightRequest) {
+      inFlightRequest = (async () => {
+        const company = await getPublicCompanyProfile();
 
-    await sendEmail({
-      context: "public.appointments_summary",
-      to: email,
-      subject,
-      react: UpcomingAppointmentsEmail({
-        companyName: company.name,
-        email,
-        companyDescription: company.publicDescription || company.publicSummary,
-        companyEmail: company.publicEmail,
-        companyPhone: company.publicPhone,
-        companyWebsite: company.website,
-        appointments: formattedAppointments,
-        language,
-      }),
-      replyTo:
-        company.publicEmail && isValidEmailInput(company.publicEmail)
-          ? company.publicEmail
-          : undefined,
-    });
+        if (!company) {
+          throw new Error("Company not found.");
+        }
+
+        const appointments = await getUpcomingBookingsByEmailForCompany(email, company.id);
+        const formattedAppointments = appointments.map((appointment) => ({
+          bookingNumber: appointment.bookingNumber,
+          bookingType: appointment.bookingType,
+          bookingSchedule: appointment.bookingSchedule,
+          bookingTimeZone: appointment.bookingTimeZone,
+          locationTitle: appointment.location?.title,
+          serviceDescription: appointment.service?.description,
+          specialtyName: appointment.specialty?.name,
+          therapistName:
+            appointment.therapist?.firstname && appointment.therapist?.lastname
+              ? `${appointment.therapist.firstname} ${appointment.therapist.lastname}`
+              : appointment.therapist?.firstname || null,
+          notes: appointment.bookingNotes,
+        }));
+
+        const subject =
+          language === "es"
+            ? `Resumen de tus proximas citas - ${company.name}`
+            : `Your upcoming appointments - ${company.name}`;
+
+        await sendEmail({
+          context: "public.appointments_summary",
+          to: email,
+          subject,
+          react: UpcomingAppointmentsEmail({
+            companyName: company.name,
+            email,
+            companyDescription: company.publicDescription || company.publicSummary,
+            companyEmail: company.publicEmail,
+            companyPhone: company.publicPhone,
+            companyWebsite: company.website,
+            appointments: formattedAppointments,
+            language,
+          }),
+          replyTo:
+            company.publicEmail && isValidEmailInput(company.publicEmail)
+              ? company.publicEmail
+              : undefined,
+        });
+
+        recentAppointmentsSummaryByEmail.set(
+          email,
+          Date.now() + REQUEST_COOLDOWN_MS,
+        );
+      })().finally(() => {
+        inFlightAppointmentsSummaryByEmail.delete(email);
+      });
+
+      inFlightAppointmentsSummaryByEmail.set(email, inFlightRequest);
+    }
+
+    await inFlightRequest;
 
     return NextResponse.json({ success: true });
   } catch (error) {

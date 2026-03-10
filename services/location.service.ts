@@ -231,18 +231,15 @@ export const updateLocation = async (id: string, data: UpdateLocationData) => {
     if (
       data.timezone !== undefined ||
       data.lat !== undefined ||
-      data.lon !== undefined ||
-      data.address !== undefined
+      data.lon !== undefined
     ) {
       const existingLocation = await findLocationByIdWithSelect(id, {
-        address: true,
         timezone: true,
         lat: true,
         lon: true,
       });
 
       const { lat, lon, timezone } = await resolveLocationTimezoneAndCoordinates({
-        address: data.address ?? existingLocation?.address,
         timezone: data.timezone ?? existingLocation?.timezone,
         lat: data.lat ?? existingLocation?.lat ?? undefined,
         lon: data.lon ?? existingLocation?.lon ?? undefined,

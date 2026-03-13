@@ -33,13 +33,13 @@ export function SocialLinks({
   iconSize = 24,
 }: SocialLinksProps) {
   const links = [
-    { url: facebook, icon: Facebook, label: "Facebook", color: "hover:text-blue-600" },
-    { url: instagram, icon: Instagram, label: "Instagram", color: "hover:text-pink-600" },
-    { url: linkedin, icon: Linkedin, label: "LinkedIn", color: "hover:text-blue-700" },
-    { url: twitter, icon: Twitter, label: "Twitter", color: "hover:text-blue-400" },
-    { url: tiktok, icon: () => null, label: "TikTok", color: "hover:text-black" },
-    { url: youtube, icon: Youtube, label: "YouTube", color: "hover:text-red-600" },
-    { url: website, icon: Globe, label: "Website", color: "hover:text-gray-700" },
+    { url: facebook, icon: Facebook, label: "Facebook" },
+    { url: instagram, icon: Instagram, label: "Instagram" },
+    { url: linkedin, icon: Linkedin, label: "LinkedIn" },
+    { url: twitter, icon: Twitter, label: "Twitter" },
+    { url: tiktok, icon: () => null, label: "TikTok" },
+    { url: youtube, icon: Youtube, label: "YouTube" },
+    { url: website, icon: Globe, label: "Website" },
   ];
 
   // Filtrar solo los links que tienen URL
@@ -62,7 +62,7 @@ export function SocialLinks({
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`transition-colors ${link.color}`}
+              className="text-muted-foreground transition-colors hover:text-primary"
               aria-label={link.label}
               title={link.label}
             >
@@ -88,7 +88,7 @@ export function SocialLinks({
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`transition-colors ${link.color}`}
+            className="text-muted-foreground transition-colors hover:text-primary"
             aria-label={link.label}
             title={link.label}
           >

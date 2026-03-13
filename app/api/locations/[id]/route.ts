@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   deleteLocation,
   getLocationBookings,
-  getLocationBusinessHours,
   getLocationById,
   updateLocation,
 } from "@/services";
 import { errorResponse, successResponse } from "@/services/api-errors.service";
+import { canManageLocations } from "@/lib/auth/authorization";
+import { getCurrentUser } from "@/lib/auth/session";
+import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 interface LocationResponseData {
   location: unknown;
-  businessHours?: unknown[];
   bookings?: unknown[];
 }
 
@@ -22,7 +23,6 @@ export async function GET(
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const includeBusinessHours = searchParams.get("includeBusinessHours");
     const includeBookings = searchParams.get("includeBookings");
 
     const location = await getLocationById(id);
@@ -34,17 +34,16 @@ export async function GET(
 
     let responseData: LocationResponseData = { location };
 
-    // Si se solicitan los horarios de atención
-    if (includeBusinessHours === "true") {
-      const businessHours = await getLocationBusinessHours(id);
-      responseData = {
-        ...responseData,
-        businessHours,
-      };
-    }
-
     // Si se solicitan las citas
     if (includeBookings === "true") {
+      const { prismaUser } = await getCurrentUser();
+      if (!canManageLocations(prismaUser)) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+
       const bookings = await getLocationBookings(id);
       responseData = {
         ...responseData,
@@ -66,8 +65,20 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { prismaUser } = await getCurrentUser();
+    if (!canManageLocations(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
+    const normalizedTitle =
+      body.title !== undefined ? normalizeWhitespace(body.title) : undefined;
+    const normalizedAddress =
+      body.address !== undefined ? normalizeWhitespace(body.address) : undefined;
 
     // Verificar que la ubicación existe
     const existingLocation = await getLocationById(id);
@@ -76,12 +87,37 @@ export async function PUT(
       return NextResponse.json(body, { status });
     }
 
-    const updatedLocation = await updateLocation(id, body);
+    if (body.title !== undefined && !normalizedTitle) {
+      return NextResponse.json(
+        { success: false, error: "Location title is required." },
+        { status: 400 }
+      );
+    }
+
+    if (body.address !== undefined && !normalizedAddress) {
+      return NextResponse.json(
+        { success: false, error: "Location address is required." },
+        { status: 400 }
+      );
+    }
+
+    const updatedLocation = await updateLocation(id, {
+      ...body,
+      ...(normalizedTitle !== undefined ? { title: normalizedTitle } : {}),
+      ...(normalizedAddress !== undefined ? { address: normalizedAddress } : {}),
+      ...(typeof body.description === "string" ? { description: body.description.trim() } : {}),
+    });
     return NextResponse.json(
       successResponse(updatedLocation, "locations.update.success")
     );
   } catch (error) {
     console.error("Error updating location:", error);
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
+    }
     const { body, status } = errorResponse("internal_error", null, 500);
     return NextResponse.json(body, { status });
   }
@@ -93,6 +129,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { prismaUser } = await getCurrentUser();
+    if (!canManageLocations(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
     // Verificar que la ubicación existe

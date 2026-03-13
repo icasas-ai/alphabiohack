@@ -1,5 +1,7 @@
 [build]
   command = "npm run build"
+  publish = ".next"
 
 [build.environment]
+  NODE_VERSION = "20"
   TZ = "America/Los_Angeles"

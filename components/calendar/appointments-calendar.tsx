@@ -21,6 +21,7 @@ interface CalendarDay {
 
 interface AppointmentsCalendarProps {
   events: CalendarEvent[];
+  selectedDate?: Date;
   onDateSelect?: (date: Date) => void;
   onEventClick?: (event: CalendarEvent) => void;
   onAddEvent?: (date: Date) => void;
@@ -29,6 +30,7 @@ interface AppointmentsCalendarProps {
 
 export function AppointmentsCalendar({
   events,
+  selectedDate,
   onDateSelect,
   onEventClick,
   onAddEvent,
@@ -36,14 +38,15 @@ export function AppointmentsCalendar({
 }: AppointmentsCalendarProps) {
   const t = useTranslations('Calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [internalSelectedDate, setInternalSelectedDate] = useState<Date | undefined>(new Date());
+  const activeSelectedDate = selectedDate ?? internalSelectedDate;
 
   // Organizar eventos por fecha
   const eventsByDate = useMemo(() => {
     const grouped: Record<string, CalendarEvent[]> = {};
     
     events.forEach(event => {
-      const dateKey = format(new Date(event.time), 'yyyy-MM-dd');
+      const dateKey = event.dateKey || format(new Date(event.time), 'yyyy-MM-dd');
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
@@ -98,7 +101,7 @@ export function AppointmentsCalendar({
   }, [currentDate, eventsByDate]);
 
   const handleDateClick = (day: CalendarDay) => {
-    setSelectedDate(day.date);
+    setInternalSelectedDate(day.date);
     onDateSelect?.(day.date);
   };
 
@@ -122,7 +125,8 @@ export function AppointmentsCalendar({
 
   const goToToday = () => {
     setCurrentDate(new Date());
-    setSelectedDate(new Date());
+    setInternalSelectedDate(new Date());
+    onDateSelect?.(new Date());
   };
 
   return (
@@ -183,10 +187,10 @@ export function AppointmentsCalendar({
             <div
               key={index}
               className={cn(
-                "min-h-[120px] border-r border-b last:border-r-0 p-2 cursor-pointer transition-colors hover:bg-muted/50",
+                "group min-h-[120px] border-r border-b last:border-r-0 p-2 cursor-pointer transition-colors hover:bg-muted/50",
                 !day.isCurrentMonth && "bg-muted/30 text-muted-foreground",
                 day.isToday && "bg-primary/10",
-                selectedDate && isSameDay(day.date, selectedDate) && "bg-primary/20 ring-2 ring-primary/30"
+                activeSelectedDate && isSameDay(day.date, activeSelectedDate) && "bg-primary/20 ring-2 ring-primary/30"
               )}
               onClick={() => handleDateClick(day)}
             >
@@ -201,7 +205,7 @@ export function AppointmentsCalendar({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100"
+                  className="h-6 w-6 p-0 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100"
                   onClick={(e) => handleAddEvent(day.date, e)}
                 >
                   <Plus className="h-3 w-3" />

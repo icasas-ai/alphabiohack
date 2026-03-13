@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import { hasSupabaseStorage } from "@/lib/auth/config";
 import { createClient } from "@/lib/supabase/client";
 
 export interface UploadFile {
@@ -55,7 +56,7 @@ export const useSupabaseUpload = ({
   const [isDragReject, setIsDragReject] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const supabase = createClient();
+  const supabase = hasSupabaseStorage ? createClient() : null;
 
   const validateFile = useCallback(
     (file: File): Array<{ message: string }> => {
@@ -116,6 +117,15 @@ export const useSupabaseUpload = ({
 
   const onUpload = useCallback(async () => {
     if (files.length === 0) return;
+    if (!supabase) {
+      setErrors([
+        {
+          name: bucketName,
+          message: "Supabase Storage is not configured for this environment.",
+        },
+      ]);
+      return;
+    }
 
     setLoading(true);
     setErrors([]);
@@ -157,7 +167,7 @@ export const useSupabaseUpload = ({
 
     await Promise.all(uploadPromises);
     setLoading(false);
-  }, [files, bucketName, path, supabase.storage]);
+  }, [files, bucketName, path, supabase]);
 
   const getRootProps = useCallback(
     () => ({

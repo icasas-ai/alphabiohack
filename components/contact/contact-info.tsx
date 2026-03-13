@@ -13,11 +13,12 @@ import { useState, useEffect } from "react";
 import { BusinessHours } from "@/components/contact/business-hours";
 import { InfoCard } from "@/components/contact/info-card";
 import { useTranslations } from "next-intl";
-import { useUser } from "@/contexts/user-context";
 import { ContactInfoSkeleton } from "@/components/contact/contact-info-skeleton";
+import { readJsonResponse } from "@/lib/utils/read-json-response";
 import { SocialLinks } from "@/components/common/social-links";
 
 interface ContactData {
+  email?: string | null;
   telefono?: string | null;
   informacionPublica?: string | null;
   weekdaysHours?: string | null;
@@ -32,106 +33,122 @@ interface ContactData {
   website?: string | null;
 }
 
-interface ContactInfoProps {
-  readonly className?: string;
+interface ContactDataResponse {
+  data?: ContactData;
 }
 
-export function ContactInfo({ className }: ContactInfoProps) {
+interface ContactInfoProps {
+  readonly className?: string;
+  readonly initialData?: ContactData | null;
+  readonly showBusinessHours?: boolean;
+}
+
+export function ContactInfo({
+  className,
+  initialData = null,
+  showBusinessHours = true,
+}: ContactInfoProps) {
   const t = useTranslations("Contact");
-  const { prismaUser, loading: authLoading, isAuthenticated } = useUser();
-  const [publicData, setPublicData] = useState<ContactData | null>(null);
-  const [publicLoading, setPublicLoading] = useState(true);
+  const [publicData, setPublicData] = useState<ContactData | null>(initialData);
+  const [publicLoading, setPublicLoading] = useState(!initialData);
 
-  // Cuando no estamos autenticados, traer datos públicos
   useEffect(() => {
-    if (!isAuthenticated) {
-      const fetchPublicContact = async () => {
-        try {
-          const response = await fetch("/api/public/contact");
-          if (response.ok) {
-            const data = await response.json();
-            setPublicData(data);
-          }
-        } catch (error) {
-          console.error("Error fetching public contact data:", error);
-        } finally {
-          setPublicLoading(false);
-        }
-      };
-      fetchPublicContact();
+    if (initialData) {
+      return;
     }
-  }, [isAuthenticated]);
 
-  // Determinar si estamos cargando
-  const loading = isAuthenticated ? authLoading : publicLoading;
+    const fetchPublicContact = async () => {
+      try {
+        const response = await fetch("/api/public/contact");
+        if (response.ok) {
+          const data = await readJsonResponse<ContactDataResponse>(response);
+          setPublicData(data?.data ?? null);
+        }
+      } catch (error) {
+        console.error("Error fetching public contact data:", error);
+      } finally {
+        setPublicLoading(false);
+      }
+    };
+    fetchPublicContact();
+  }, [initialData]);
 
-  // Usar datos autenticados si existen, sino usar públicos
-  const contactData = isAuthenticated ? prismaUser : publicData;
-
-  // Mostrar loader mientras carga
-  if (loading || !contactData) {
+  if (publicLoading || !publicData) {
     return (
       <div className={`${className || ""}`}>
-        <ContactInfoSkeleton />
+        <ContactInfoSkeleton showBusinessHours={showBusinessHours} />
       </div>
     );
   }
 
-  // Mostrar solo datos de BD, sin fallbacks
-  const phoneNumber = contactData?.telefono || "";
-  const address = contactData?.informacionPublica || "";
-  const socialData = contactData && "facebook" in contactData ? contactData : null;
+  const phoneNumber = publicData.telefono || "";
+  const email = publicData.email || "";
+  const address = publicData.informacionPublica || "";
+  const socialData = publicData;
 
   return (
     <div className={`space-y-6 ${className || ""}`}>
-      {/* Dirección */}
-      {address && (
-        <InfoCard
-          icon={<MapPin className="h-6 w-6 text-blue-600" />}
-          title={t("address")}
-        >
-          <p className="">{address}</p>
-        </InfoCard>
-      )}
-
-      {/* Teléfono */}
-      {phoneNumber && (
-        <InfoCard
-          icon={<Phone className="h-6 w-6 text-blue-600" />}
-          title={t("phone")}
-        >
-          <p className="">{phoneNumber}</p>
-        </InfoCard>
-      )}
-
-      {/* Email */}
       <InfoCard
-        icon={<Mail className="h-6 w-6 text-blue-600" />}
-        title={t("email")}
+        icon={<MapPin className="h-6 w-6" />}
+        title={t("subtitle")}
       >
         <div className="space-y-4">
-          <p className="">{t("emailAddress")}</p>
-          
-          {/* Social Links */}
-          <SocialLinks
-            facebook={socialData?.facebook}
-            instagram={socialData?.instagram}
-            linkedin={socialData?.linkedin}
-            twitter={socialData?.twitter}
-            tiktok={socialData?.tiktok}
-            youtube={socialData?.youtube}
-            website={socialData?.website}
-            iconSize={24}
-          />
+          {address ? (
+            <div className="flex items-start gap-3 border-b border-border/60 pb-4">
+              <MapPin className="mt-1 h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                  {t("address")}
+                </p>
+                <p>{address}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {phoneNumber ? (
+            <div className="flex items-start gap-3 border-b border-border/60 pb-4">
+              <Phone className="mt-1 h-4 w-4 shrink-0 text-primary" />
+              <div className="space-y-1">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                  {t("phone")}
+                </p>
+                <p>{phoneNumber}</p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex items-start gap-3">
+            <Mail className="mt-1 h-4 w-4 shrink-0 text-primary" />
+            <div className="space-y-1">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.22em] text-primary/68">
+                {t("email")}
+              </p>
+              <p>{email || t("emailAddress")}</p>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <SocialLinks
+              facebook={socialData?.facebook}
+              instagram={socialData?.instagram}
+              linkedin={socialData?.linkedin}
+              twitter={socialData?.twitter}
+              tiktok={socialData?.tiktok}
+              youtube={socialData?.youtube}
+              website={socialData?.website}
+              iconSize={22}
+            />
+          </div>
         </div>
       </InfoCard>
 
-      {/* Horarios de Atención */}
-      <BusinessHours 
-        weekdaysHours={contactData?.weekdaysHours}
-        saturdayHours={contactData?.saturdayHours}
-        sundayHours={contactData?.sundayHours}
-      />
+      {showBusinessHours ? (
+        <BusinessHours 
+          weekdaysHours={publicData.weekdaysHours}
+          saturdayHours={publicData.saturdayHours}
+          sundayHours={publicData.sundayHours}
+        />
+      ) : null}
     </div>
   );
 }

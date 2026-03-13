@@ -1,6 +1,7 @@
 export type ApiErrorCode =
   | "validation.required"
   | "validation.invalidEmail"
+  | "validation.invalidPhone"
   | "validation.invalidCoordinates"
   | "not_found"
   | "conflict.slot_unavailable"

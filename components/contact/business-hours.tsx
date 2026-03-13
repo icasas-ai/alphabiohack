@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useUser } from "@/contexts/user-context";
 
 interface BusinessHoursProps {
   weekdays?: string;
@@ -11,12 +10,6 @@ interface BusinessHoursProps {
   weekdaysHours?: string | null;
   saturdayHours?: string | null;
   sundayHours?: string | null;
-}
-
-interface UserBusinessHours {
-  weekdaysHours?: string;
-  saturdayHours?: string;
-  sundayHours?: string;
 }
 
 export function BusinessHours({
@@ -29,25 +22,30 @@ export function BusinessHours({
   sundayHours: propsSundayHours,
 }: BusinessHoursProps) {
   const t = useTranslations('Contact');
-  const { prismaUser } = useUser();
 
-  const user = prismaUser as UserBusinessHours | null;
-
-  // Usar datos de los props si vienen (datos públicos), sino del usuario autenticado, sino defaults
-  const weekdaysHours = propsWeekdaysHours || user?.weekdaysHours || weekdays || "9:00 AM - 6:00 PM";
-  const saturdayHours = propsSaturdayHours || user?.saturdayHours || saturday || "9:00 AM - 2:00 PM";
-  const sundayHours = propsSundayHours || user?.sundayHours || sunday || "Closed";
+  const weekdaysHours = propsWeekdaysHours || weekdays || "9:00 AM - 6:00 PM";
+  const saturdayHours = propsSaturdayHours || saturday || "9:00 AM - 2:00 PM";
+  const sundayHours = propsSundayHours || sunday || "Closed";
 
   return (
-    <div className={`p-6 rounded-lg bg-card text-card-foreground ${className || ''}`}>
-      <h3 className="font-semibold mb-3 text-foreground">{t('businessHours')}</h3>
-      <div className="space-y-2 text-sm text-muted-foreground">
-        <p><span className="font-medium text-foreground">{t('weekdays')}:</span> {weekdaysHours}</p>
-        <p><span className="font-medium text-foreground">{t('saturday')}:</span> {saturdayHours}</p>
-        <p><span className="font-medium text-foreground">{t('sunday')}:</span> {sundayHours}</p>
+    <div className={`surface-panel overflow-hidden rounded-[24px] p-6 ${className || ''}`}>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <h3 className="font-semibold text-foreground">{t('businessHours')}</h3>
+      </div>
+      <div className="space-y-3 text-sm text-muted-foreground">
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
+          <span className="font-medium text-foreground">{t('weekdays')}</span>
+          <span>{weekdaysHours}</span>
+        </div>
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
+          <span className="font-medium text-foreground">{t('saturday')}</span>
+          <span>{saturdayHours}</span>
+        </div>
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
+          <span className="font-medium text-foreground">{t('sunday')}</span>
+          <span>{sundayHours}</span>
+        </div>
       </div>
     </div>
   );
 }
-
-

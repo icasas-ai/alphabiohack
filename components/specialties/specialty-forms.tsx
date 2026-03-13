@@ -17,7 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,10 +34,38 @@ const specialtySchema = z.object({
   description: z.string().max(500, 'SpecialtiesUI.validation.specialty.descriptionMax').optional(),
 });
 
+const parseNumericField = (value: unknown) => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    return Number(value);
+  }
+
+  return value;
+};
+
 const serviceSchema = z.object({
-  description: z.string().min(1, 'SpecialtiesUI.validation.service.descriptionRequired').max(200, 'SpecialtiesUI.validation.service.descriptionMax'),
-  cost: z.number().min(0, 'SpecialtiesUI.validation.service.costMin').max(10000, 'SpecialtiesUI.validation.service.costMax'),
-  duration: z.number().min(1, 'SpecialtiesUI.validation.service.durationMin').max(480, 'SpecialtiesUI.validation.service.durationMax'),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'SpecialtiesUI.validation.service.descriptionRequired')
+    .max(200, 'SpecialtiesUI.validation.service.descriptionMax'),
+  cost: z.preprocess(
+    parseNumericField,
+    z
+      .number({ error: 'SpecialtiesUI.validation.service.costRequired' })
+      .min(0, 'SpecialtiesUI.validation.service.costMin')
+      .max(10000, 'SpecialtiesUI.validation.service.costMax'),
+  ),
+  duration: z.preprocess(
+    parseNumericField,
+    z
+      .number({ error: 'SpecialtiesUI.validation.service.durationRequired' })
+      .min(1, 'SpecialtiesUI.validation.service.durationMin')
+      .max(480, 'SpecialtiesUI.validation.service.durationMax'),
+  ),
 });
 
 // Tipos para los formularios
@@ -51,6 +79,8 @@ interface ServiceFormData {
   cost: number;
   duration: number;
 }
+
+type ServiceFormInput = z.input<typeof serviceSchema>;
 
 // Props para los componentes de formulario
 interface SpecialtyFormProps {
@@ -122,7 +152,9 @@ export function SpecialtyForm({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('forms.specialty.nameLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('forms.specialty.nameLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       placeholder={t('forms.specialty.namePlaceholder')} 
@@ -192,14 +224,24 @@ export function ServiceForm({
 }: ServiceFormProps) {
   const t = useTranslations('SpecialtiesUI');
   const tCommon = useTranslations('Common');
-  const form = useForm<ServiceFormData>({
+  const form = useForm<ServiceFormInput, undefined, ServiceFormData>({
     resolver: zodResolver(serviceSchema),
-    defaultValues: initialData || {
+    defaultValues: initialData ?? {
       description: '',
-      cost: 0,
-      duration: 30,
+      cost: undefined,
+      duration: undefined,
     },
   });
+
+  useEffect(() => {
+    form.reset(
+      initialData ?? {
+        description: '',
+        cost: undefined,
+        duration: undefined,
+      },
+    );
+  }, [form, initialData, open]);
 
   const handleSubmit = async (data: ServiceFormData) => {
     try {
@@ -217,7 +259,7 @@ export function ServiceForm({
   };
 
   const formatDuration = useMemo(() => {
-    const duration = form.watch('duration');
+    const duration = Number(form.watch('duration') || 0);
     const hours = Math.floor(duration / 60);
     const minutes = duration % 60;
     
@@ -232,7 +274,7 @@ export function ServiceForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -244,7 +286,9 @@ export function ServiceForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('forms.service.descriptionLabel')}</FormLabel>
+                  <FormLabel>
+                    {t('forms.service.descriptionLabel')} <span className="text-destructive">*</span>
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       placeholder={t('forms.service.descriptionPlaceholder')} 
@@ -252,28 +296,27 @@ export function ServiceForm({
                       disabled={isPending}
                     />
                   </FormControl>
-                  <FormDescription>
-                    
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="cost"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('forms.service.costLabel')}</FormLabel>
+                  <FormItem className="self-start">
+                    <FormLabel>
+                      {t('forms.service.costLabel')} <span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input 
                         type="number"
                         step="0.01"
                         min="0"
                         placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        value={field.value === undefined || field.value === null ? "" : String(field.value)}
+                        onChange={(e) => field.onChange(e.target.value)}
                         disabled={isPending}
                       />
                     </FormControl>
@@ -285,22 +328,24 @@ export function ServiceForm({
                 control={form.control}
                 name="duration"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('forms.service.durationLabel')}</FormLabel>
+                  <FormItem className="self-start">
+                    <div className="flex items-center justify-between gap-3">
+                      <FormLabel>
+                        {t('forms.service.durationLabel')} <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <span className="text-xs text-muted-foreground">{formatDuration}</span>
+                    </div>
                     <FormControl>
                       <Input 
                         type="number"
                         min="1"
                         max="480"
                         placeholder="30"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                        value={field.value === undefined || field.value === null ? "" : String(field.value)}
+                        onChange={(e) => field.onChange(e.target.value)}
                         disabled={isPending}
                       />
                     </FormControl>
-                    <FormDescription className="text-xs">
-                      {formatDuration}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -1,39 +1,40 @@
-import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { jsonError, jsonSuccess } from "@/lib/api/route-helpers";
+import { getPublicCompanyProfile } from "@/services/public-profile.service";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
 
 export async function GET() {
   try {
-    // Obtener el primer usuario (datos públicos del negocio)
-    const user = await prisma.user.findFirst({
-      select: {
-        telefono: true,
-        informacionPublica: true,
-        weekdaysHours: true,
-        saturdayHours: true,
-        sundayHours: true,
-        facebook: true,
-        instagram: true,
-        linkedin: true,
-        twitter: true,
-        tiktok: true,
-        youtube: true,
-        website: true,
-      },
-    });
+    const company = await getPublicCompanyProfile();
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "No business information found" },
-        { status: 404 }
-      );
+    if (!company) {
+      return jsonError("No business information found", 404);
     }
 
-    return NextResponse.json(user);
+    return jsonSuccess({
+      name: company.name,
+      logo: company.logo,
+      headerLogo: company.headerLogo,
+      publicSummary: company.publicSummary,
+      email: company.publicEmail,
+      telefono: company.publicPhone,
+      informacionPublica: company.publicDescription,
+      weekdaysHours: company.weekdaysHours,
+      saturdayHours: company.saturdayHours,
+      sundayHours: company.sundayHours,
+      facebook: company.facebook,
+      instagram: company.instagram,
+      linkedin: company.linkedin,
+      twitter: company.twitter,
+      tiktok: company.tiktok,
+      youtube: company.youtube,
+      website: company.website,
+    });
   } catch (error) {
+    if (isPublicSiteUnavailableError(error)) {
+      return jsonError("Public site unavailable", 503);
+    }
+
     console.error("Error fetching contact info:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError("Internal server error", 500);
   }
 }

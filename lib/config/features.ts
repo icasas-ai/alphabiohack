@@ -1,4 +1,4 @@
-import { BookingType } from "@prisma/client";
+import { BookingType } from "@/lib/prisma-browser";
 
 /**
  * Feature Flags Configuration
@@ -47,7 +47,6 @@ export interface FeatureFlags {
   // Sistema de terapeuta único
   therapist: {
     singleTherapistMode: boolean;
-    defaultTherapistId: string | null;
   };
 }
 
@@ -91,8 +90,7 @@ export const featureFlags: FeatureFlags = {
 
   // Sistema de terapeuta único
   therapist: {
-    singleTherapistMode: true, // Modo de terapeuta único deshabilitado por defecto
-    defaultTherapistId: "cmg8tqpy00002c9xg7ofsotq2", // ID del terapeuta por defecto (se configura cuando se habilita el modo)
+    singleTherapistMode: true, // Oculta el selector y usa el publicTherapistId resuelto para el sitio
   },
 };
 
@@ -137,23 +135,6 @@ export function getSetting<K extends keyof FeatureFlags["settings"]>(
  */
 export function isSingleTherapistModeEnabled(): boolean {
   return featureFlags.therapist.singleTherapistMode;
-}
-
-/**
- * Obtiene el ID del terapeuta por defecto
- */
-export function getDefaultTherapistId(): string | null {
-  return featureFlags.therapist.defaultTherapistId;
-}
-
-/**
- * Verifica si hay un terapeuta por defecto configurado
- */
-export function hasDefaultTherapist(): boolean {
-  return (
-    featureFlags.therapist.singleTherapistMode &&
-    featureFlags.therapist.defaultTherapistId !== null
-  );
 }
 
 /**

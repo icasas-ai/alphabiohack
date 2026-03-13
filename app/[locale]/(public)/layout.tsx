@@ -1,27 +1,59 @@
+import { ThemeStyleBridge } from "@/components/company/theme-style-bridge";
+import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
+import { MedicalFooter } from "@/components/layout/footer"
+import { getCompanyThemeStyle } from "@/lib/company/company-theme";
+import { getSiteUrl } from "@/lib/config/site-url";
+import { isPublicSiteUnavailableError } from "@/services/company.service";
+import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import type { Metadata } from "next";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
+  metadataBase: new URL(getSiteUrl()),
   title: "MyAlphaPulse",
 };
 
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const company = await getPublicCompanyProfile().catch((error) => {
+    if (isPublicSiteUnavailableError(error)) {
+      return null;
+    }
+
+    throw error;
+  });
+  const headerContact = company
+    ? {
+        name: company.name,
+        logo: company.logo,
+        headerLogo: company.headerLogo,
+        email: company.publicEmail,
+        telefono: company.publicPhone,
+      }
+    : null;
+  const publicThemeStyle = getCompanyThemeStyle(company?.landingPageConfig, "public");
+
   return (
-    <div className="min-h-screen flex flex-col bg-secondary">
-      <MedicalHeader />
-      <main className="flex-1 flex items-center justify-center">
-        {children}
+    <div
+      className="app-page-gradient min-h-screen flex flex-col bg-background text-foreground"
+      style={publicThemeStyle}
+    >
+      <ThemeStyleBridge style={publicThemeStyle} />
+      <MedicalHeader initialPublicContact={headerContact} />
+      <main className="flex-1">
+        <PageTransition className="flex min-h-full flex-col">
+          <div className="flex min-h-full flex-col">
+            {children}
+          </div>
+        </PageTransition>
       </main>
+      <MedicalFooter />
     </div>
   );
 }

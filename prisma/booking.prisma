@@ -1,0 +1,34 @@
+model Booking {
+  id                    String        @id @default(cuid())
+  companyId             String
+  bookingNumber         String        @unique
+  bookingType           BookingType
+  locationId            String
+  specialtyId           String?
+  serviceId             String?
+  bookedDurationMinutes Int?
+  firstname             String
+  lastname              String
+  phone                 String
+  email                 String
+  givenConsent          Boolean       @default(false)
+  therapistId           String?
+  patientId             String?
+  bookingNotes          String?
+  bookingSchedule       DateTime
+  status                BookingStatus @default(Pending)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  company               Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  location              Location      @relation(fields: [locationId], references: [id])
+  patient               User?         @relation("PatientBookings", fields: [patientId], references: [id])
+  service               Service?      @relation(fields: [serviceId], references: [id])
+  specialty             Specialty?    @relation(fields: [specialtyId], references: [id])
+  therapist             User?         @relation("TherapistBookings", fields: [therapistId], references: [id])
+
+  @@index([companyId, bookingSchedule])
+  @@index([therapistId, bookingSchedule])
+  @@index([patientId, bookingSchedule])
+  @@index([status, bookingSchedule])
+  @@map("bookings")
+}

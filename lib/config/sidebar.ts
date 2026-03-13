@@ -1,15 +1,10 @@
 import {
-  BarChart3,
+  Building2,
   BookOpen,
-  Clock,
   Cog,
-  Globe,
   LayoutDashboard,
-  LifeBuoy,
   LucideIcon,
-  Send,
-  User,
-  Users,
+  Monitor,
 } from "lucide-react";
 
 export interface SidebarNavItem {
@@ -23,46 +18,63 @@ export interface SidebarNavItem {
   }>;
 }
 
-export interface SidebarProject {
-  name: string;
-  url: string;
-  icon: LucideIcon;
-}
-
 export interface SidebarConfig {
   navMain: SidebarNavItem[];
   navSecondary: SidebarNavItem[];
-  projects: SidebarProject[];
 }
+
+export type SidebarRoleMode = "admin" | "therapist" | "frontDesk" | "patient";
 
 export const getSidebarConfig = (
   t: (key: string) => string,
-  isTherapist: boolean
+  roleMode: SidebarRoleMode
 ): SidebarConfig => {
-  const baseNavMain: SidebarNavItem[] = [
+  const baseNavMain: SidebarNavItem[] = [];
+
+  const adminNavMain: SidebarNavItem[] = [
+    ...baseNavMain,
     {
-      title: t("website"),
-      url: "#",
-      icon: Globe,
+      title: t("myDashboard"),
+      url: "/dashboard",
+      icon: LayoutDashboard,
       isActive: true,
       items: [
         {
-          title: t("home"),
-          url: "/",
+          title: t("dashboard"),
+          url: "/dashboard",
         },
         {
-          title: t("booking"),
-          url: "/booking",
+          title: t("myAppointments"),
+          url: "/bookings",
+        },
+      ],
+    },
+    {
+      title: t("management"),
+      url: "/specialties",
+      icon: Cog,
+      isActive: true,
+      items: [
+        {
+          title: t("specialties"),
+          url: "/specialties",
         },
         {
-          title: t("contact"),
-          url: "/contact",
+          title: t("availability"),
+          url: "/availability",
+        },
+        {
+          title: t("locations"),
+          url: "/locations",
+        },
+        {
+          title: t("personnel"),
+          url: "/personnel",
         },
       ],
     },
   ];
 
-  // Navegación para Therapist (que también es Admin)
   const therapistNavMain: SidebarNavItem[] = [
     ...baseNavMain,
     {
@@ -77,13 +89,13 @@ export const getSidebarConfig = (
         },
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
     {
       title: t("management"),
-      url: "#",
+      url: "/specialties",
       icon: Cog,
       isActive: true,
       items: [
@@ -92,12 +104,23 @@ export const getSidebarConfig = (
           url: "/specialties",
         },
         {
-          title: t("locations"),
-          url: "/locations",
-        },
-        {
           title: t("availability"),
           url: "/availability",
+        },
+      ],
+    },
+  ];
+
+  const frontDeskNavMain: SidebarNavItem[] = [
+    ...baseNavMain,
+    {
+      title: t("myDashboard"),
+      url: "/bookings",
+      icon: LayoutDashboard,
+      items: [
+        {
+          title: t("myAppointments"),
+          url: "/bookings",
         },
       ],
     },
@@ -108,63 +131,37 @@ export const getSidebarConfig = (
     ...baseNavMain,
     {
       title: t("myAccount"),
-      url: "#",
+      url: "/bookings",
       icon: BookOpen,
       items: [
         {
           title: t("myAppointments"),
-          url: "/appointments",
+          url: "/bookings",
         },
       ],
     },
   ];
 
-  // Proyectos específicos por rol
-  const therapistProjects: SidebarProject[] = [
-    {
-      name: t("myStats"),
-      url: "/",
-      icon: BarChart3,
-    },
-    {
-      name: t("myPatients"),
-      url: "/",
-      icon: Users,
-    },
-  ];
-
-  const regularUserProjects: SidebarProject[] = [
-    {
-      name: t("myHistory"),
-      url: "/",
-      icon: Clock,
-    },
-    {
-      name: t("favorites"),
-      url: "/",
-      icon: BookOpen,
-    },
-  ];
-
   return {
-    navMain: isTherapist ? therapistNavMain : regularUserNavMain,
+    navMain:
+      roleMode === "admin"
+        ? adminNavMain
+        : roleMode === "therapist"
+          ? therapistNavMain
+        : roleMode === "frontDesk"
+          ? frontDeskNavMain
+          : regularUserNavMain,
     navSecondary: [
       {
-        title: t("profile"),
-        url: "/profile",
-        icon: User,
+        title: t("company"),
+        url: "/company",
+        icon: Building2,
       },
       {
-        title: t("support"),
-        url: "#",
-        icon: LifeBuoy,
-      },
-      {
-        title: t("feedback"),
-        url: "#",
-        icon: Send,
+        title: t("publicView"),
+        url: "/",
+        icon: Monitor,
       },
     ],
-    projects: isTherapist ? therapistProjects : regularUserProjects,
   };
 };

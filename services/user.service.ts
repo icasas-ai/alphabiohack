@@ -1,6 +1,11 @@
 import type { CreateUserData, UpdateUserData } from "@/types";
 
-import { UserRole } from "@prisma/client";
+import {
+  appUserSelect,
+  therapistDetailSelect,
+  userBookingSelect,
+} from "@/lib/auth/app-user";
+import { UserRole } from "@/lib/prisma-client";
 import { prisma } from "@/lib/prisma";
 
 // Crear usuario
@@ -9,12 +14,12 @@ export const createUser = async (data: CreateUserData) => {
     const user = await prisma.user.create({
       data: {
         email: data.email,
-        supabaseId: data.supabaseId,
         firstname: data.firstname,
         lastname: data.lastname,
         avatar: data.avatar,
         role: data.role,
       },
+      select: appUserSelect,
     });
     return user;
   } catch (error) {
@@ -28,31 +33,11 @@ export const getUserById = async (id: string) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
+      select: appUserSelect,
     });
     return user;
   } catch (error) {
     console.error("Error getting user by id:", error);
-    throw error;
-  }
-};
-
-// Obtener usuario por Supabase ID
-export const getUserBySupabaseId = async (supabaseId: string) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { supabaseId },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
-    });
-    return user;
-  } catch (error) {
-    console.error("Error getting user by supabase id:", error);
     throw error;
   }
 };
@@ -62,10 +47,7 @@ export const getUserByEmail = async (email: string) => {
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
+      select: appUserSelect,
     });
     return user;
   } catch (error) {
@@ -78,10 +60,7 @@ export const getUserByEmail = async (email: string) => {
 export const getAllUsers = async () => {
   try {
     const users = await prisma.user.findMany({
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
+      select: appUserSelect,
       orderBy: { createdAt: "desc" },
     });
     return users;
@@ -92,18 +71,31 @@ export const getAllUsers = async () => {
 };
 
 // Obtener usuarios por rol
-export const getUsersByRole = async (role: UserRole) => {
+export const getUsersByRole = async (
+  role: UserRole,
+  companyId?: string
+) => {
   try {
     const users = await prisma.user.findMany({
       where: {
-        role: {
-          has: role,
-        },
+        AND: [
+          {
+            role: {
+              has: role,
+            },
+          },
+          companyId
+            ? {
+                companyMemberships: {
+                  some: {
+                    companyId,
+                  },
+                },
+              }
+            : {},
+        ],
       },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
+      select: appUserSelect,
       orderBy: { createdAt: "desc" },
     });
     return users;
@@ -125,10 +117,7 @@ export const updateUser = async (id: string, data: UpdateUserData) => {
         avatar: data.avatar,
         role: data.role,
       },
-      include: {
-        therapistBookings: true,
-        patientBookings: true,
-      },
+      select: appUserSelect,
     });
     return user;
   } catch (error) {
@@ -142,10 +131,23 @@ export const deleteUser = async (id: string) => {
   try {
     const user = await prisma.user.delete({
       where: { id },
+      select: appUserSelect,
     });
     return user;
   } catch (error) {
     console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
+export const getTherapistById = async (id: string) => {
+  try {
+    return await prisma.user.findUnique({
+      where: { id },
+      select: therapistDetailSelect,
+    });
+  } catch (error) {
+    console.error("Error getting therapist by id:", error);
     throw error;
   }
 };
@@ -155,10 +157,7 @@ export const getPatientBookings = async (userId: string) => {
   try {
     const bookings = await prisma.booking.findMany({
       where: { patientId: userId },
-      include: {
-        location: true,
-        therapist: true,
-      },
+      select: userBookingSelect,
       orderBy: { createdAt: "desc" },
     });
     return bookings;
@@ -173,10 +172,7 @@ export const getTherapistBookings = async (userId: string) => {
   try {
     const bookings = await prisma.booking.findMany({
       where: { therapistId: userId },
-      include: {
-        location: true,
-        patient: true,
-      },
+      select: userBookingSelect,
       orderBy: { createdAt: "desc" },
     });
     return bookings;

@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   deleteService,
   getServiceById,
   getServiceStatsBySpecialty,
   updateService,
 } from "@/services";
-
-interface ServiceResponseData {
-  service: unknown;
-  stats?: unknown;
-}
+import {
+  jsonError,
+  jsonSuccess,
+  requireAuthorizedUser,
+} from "@/lib/api/route-helpers";
+import { canManageCatalog } from "@/lib/auth/authorization";
 
 // GET /api/services/[id] - Obtener servicio por ID
 export async function GET(
@@ -24,30 +25,22 @@ export async function GET(
     const service = await getServiceById(id);
 
     if (!service) {
-      return NextResponse.json(
-        { success: false, error: "Service not found" },
-        { status: 404 }
-      );
+      return jsonError("Service not found", 404);
     }
 
-    let responseData: ServiceResponseData = { service };
-
-    // Si se solicitan las estadísticas
     if (includeStats === "true") {
       const stats = await getServiceStatsBySpecialty(service.specialtyId);
-      responseData = {
-        ...responseData,
-        stats,
-      };
+      return jsonSuccess(service, {
+        meta: {
+          stats,
+        },
+      });
     }
 
-    return NextResponse.json({ success: true, data: responseData });
+    return jsonSuccess(service);
   } catch (error) {
     console.error("Error getting service:", error);
-    return NextResponse.json(
-      { success: false, error: "Error getting service" },
-      { status: 500 }
-    );
+    return jsonError("Error getting service", 500);
   }
 }
 
@@ -57,56 +50,51 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await requireAuthorizedUser(canManageCatalog);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
     const { id } = await params;
     const body = await request.json();
 
     // Verificar que el servicio existe
     const existingService = await getServiceById(id);
     if (!existingService) {
-      return NextResponse.json(
-        { success: false, error: "Service not found" },
-        { status: 404 }
-      );
+      return jsonError("Service not found", 404);
     }
 
     const updatedService = await updateService(id, body);
-    return NextResponse.json({ success: true, data: updatedService });
+    return jsonSuccess(updatedService);
   } catch (error) {
     console.error("Error updating service:", error);
-    return NextResponse.json(
-      { success: false, error: "Error updating service" },
-      { status: 500 }
-    );
+    return jsonError("Error updating service", 500);
   }
 }
 
 // DELETE /api/services/[id] - Eliminar servicio
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await requireAuthorizedUser(canManageCatalog);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
     const { id } = await params;
 
     // Verificar que el servicio existe
     const existingService = await getServiceById(id);
     if (!existingService) {
-      return NextResponse.json(
-        { success: false, error: "Service not found" },
-        { status: 404 }
-      );
+      return jsonError("Service not found", 404);
     }
 
     await deleteService(id);
-    return NextResponse.json({
-      success: true,
-      message: "Service deleted successfully",
-    });
+    return jsonSuccess({ id }, { successCode: "services.delete.success" });
   } catch (error) {
     console.error("Error deleting service:", error);
-    return NextResponse.json(
-      { success: false, error: "Error deleting service" },
-      { status: 500 }
-    );
+    return jsonError("Error deleting service", 500);
   }
 }

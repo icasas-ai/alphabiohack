@@ -1,9 +1,7 @@
 import {
-  BookingFormData,
-  checkTimeSlotAvailability,
   createBooking,
-  createBookingFromForm,
   getAllBookings,
+  getBookingsByCompany,
   getBookingsByDate,
   getBookingsByDateRange,
   getBookingsByEmail,
@@ -11,11 +9,15 @@ import {
   getBookingsByName,
   getBookingsByPatient,
   getBookingsByPhone,
+  getBookingsForUserIdentity,
   getBookingsByTherapist,
   getBookingsByTherapistAndDate,
   getBookingsByType,
   getPendingBookings,
+  getPrimaryCompanyIdForUser,
   getRecentBookings,
+  isAvailabilitySlotBookable,
+  resolveManagedTherapistIdForUser,
 } from "@/services";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -28,16 +30,37 @@ import {
   sendTherapistInviteEmail,
 } from "@/services/email.service";
 
-import { BookingType } from "@prisma/client";
+import { BookingType, UserRole } from "@/lib/prisma-client";
+import { getCurrentUser } from "@/lib/auth/session";
+import { canOperateAppointments } from "@/lib/auth/authorization";
 import { getServerLanguage } from "@/services/i18n.service";
 import { getTimeZoneOrDefault } from "@/services/config.service";
-import { combineDateAndTimeToUtc, parseDateStringInTimeZone } from "@/lib/utils/timezone";
 import { prisma } from "@/lib/prisma";
+import {
+  isValidEmailInput,
+  isValidPhoneInput,
+  normalizeEmailInput,
+  normalizePhoneInput,
+  normalizeWhitespace,
+} from "@/lib/validation/form-fields";
+
+function getBookingDurationMinutes(
+  booking: { bookedDurationMinutes?: number | null; service?: { duration?: number | null } | null },
+  fallbackServiceDuration?: number | null,
+) {
+  return (
+    booking.bookedDurationMinutes ??
+    booking.service?.duration ??
+    fallbackServiceDuration ??
+    60
+  );
+}
 
 // GET /api/bookings - Obtener citas
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
     const patientId = searchParams.get("patientId");
     const therapistId = searchParams.get("therapistId");
     const locationId = searchParams.get("locationId");
@@ -54,6 +77,85 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit");
 
     let bookings;
+
+    if (scope === "self" || scope === "managed" || scope === "company") {
+      const { prismaUser } = await getCurrentUser();
+      if (!prismaUser) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 },
+        );
+      }
+
+      if (scope === "self") {
+        bookings = await getBookingsForUserIdentity(
+          prismaUser.id,
+          prismaUser.email,
+        );
+        return NextResponse.json(successResponse(bookings));
+      }
+
+      if (scope === "company") {
+        const canViewCompanyBookings =
+          prismaUser.role.includes(UserRole.Admin) ||
+          prismaUser.role.includes(UserRole.Therapist) ||
+          (
+            prismaUser.role.includes(UserRole.FrontDesk) &&
+            !prismaUser.managedByTherapistId
+          );
+
+        if (!canViewCompanyBookings) {
+          return NextResponse.json(
+            { success: false, error: "Forbidden" },
+            { status: 403 },
+          );
+        }
+
+        const companyId = await getPrimaryCompanyIdForUser(prismaUser.id);
+        if (!companyId) {
+          return NextResponse.json(
+            { success: false, error: "No company is configured for this user" },
+            { status: 409 },
+          );
+        }
+
+        bookings = await getBookingsByCompany(companyId, therapistId);
+        return NextResponse.json(successResponse(bookings));
+      }
+
+      if (!canOperateAppointments(prismaUser)) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 },
+        );
+      }
+
+      const managedTherapistId = await resolveManagedTherapistIdForUser(prismaUser);
+      if (!managedTherapistId) {
+        return NextResponse.json(
+          { success: false, error: "No therapist is configured for this operator" },
+          { status: 409 },
+        );
+      }
+
+      bookings = await getBookingsByTherapist(managedTherapistId);
+      return NextResponse.json(successResponse(bookings));
+    }
+
+    const { prismaUser } = await getCurrentUser();
+    if (!prismaUser) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
+    if (!canOperateAppointments(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 },
+      );
+    }
 
     if (patientId) {
       bookings = await getBookingsByPatient(patientId);
@@ -102,151 +204,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-
-    // Detectar si viene del formulario del wizard
-    const isFromWizard =
-      body.appointmentType &&
-      body.selectedDate &&
-      body.selectedTime &&
-      body.basicInfo;
-
-    if (isFromWizard) {
-      // Usar la función específica para el wizard con tipo seguro
-      const booking = await createBookingFromForm(body as BookingFormData);
-      // enviar invitaciones (terapeuta y paciente)
-      try {
-        const language = await getServerLanguage();
-        const start = booking.bookingSchedule;
-        const serviceId = (booking as { serviceId?: string }).serviceId;
-        // Determinar duración del servicio de forma robusta
-        let durationMin = booking.service?.duration as number | undefined;
-        if (!durationMin && serviceId) {
-          const svc = await prisma.service.findUnique({
-            where: { id: serviceId },
-            select: { duration: true },
-          });
-          durationMin = svc?.duration;
-        }
-        // Fallback adicional: intentar leer del body del wizard
-        if (
-          !durationMin &&
-          Array.isArray(
-            (body as unknown as { selectedServiceIds?: string[] })
-              ?.selectedServiceIds
-          ) &&
-          (body as unknown as { selectedServiceIds?: string[] })
-            .selectedServiceIds?.[0]
-        ) {
-          const svc = await prisma.service.findUnique({
-            where: {
-              id: (body as unknown as { selectedServiceIds: string[] })
-                .selectedServiceIds[0],
-            },
-            select: { duration: true },
-          });
-          durationMin = svc?.duration;
-        }
-        durationMin = durationMin ?? 60;
-        const end = new Date(start.getTime() + durationMin * 60000);
-        const locationAddress = booking.location?.address ?? "";
-        const timeZone = getTimeZoneOrDefault(
-          booking.location?.timezone || undefined
-        );
-        const patientName = `${booking.firstname} ${booking.lastname}`.trim();
-        const therapistEmail = booking.therapist?.email;
-        const therapistName =
-          booking.therapist?.firstname && booking.therapist?.lastname
-            ? `${booking.therapist.firstname} ${booking.therapist.lastname}`
-            : booking.therapist?.firstname || "Profesional";
-
-        if (therapistEmail) {
-          const { icsContent, reactProps, subject } =
-            buildTherapistInviteArtifacts({
-              patientName,
-              patientEmail: booking.email,
-              therapistName,
-              locationAddress,
-              notes: booking.bookingNotes || undefined,
-              start,
-              end,
-              language,
-              bookingId: booking.id,
-              attendeeEmail: therapistEmail,
-              timeZone,
-            });
-          await sendTherapistInviteEmail({
-            to: therapistEmail,
-            subject,
-            reactProps,
-            icsContent,
-          });
-        }
-
-        if (booking.email) {
-          const { icsContent, reactProps, subject } =
-            buildPatientInviteArtifacts({
-              therapistName,
-              patientName,
-              patientEmail: booking.email,
-              locationAddress,
-              notes: booking.bookingNotes || undefined,
-              start,
-              end,
-              language,
-              bookingId: booking.id,
-              attendeeEmail: booking.email,
-              timeZone,
-            });
-          await sendPatientInviteEmail({
-            to: booking.email,
-            subject,
-            reactProps,
-            icsContent,
-          });
-        }
-      } catch (e) {
-        console.error("Error sending invite email:", e);
-      }
-      return NextResponse.json(
-        successResponse(booking, "bookings.create.success"),
-        { status: 201 }
-      );
-    }
-
-    // Validaciones básicas para datos directos (flujo no-wizard)
     const language = await getServerLanguage();
-    
-    // Detectar si es flujo alterno (con selectedDate/selectedTime)
-    const isAlternateFlow = body.selectedDate && body.selectedTime;
-    
-    if (isAlternateFlow) {
-      // Convertir selectedDate + selectedTime a bookingSchedule usando zona horaria de la ubicación
-      try {
-        const location = await prisma.location.findUnique({
-          where: { id: body.locationId },
-          select: { timezone: true },
-        });
-        const tz = location?.timezone ?? "America/Los_Angeles";
-        
-        // Parsear selectedDate como fecha local en la zona horaria correcta
-        const selectedDate = parseDateStringInTimeZone(body.selectedDate, tz);
-        const bookingSchedule = combineDateAndTimeToUtc(selectedDate, body.selectedTime, tz);
-        body.bookingSchedule = bookingSchedule;
-      } catch (error) {
-        console.error("Error processing date/time:", error);
-        const { body: err, status } = errorResponse("internal_error", language, 500);
-        return NextResponse.json(err, { status });
-      }
-    }
-    
+    const normalizedFirstname = normalizeWhitespace(body.firstname);
+    const normalizedLastname = normalizeWhitespace(body.lastname);
+    const normalizedEmail = normalizeEmailInput(body.email);
+    const normalizedPhone = normalizePhoneInput(body.phone);
+    const parsedBookingSchedule = new Date(body.bookingSchedule);
+
     if (
       !body.bookingType ||
       !body.locationId ||
-      !body.firstname ||
-      !body.lastname ||
-      !body.phone ||
-      !body.email ||
-      !body.bookingSchedule
+      !normalizedFirstname ||
+      !normalizedLastname ||
+      !normalizedPhone ||
+      !normalizedEmail ||
+      !body.bookingSchedule ||
+      Number.isNaN(parsedBookingSchedule.getTime())
     ) {
       const { body: err, status } = errorResponse(
         "validation.required",
@@ -256,21 +229,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(err, { status });
     }
 
-    // Verificar disponibilidad del terapeuta si se proporciona
-    if (body.therapistId) {
-      // Parsear fecha: si viene sin offset, asumir PST (-08:00). Si ya trae Z u offset, usar tal cual.
-      let bookingSchedulePST = new Date(body.bookingSchedule);
-      if (isNaN(bookingSchedulePST.getTime())) {
-        const hasOffset = /[Zz]|[+-]\d{2}:\d{2}$/.test(body.bookingSchedule);
-        bookingSchedulePST = new Date(
-          body.bookingSchedule + (hasOffset ? "" : "-08:00")
-        );
-      }
-
-      const availability = await checkTimeSlotAvailability(
-        body.therapistId,
-        bookingSchedulePST
+    if (!isValidEmailInput(normalizedEmail)) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid email address." },
+        { status: 400 },
       );
+    }
+
+    if (!isValidPhoneInput(normalizedPhone)) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a valid phone number." },
+        { status: 400 },
+      );
+    }
+
+    body.firstname = normalizedFirstname;
+    body.lastname = normalizedLastname;
+    body.email = normalizedEmail;
+    body.phone = normalizedPhone;
+    body.bookingNotes =
+      typeof body.bookingNotes === "string" ? body.bookingNotes.trim() || undefined : undefined;
+    body.bookingSchedule = parsedBookingSchedule;
+
+    if (body.therapistId) {
+      const availability = await isAvailabilitySlotBookable({
+        therapistId: body.therapistId,
+        locationId: body.locationId,
+        bookingSchedule: parsedBookingSchedule,
+      });
 
       if (!availability.isAvailable) {
         const { body: err, status } = errorResponse(
@@ -280,6 +266,10 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json(err, { status });
       }
+
+      body.bookedDurationMinutes =
+        availability.sessionDurationMinutes ?? body.bookedDurationMinutes;
+      body.bookingSchedule = availability.bookingSchedule ?? parsedBookingSchedule;
     }
 
     const booking = await createBooking(body);
@@ -288,16 +278,20 @@ export async function POST(request: NextRequest) {
       const language = await getServerLanguage();
       const start = booking.bookingSchedule;
       const serviceId = (booking as { serviceId?: string }).serviceId;
-      // Determinar duración de forma robusta
-      let durationMin = booking.service?.duration as number | undefined;
-      if (!durationMin && serviceId) {
+      let fallbackServiceDuration = booking.service?.duration as
+        | number
+        | undefined;
+      if (!fallbackServiceDuration && serviceId) {
         const svc = await prisma.service.findUnique({
           where: { id: serviceId },
           select: { duration: true },
         });
-        durationMin = svc?.duration;
+        fallbackServiceDuration = svc?.duration;
       }
-      durationMin = durationMin ?? 60;
+      const durationMin = getBookingDurationMinutes(
+        booking,
+        fallbackServiceDuration,
+      );
       const end = new Date(start.getTime() + durationMin * 60000);
       const locationAddress = booking.location?.address ?? "";
       const timeZone = getTimeZoneOrDefault(
@@ -310,13 +304,16 @@ export async function POST(request: NextRequest) {
           ? `${booking.therapist.firstname} ${booking.therapist.lastname}`
           : booking.therapist?.firstname || "Terapeuta";
 
+      const inviteTasks: Promise<unknown>[] = [];
+
       if (therapistEmail) {
-        const { icsContent, reactProps, subject } =
+        const { icsContent, reactProps, subject, icsFilename } =
           buildTherapistInviteArtifacts({
             patientName,
             patientEmail: booking.email,
             therapistName,
             locationAddress,
+            bookingNumber: booking.bookingNumber,
             notes: booking.bookingNotes || undefined,
             start,
             end,
@@ -325,21 +322,26 @@ export async function POST(request: NextRequest) {
             attendeeEmail: therapistEmail,
             timeZone,
           });
-        await sendTherapistInviteEmail({
-          to: therapistEmail,
-          subject,
-          reactProps,
-          icsContent,
-        });
+        inviteTasks.push(
+          sendTherapistInviteEmail({
+            context: "booking.therapist_invite",
+            to: therapistEmail,
+            subject,
+            reactProps,
+            icsContent,
+            filename: icsFilename,
+          }),
+        );
       }
 
       if (booking.email) {
-        const { icsContent, reactProps, subject } = buildPatientInviteArtifacts(
+        const { icsContent, reactProps, subject, icsFilename } = buildPatientInviteArtifacts(
           {
             therapistName,
             patientName,
             patientEmail: booking.email,
             locationAddress,
+            bookingNumber: booking.bookingNumber,
             notes: booking.bookingNotes || undefined,
             start,
             end,
@@ -349,12 +351,20 @@ export async function POST(request: NextRequest) {
             timeZone,
           }
         );
-        await sendPatientInviteEmail({
-          to: booking.email,
-          subject,
-          reactProps,
-          icsContent,
-        });
+        inviteTasks.push(
+          sendPatientInviteEmail({
+            context: "booking.patient_invite",
+            to: booking.email,
+            subject,
+            reactProps,
+            icsContent,
+            filename: icsFilename,
+          }),
+        );
+      }
+
+      if (inviteTasks.length) {
+        await Promise.allSettled(inviteTasks);
       }
     } catch (e) {
       console.error("Error sending invite email:", e);

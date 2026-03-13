@@ -1,18 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   deleteUser,
   getPatientBookings,
   getTherapistBookings,
   getUserById,
-  getUserBySupabaseId,
   updateUser,
 } from "@/services";
-
-interface UserResponseData {
-  user: unknown;
-  patientBookings?: unknown[];
-  therapistBookings?: unknown[];
-}
+import { jsonError, jsonSuccess, requireAuthorizedUser } from "@/lib/api/route-helpers";
+import { canManagePersonnel } from "@/lib/auth/authorization";
 
 // GET /api/users/[id] - Obtener usuario por ID
 export async function GET(
@@ -20,6 +15,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await requireAuthorizedUser(canManagePersonnel);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const includeBookings = searchParams.get("includeBookings");
@@ -27,41 +27,27 @@ export async function GET(
     const user = await getUserById(id);
 
     if (!user) {
-      const userBySupabaseId = await getUserBySupabaseId(id);
-
-      if (userBySupabaseId) {
-        return NextResponse.json({ success: true, data: userBySupabaseId });
-      }
-
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
+      return jsonError("User not found", 404);
     }
 
-    let responseData: UserResponseData = { user };
-
-    // Si se solicitan las citas, agregarlas al response
     if (includeBookings === "true") {
       const [patientBookings, therapistBookings] = await Promise.all([
         getPatientBookings(id),
         getTherapistBookings(id),
       ]);
 
-      responseData = {
-        ...responseData,
-        patientBookings,
-        therapistBookings,
-      };
+      return jsonSuccess(user, {
+        meta: {
+          patientBookings,
+          therapistBookings,
+        },
+      });
     }
 
-    return NextResponse.json({ success: true, data: responseData });
+    return jsonSuccess(user);
   } catch (error) {
     console.error("Error getting user:", error);
-    return NextResponse.json(
-      { success: false, error: "Error getting user" },
-      { status: 500 }
-    );
+    return jsonError("Error getting user", 500);
   }
 }
 
@@ -71,56 +57,51 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await requireAuthorizedUser(canManagePersonnel);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
     const { id } = await params;
     const body = await request.json();
 
     // Verificar que el usuario existe
     const existingUser = await getUserById(id);
     if (!existingUser) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
+      return jsonError("User not found", 404);
     }
 
     const updatedUser = await updateUser(id, body);
-    return NextResponse.json({ success: true, data: updatedUser });
+    return jsonSuccess(updatedUser);
   } catch (error) {
     console.error("Error updating user:", error);
-    return NextResponse.json(
-      { success: false, error: "Error updating user" },
-      { status: 500 }
-    );
+    return jsonError("Error updating user", 500);
   }
 }
 
 // DELETE /api/users/[id] - Eliminar usuario
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const currentUser = await requireAuthorizedUser(canManagePersonnel);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
     const { id } = await params;
 
     // Verificar que el usuario existe
     const existingUser = await getUserById(id);
     if (!existingUser) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
+      return jsonError("User not found", 404);
     }
 
     await deleteUser(id);
-    return NextResponse.json({
-      success: true,
-      message: "User deleted successfully",
-    });
+    return jsonSuccess({ id }, { successCode: "users.delete.success" });
   } catch (error) {
     console.error("Error deleting user:", error);
-    return NextResponse.json(
-      { success: false, error: "Error deleting user" },
-      { status: 500 }
-    );
+    return jsonError("Error deleting user", 500);
   }
 }

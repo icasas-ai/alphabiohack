@@ -1,5 +1,15 @@
 // Exportar todas las funciones de servicios CRUD
 export {
+  getCompanyContextForUser,
+  getPrimaryCompanyForUser,
+  getPrimaryCompanyIdForUser,
+  getPublicCompany,
+  getPublicTherapistForCompany,
+  resolveManagedTherapistIdForUser,
+  resolveScopedCompanyId,
+} from "./company.service";
+
+export {
   createUser,
   deleteUser,
   getAllUsers,
@@ -7,7 +17,6 @@ export {
   getTherapistBookings,
   getUserByEmail,
   getUserById,
-  getUserBySupabaseId,
   getUsersByRole,
   updateUser,
 } from "./user.service";
@@ -18,27 +27,11 @@ export {
   findNearbyLocations,
   getAllLocations,
   getLocationBookings,
-  getLocationBusinessHours,
   getLocationById,
   searchLocationsByAddress,
   searchLocationsByTitle,
   updateLocation,
 } from "./location.service";
-
-export {
-  createBusinessHours,
-  createMultipleBusinessHours,
-  deleteBusinessHours,
-  deleteBusinessHoursByLocation,
-  getAllBusinessHours,
-  getAvailableHours,
-  getBusinessHoursByDayAndLocation,
-  getBusinessHoursById,
-  getBusinessHoursByLocation,
-  getCurrentWeekHours,
-  isLocationOpen,
-  updateBusinessHours,
-} from "./business-hours.service";
 
 export {
   createSpecialty,
@@ -77,23 +70,21 @@ export {
 
 export {
   assignTherapistToBooking,
-  checkTherapistAvailability,
-  checkTimeSlotAvailability,
   createBooking,
-  createBookingFromForm,
   deleteBooking,
   deleteBookingsByLocation,
   deleteBookingsByPatient,
   deleteBookingsByTherapist,
   getAllBookings,
-  getAvailableTimeSlots,
   getBookingById,
   getBookingsByDate,
   getBookingsByDateRange,
   getBookingsByEmail,
+  getBookingsByCompany,
   getBookingsByLocation,
   getBookingsByName,
   getBookingsByPatient,
+  getBookingsForUserIdentity,
   getBookingsByPhone,
   getBookingsByTherapist,
   getBookingsByTherapistAndDate,
@@ -103,22 +94,33 @@ export {
   getBookingStatsByTherapist,
   getPendingBookings,
   getRecentBookings,
-  mapBookingFormDataToCreateData,
   updateBooking,
   updateBookingStatus,
 } from "./booking.service";
+
+export {
+  createAvailabilityPeriod,
+  deleteAvailabilityPeriod,
+  getAvailabilityDayOwnership,
+  getAvailabilityExcludedDateOwnership,
+  getAvailabilityPeriodOwnership,
+  getAvailabilityDaySlots,
+  getAvailabilityMonthSummary,
+  isAvailabilitySlotBookable,
+  listAvailabilityPeriods,
+  restoreAvailabilityExcludedDate,
+  updateAvailabilityDay,
+} from "./availability.service";
 
 // Exportar tipos desde la carpeta types
 export type {
   BookingFormData,
   CreateBookingData,
-  CreateBusinessHoursData,
   CreateLocationData,
   CreateServiceData,
   CreateSpecialtyData,
   CreateUserData,
   UpdateBookingData,
-  UpdateBusinessHoursData,
   UpdateLocationData,
   UpdateServiceData,
   UpdateSpecialtyData,

@@ -30,6 +30,24 @@ type PhoneInputProps = Omit<
     onChange?: (value: RPNInput.Value) => void;
   };
 
+function normalizePhoneInputValue(value: unknown): RPNInput.Value | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.startsWith("+")) {
+    const normalized = `+${trimmed.slice(1).replace(/\D/g, "")}`;
+    return normalized.length > 1 ? (normalized as RPNInput.Value) : undefined;
+  }
+
+  return undefined;
+}
+
 const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
   React.forwardRef<React.ElementRef<typeof RPNInput.default>, PhoneInputProps>(
     ({ className, onChange, value, ...props }, ref) => {
@@ -41,7 +59,7 @@ const PhoneInput: React.ForwardRefExoticComponent<PhoneInputProps> =
           countrySelectComponent={CountrySelect}
           inputComponent={InputComponent}
           smartCaret={false}
-          value={value || undefined}
+          value={normalizePhoneInputValue(value)}
           /**
            * Handles the onChange event.
            *
@@ -93,7 +111,6 @@ const CountrySelect = ({
   return (
     <Popover
       open={isOpen}
-      modal
       onOpenChange={(open) => {
         setIsOpen(open);
         if (open) {

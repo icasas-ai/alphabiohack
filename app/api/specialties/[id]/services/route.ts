@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
+import { jsonError, jsonSuccess } from "@/lib/api/route-helpers";
 import { getServicesBySpecialty } from "@/services";
 
 // GET /api/specialties/[id]/services - Obtener servicios de una especialidad
@@ -11,12 +12,9 @@ export async function GET(
     const { id } = await params;
 
     const services = await getServicesBySpecialty(id);
-    return NextResponse.json({ success: true, data: services });
+    return jsonSuccess(services);
   } catch (error) {
     console.error("Error getting specialty services:", error);
-    return NextResponse.json(
-      { success: false, error: "Error getting specialty services" },
-      { status: 500 }
-    );
+    return jsonError("Error getting specialty services", 500);
   }
 }

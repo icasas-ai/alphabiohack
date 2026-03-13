@@ -59,7 +59,6 @@ export const API_ENDPOINTS = {
   // Autenticación y usuarios
   USER: {
     BASE: "/api/user",
-    BOOKINGS: "/api/user/bookings",
   },
 
   // Ubicaciones
@@ -75,14 +74,22 @@ export const API_ENDPOINTS = {
   // Terapeutas
   THERAPISTS: {
     BASE: "/api/therapists",
-    BOOKINGS: "/api/therapists/bookings",
     BY_ID: (id: string) => `/api/therapists/${id}`,
+  },
+
+  // Disponibilidad fechada
+  AVAILABILITY: {
+    PERIODS: "/api/availability/periods",
+    PERIOD_BY_ID: (id: string) => `/api/availability/periods/${id}`,
+    DAY_BY_ID: (id: string) => `/api/availability/days/${id}`,
+    CALENDAR: "/api/availability/calendar",
+    RESTORE_EXCLUDED_DATE: (periodId: string) =>
+      `/api/availability/periods/${periodId}`,
   },
 
   // Citas/Bookings
   BOOKINGS: {
     BASE: "/api/bookings",
-    AVAILABILITY: "/api/bookings/availability",
     STATS: "/api/bookings/stats",
     BY_ID: (id: string) => `/api/bookings/${id}`,
   },
@@ -96,15 +103,19 @@ export const API_ENDPOINTS = {
     BASE: "/api/specialties",
   },
 
-  SPECIALTIES_SERVICES: {
-    BASE: "/api/specialties-services",
-  },
-
-  // Horarios de atención
-  BUSINESS_HOURS: {
-    BASE: "/api/business-hours",
-  },
 } as const;
+```
+
+### Bookings por scope
+
+Los listados de bookings para paciente y operador se unificaron en `/api/bookings`:
+
+```typescript
+// Paciente autenticado
+fetch(`${API_ENDPOINTS.BOOKINGS.BASE}?scope=self`);
+
+// FrontDesk / Therapist / Admin autenticado
+fetch(`${API_ENDPOINTS.BOOKINGS.BASE}?scope=managed`);
 ```
 
 ## Beneficios
@@ -125,6 +136,8 @@ Los siguientes hooks han sido actualizados para usar las constantes:
 - `useUserBookings` - Citas del usuario/terapeuta
 - `useCreateBooking` - Crear nuevas citas
 - `useSpecialtiesServices` - Especialidades y servicios
+- `useAvailabilityCalendar` - Calendario de disponibilidad fechada
+- `useTherapists` - Carga de terapeutas públicos
 
 ## Agregar nuevos endpoints
 

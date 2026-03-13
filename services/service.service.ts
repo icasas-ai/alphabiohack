@@ -1,281 +1,287 @@
 import type { CreateServiceData, UpdateServiceData } from "@/types";
 
 import { prisma } from "@/lib/prisma";
+import {
+  countServices,
+  createManyServices,
+  createServiceRecord,
+  deleteServiceRecord,
+  findServiceByIdWithInclude,
+  findServices,
+  updateServiceRecord,
+} from "@/repositories";
 
-// Crear servicio
-export const createService = async (data: CreateServiceData) => {
+export const createService = async (
+  data: CreateServiceData,
+  companyId: string,
+) => {
   try {
-    const service = await prisma.service.create({
-      data: {
+    return await createServiceRecord(
+      {
+        companyId,
         description: data.description,
         cost: data.cost,
         duration: data.duration,
         specialtyId: data.specialtyId,
       },
-      include: {
+      {
         specialty: true,
       },
-    });
-    return service;
+    );
   } catch (error) {
     console.error("Error creating service:", error);
     throw error;
   }
 };
 
-// Crear múltiples servicios
 export const createMultipleServices = async (
-  servicesData: CreateServiceData[]
+  servicesData: CreateServiceData[],
+  companyId: string,
 ) => {
   try {
-    const services = await prisma.service.createMany({
-      data: servicesData,
-    });
-    return services;
+    return await createManyServices(
+      servicesData.map((service) => ({
+        ...service,
+        companyId,
+      })),
+    );
   } catch (error) {
     console.error("Error creating multiple services:", error);
     throw error;
   }
 };
 
-// Obtener servicio por ID
 export const getServiceById = async (id: string) => {
   try {
-    const service = await prisma.service.findUnique({
-      where: { id },
-      include: {
-        specialty: true,
-      },
+    return await findServiceByIdWithInclude(id, {
+      specialty: true,
     });
-    return service;
   } catch (error) {
     console.error("Error getting service by id:", error);
     throw error;
   }
 };
 
-// Obtener todos los servicios
-export const getAllServices = async () => {
+export const getAllServices = async (companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      include: {
+    return await findServices(
+      companyId ? { companyId } : undefined,
+      {
         specialty: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
-    return services;
+      { createdAt: "desc" },
+    );
   } catch (error) {
     console.error("Error getting all services:", error);
     throw error;
   }
 };
 
-// Obtener servicios por especialidad
-export const getServicesBySpecialty = async (specialtyId: string) => {
+export const getServicesBySpecialty = async (specialtyId: string, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      where: { specialtyId },
-      include: {
+    return await findServices(
+      {
+        specialtyId,
+        ...(companyId ? { companyId } : {}),
+      },
+      {
         specialty: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
-    return services;
+      { createdAt: "desc" },
+    );
   } catch (error) {
     console.error("Error getting services by specialty:", error);
     throw error;
   }
 };
 
-// Buscar servicios por descripción
-export const searchServicesByDescription = async (searchTerm: string) => {
+export const searchServicesByDescription = async (searchTerm: string, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      where: {
-        description: {
-          contains: searchTerm,
-          mode: "insensitive",
-        },
+    return await findServices(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            description: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        ],
       },
-      include: {
+      {
         specialty: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
-    return services;
+      { createdAt: "desc" },
+    );
   } catch (error) {
     console.error("Error searching services by description:", error);
     throw error;
   }
 };
 
-// Buscar servicios por rango de precio
 export const getServicesByPriceRange = async (
   minPrice: number,
-  maxPrice: number
+  maxPrice: number,
+  companyId?: string,
 ) => {
   try {
-    const services = await prisma.service.findMany({
-      where: {
-        cost: {
-          gte: minPrice,
-          lte: maxPrice,
-        },
+    return await findServices(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            cost: {
+              gte: minPrice,
+              lte: maxPrice,
+            },
+          },
+        ],
       },
-      include: {
+      {
         specialty: true,
       },
-      orderBy: { cost: "asc" },
-    });
-    return services;
+      { cost: "asc" },
+    );
   } catch (error) {
     console.error("Error getting services by price range:", error);
     throw error;
   }
 };
 
-// Buscar servicios por duración
-export const getServicesByDuration = async (duration: number) => {
+export const getServicesByDuration = async (duration: number, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      where: { duration },
-      include: {
+    return await findServices(
+      {
+        duration,
+        ...(companyId ? { companyId } : {}),
+      },
+      {
         specialty: true,
       },
-      orderBy: { createdAt: "desc" },
-    });
-    return services;
+      { createdAt: "desc" },
+    );
   } catch (error) {
     console.error("Error getting services by duration:", error);
     throw error;
   }
 };
 
-// Buscar servicios por rango de duración
 export const getServicesByDurationRange = async (
   minDuration: number,
-  maxDuration: number
+  maxDuration: number,
+  companyId?: string,
 ) => {
   try {
-    const services = await prisma.service.findMany({
-      where: {
-        duration: {
-          gte: minDuration,
-          lte: maxDuration,
-        },
+    return await findServices(
+      {
+        AND: [
+          companyId ? { companyId } : {},
+          {
+            duration: {
+              gte: minDuration,
+              lte: maxDuration,
+            },
+          },
+        ],
       },
-      include: {
+      {
         specialty: true,
       },
-      orderBy: { duration: "asc" },
-    });
-    return services;
+      { duration: "asc" },
+    );
   } catch (error) {
     console.error("Error getting services by duration range:", error);
     throw error;
   }
 };
 
-// Obtener servicios más populares (por precio)
-export const getMostPopularServices = async (limit: number = 10) => {
+export const getMostPopularServices = async (limit: number = 10, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      include: {
+    return await findServices(
+      companyId ? { companyId } : undefined,
+      {
         specialty: true,
       },
-      orderBy: { cost: "asc" },
-      take: limit,
-    });
-    return services;
+      { cost: "asc" },
+      limit,
+    );
   } catch (error) {
     console.error("Error getting most popular services:", error);
     throw error;
   }
 };
 
-// Obtener servicios más caros
-export const getMostExpensiveServices = async (limit: number = 10) => {
+export const getMostExpensiveServices = async (limit: number = 10, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      include: {
+    return await findServices(
+      companyId ? { companyId } : undefined,
+      {
         specialty: true,
       },
-      orderBy: { cost: "desc" },
-      take: limit,
-    });
-    return services;
+      { cost: "desc" },
+      limit,
+    );
   } catch (error) {
     console.error("Error getting most expensive services:", error);
     throw error;
   }
 };
 
-// Obtener servicios más baratos
-export const getCheapestServices = async (limit: number = 10) => {
+export const getCheapestServices = async (limit: number = 10, companyId?: string) => {
   try {
-    const services = await prisma.service.findMany({
-      include: {
+    return await findServices(
+      companyId ? { companyId } : undefined,
+      {
         specialty: true,
       },
-      orderBy: { cost: "asc" },
-      take: limit,
-    });
-    return services;
+      { cost: "asc" },
+      limit,
+    );
   } catch (error) {
     console.error("Error getting cheapest services:", error);
     throw error;
   }
 };
 
-// Actualizar servicio
 export const updateService = async (id: string, data: UpdateServiceData) => {
   try {
-    const service = await prisma.service.update({
-      where: { id },
-      data: {
-        description: data.description,
-        cost: data.cost,
-        duration: data.duration,
-        specialtyId: data.specialtyId,
-      },
-      include: {
-        specialty: true,
-      },
+    await updateServiceRecord(id, {
+      description: data.description,
+      cost: data.cost,
+      duration: data.duration,
+      specialtyId: data.specialtyId,
     });
-    return service;
+
+    return await findServiceByIdWithInclude(id, {
+      specialty: true,
+    });
   } catch (error) {
     console.error("Error updating service:", error);
     throw error;
   }
 };
 
-// Eliminar servicio
 export const deleteService = async (id: string) => {
   try {
-    const service = await prisma.service.delete({
-      where: { id },
-    });
-    return service;
+    return await deleteServiceRecord(id);
   } catch (error) {
     console.error("Error deleting service:", error);
     throw error;
   }
 };
 
-// Eliminar servicios por especialidad
 export const deleteServicesBySpecialty = async (specialtyId: string) => {
   try {
-    const result = await prisma.service.deleteMany({
+    return await prisma.service.deleteMany({
       where: { specialtyId },
     });
-    return result;
   } catch (error) {
     console.error("Error deleting services by specialty:", error);
     throw error;
   }
 };
 
-// Obtener estadísticas de servicios
 export const getServiceStats = async () => {
   try {
     const totalServices = await prisma.service.count();
@@ -313,11 +319,13 @@ export const getServiceStats = async () => {
   }
 };
 
-// Obtener estadísticas por especialidad
-export const getServiceStatsBySpecialty = async (specialtyId: string) => {
+export const getServiceStatsBySpecialty = async (specialtyId: string, companyId?: string) => {
   try {
     const services = await prisma.service.findMany({
-      where: { specialtyId },
+      where: {
+        specialtyId,
+        ...(companyId ? { companyId } : {}),
+      },
     });
 
     if (services.length === 0) {
@@ -331,10 +339,7 @@ export const getServiceStatsBySpecialty = async (specialtyId: string) => {
     }
 
     const totalCost = services.reduce((sum, service) => sum + service.cost, 0);
-    const totalDuration = services.reduce(
-      (sum, service) => sum + service.duration,
-      0
-    );
+    const totalDuration = services.reduce((sum, service) => sum + service.duration, 0);
     const costs = services.map((service) => service.cost);
 
     return {
@@ -350,21 +355,21 @@ export const getServiceStatsBySpecialty = async (specialtyId: string) => {
   }
 };
 
-// Verificar si un servicio existe
 export const serviceExists = async (
   description: string,
-  specialtyId: string
+  specialtyId: string,
+  companyId?: string,
 ) => {
   try {
-    const count = await prisma.service.count({
-      where: {
-        description: {
-          equals: description,
-          mode: "insensitive",
-        },
-        specialtyId,
+    const count = await countServices({
+      description: {
+        equals: description,
+        mode: "insensitive",
       },
+      specialtyId,
+      ...(companyId ? { companyId } : {}),
     });
+
     return count > 0;
   } catch (error) {
     console.error("Error checking if service exists:", error);

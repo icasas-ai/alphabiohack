@@ -9,6 +9,7 @@ import {
   searchLocationsByTitle,
 } from "@/services";
 import { errorResponse, successResponse } from "@/services/api-errors.service";
+import { canManageLocations } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/auth/session";
 import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
@@ -66,6 +67,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { prismaUser } = await getCurrentUser();
+    if (!canManageLocations(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const companyId = await getPrimaryCompanyIdForUser(prismaUser?.id || "");
     if (!companyId) {
       return NextResponse.json(

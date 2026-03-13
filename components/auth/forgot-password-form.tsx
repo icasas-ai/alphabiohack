@@ -181,7 +181,7 @@ export function ForgotPasswordForm({
                 ) : null}
                 <Button
                   type="submit"
-                  className="brand-button h-12 w-full rounded-xl text-base font-medium transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-0.5 hover:shadow-[0_28px_46px_-24px_rgba(34,49,75,0.95)]"
+                  className="brand-button h-12 w-full rounded-xl text-base font-medium transition-[transform,box-shadow,filter] duration-200 hover:-translate-y-0.5 hover:shadow-[0_28px_46px_-24px_oklch(var(--primary)/0.62)]"
                   disabled={isLoading}
                 >
                   {isLoading ? t('sending') : usesTemporaryPassword ? t('sendTemporaryPassword') : t('sendResetEmail')}

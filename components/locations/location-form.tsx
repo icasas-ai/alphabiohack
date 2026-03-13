@@ -33,6 +33,7 @@ import { hasSupabaseStorage } from "@/lib/auth/config";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SaveReminderCallout } from "@/components/ui/save-reminder-callout";
 import { SUPPORTED_COMPANY_TIMEZONES } from "@/lib/constants/supported-timezones";
 import { Location } from "@/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -185,6 +186,7 @@ export function LocationForm({
     lat: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
     lon: hasAttemptedSubmit && (coordinatesIncomplete || coordinatesInvalid),
   };
+  const hasPendingLogoChange = formData.logo !== initialState.logo;
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
@@ -329,7 +331,6 @@ export function LocationForm({
                 <Popover
                   open={timeZoneOpen}
                   onOpenChange={(open) => setTimeZoneOpen(open)}
-                  modal
                 >
                   <PopoverTrigger asChild>
                     <Button
@@ -485,6 +486,10 @@ export function LocationForm({
                   <div>{t("logoHelp")}</div>
                 </div>
               </div>
+            ) : null}
+
+            {hasPendingLogoChange ? (
+              <SaveReminderCallout>{t("logoPendingSave")}</SaveReminderCallout>
             ) : null}
           </section>
         </div>

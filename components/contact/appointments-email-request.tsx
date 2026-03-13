@@ -167,8 +167,8 @@ export function AppointmentsEmailRequest({
 
       <div
         className={cn(
-          "mt-8 rounded-[24px] border border-border/70 bg-background/78 p-5",
-          embedded && "bg-background/72",
+          "surface-inset mt-8 rounded-[24px] p-5",
+          embedded && "bg-[linear-gradient(180deg,oklch(var(--background)/0.92)_0%,oklch(var(--accent)/0.11)_100%)]",
         )}
       >
         <p className="text-sm font-semibold text-foreground">
@@ -182,7 +182,7 @@ export function AppointmentsEmailRequest({
           {companyEmail ? (
             <a
               href={`mailto:${companyEmail}`}
-              className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary"
+              className="surface-chip inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary"
             >
               <Mail className="size-4" />
               {companyEmail}
@@ -191,7 +191,7 @@ export function AppointmentsEmailRequest({
           {companyPhone ? (
             <a
               href={`tel:${companyPhone}`}
-              className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/90 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary"
+              className="surface-chip inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary"
             >
               <Phone className="size-4" />
               {companyPhone}

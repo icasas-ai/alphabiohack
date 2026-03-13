@@ -1,10 +1,15 @@
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@/lib/prisma-client";
 
-import { canManagePersonnel } from "@/lib/auth/authorization";
-import { getCurrentUser } from "@/lib/auth/session";
+import {
+  buildPersonnelWhere,
+  getPersonnelManagementContext,
+  getStaffRoleFromMembershipRole,
+  isStaffRole,
+  listAssignableTherapistsForContext,
+} from "@/lib/personnel-management";
+import { Prisma, UserRole } from "@/lib/prisma-client";
 import { prisma } from "@/lib/prisma";
 import {
   isValidEmailInput,
@@ -13,36 +18,65 @@ import {
   normalizePhoneInput,
   normalizeWhitespace,
 } from "@/lib/validation/form-fields";
-import { resolveManagedTherapistIdForUser } from "@/services";
 
 async function getAccess(personnelId: string) {
-  const { prismaUser } = await getCurrentUser();
-  if (!prismaUser) {
-    return { prismaUser: null, personnel: null, error: "Unauthorized", status: 401 as const };
-  }
-
-  if (!canManagePersonnel(prismaUser)) {
-    return { prismaUser, personnel: null, error: "Forbidden", status: 403 as const };
-  }
-
-  const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
-  if (!therapistId) {
-    return { prismaUser, personnel: null, error: "No therapist is configured for this account.", status: 409 as const };
+  const context = await getPersonnelManagementContext();
+  if (!context.companyId || !context.prismaUser) {
+    return { context, personnel: null, staffRole: null, error: context.error, status: context.status };
   }
 
   const personnel = await prisma.user.findFirst({
-    where: {
-      id: personnelId,
-      managedByTherapistId: therapistId,
-      role: { has: UserRole.FrontDesk },
+    where: buildPersonnelWhere(context, personnelId),
+    select: {
+      id: true,
+      managedByTherapistId: true,
+      companyMemberships: {
+        where: {
+          companyId: context.companyId,
+          role: {
+            in: context.visibleMembershipRoles,
+          },
+        },
+        select: {
+          role: true,
+        },
+      },
+      _count: {
+        select: {
+          managedPersonnel: true,
+        },
+      },
     },
   });
 
   if (!personnel) {
-    return { prismaUser, personnel: null, error: "Personnel record not found.", status: 404 as const };
+    return {
+      context,
+      personnel: null,
+      staffRole: null,
+      error: "Team member not found.",
+      status: 404 as const,
+    };
   }
 
-  return { prismaUser, personnel, error: null, status: 200 as const };
+  const membershipRole = personnel.companyMemberships[0]?.role;
+  if (!membershipRole) {
+    return {
+      context,
+      personnel: null,
+      staffRole: null,
+      error: "Team member not found.",
+      status: 404 as const,
+    };
+  }
+
+  return {
+    context,
+    personnel,
+    staffRole: getStaffRoleFromMembershipRole(membershipRole),
+    error: null,
+    status: 200 as const,
+  };
 }
 
 export async function PATCH(
@@ -51,20 +85,29 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const access = await getAccess(id);
-  if (!access.personnel) {
+  if (!access.personnel || !access.context.companyId) {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
   try {
-    const { firstname, lastname, email, telefono } = await request.json();
+    const { firstname, lastname, email, telefono, staffRole, managedByTherapistId } =
+      await request.json();
     const normalizedFirstname = normalizeWhitespace(firstname);
     const normalizedLastname = normalizeWhitespace(lastname);
     const nextEmail = normalizeEmailInput(email);
     const normalizedPhone = normalizePhoneInput(telefono);
+    const normalizedManagedByTherapistId = normalizeWhitespace(managedByTherapistId);
 
     if (!normalizedFirstname || !normalizedLastname || !nextEmail) {
       return NextResponse.json(
         { error: "First name, last name, and email are required." },
+        { status: 400 },
+      );
+    }
+
+    if (staffRole && (!isStaffRole(staffRole) || staffRole !== access.staffRole)) {
+      return NextResponse.json(
+        { error: "Team roles cannot be changed from this screen." },
         { status: 400 },
       );
     }
@@ -98,6 +141,27 @@ export async function PATCH(
       );
     }
 
+    let nextManagedByTherapistId: string | null = null;
+    if (access.staffRole === UserRole.FrontDesk) {
+      nextManagedByTherapistId = access.context.canManageCompanyTeam
+        ? normalizedManagedByTherapistId || null
+        : access.context.managedTherapistId;
+
+      if (nextManagedByTherapistId) {
+        const assignableTherapists = await listAssignableTherapistsForContext(access.context);
+        const isValidTherapist = assignableTherapists.some(
+          (therapist) => therapist.id === nextManagedByTherapistId,
+        );
+
+        if (!isValidTherapist) {
+          return NextResponse.json(
+            { error: "Select a valid therapist for this front desk account." },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: {
@@ -105,6 +169,8 @@ export async function PATCH(
         lastname: normalizedLastname,
         email: nextEmail,
         telefono: normalizedPhone || null,
+        managedByTherapistId:
+          access.staffRole === UserRole.FrontDesk ? nextManagedByTherapistId : null,
       },
       select: {
         id: true,
@@ -112,7 +178,6 @@ export async function PATCH(
         lastname: true,
         email: true,
         telefono: true,
-        role: true,
         mustChangePassword: true,
         createdAt: true,
         updatedAt: true,
@@ -136,10 +201,36 @@ export async function DELETE(
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
+  if (
+    access.staffRole === UserRole.Therapist &&
+    access.personnel._count.managedPersonnel > 0
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Reassign or remove this therapist's front desk team before deleting the account.",
+      },
+      { status: 409 },
+    );
+  }
+
   try {
     await prisma.user.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2003" || error.code === "P2014")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This team member still has related records and cannot be deleted yet.",
+        },
+        { status: 409 },
+      );
+    }
+
     console.error("Error deleting personnel:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

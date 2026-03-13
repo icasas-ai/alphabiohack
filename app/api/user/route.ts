@@ -1,28 +1,22 @@
-import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/session";
+import {
+  jsonError,
+  jsonSuccess,
+  requireAuthenticatedUser,
+} from "@/lib/api/route-helpers";
 
 export async function GET() {
   try {
-    const { authUser, prismaUser } = await getCurrentUser();
-    if (!authUser || !prismaUser) {
-      console.log("GET /api/user: No authenticated user found");
-      return NextResponse.json(
-        { user: null, prismaUser: null },
-        { status: 401 }
-      );
+    const currentUser = await requireAuthenticatedUser();
+    if ("response" in currentUser) {
+      return currentUser.response;
     }
 
-    console.log("GET /api/user: Prisma user data:", prismaUser);
-
-    return NextResponse.json({
-      user: authUser,
-      prismaUser,
+    return jsonSuccess({
+      user: currentUser.authUser,
+      prismaUser: currentUser.prismaUser,
     });
   } catch (error) {
     console.error("Error fetching user:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError("Internal server error", 500);
   }
 }

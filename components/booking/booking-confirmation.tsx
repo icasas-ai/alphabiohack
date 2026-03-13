@@ -1,6 +1,6 @@
 "use client"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarIconFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   CalendarDays,
@@ -64,12 +64,6 @@ export function BookingConfirmation() {
   }, [data.selectedTime, data.sessionDurationMinutes, selectedService])
 
   const therapistName = therapist ? `${therapist.firstName} ${therapist.lastName}` : null
-  const therapistInitials = therapistName
-    ? therapistName
-        .split(" ")
-        .map((name) => name[0])
-        .join("")
-    : ""
   const bookingNumber = createdBooking?.bookingNumber || t("notSelectedYet")
   const contactName = `${data.basicInfo.firstName} ${data.basicInfo.lastName}`.trim() || t("notSelectedYet")
   const appointmentDateLabel = data.selectedDate
@@ -254,8 +248,8 @@ export function BookingConfirmation() {
               </div>
             ) : therapist ? (
               <Avatar className="h-16 w-16">
-                <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={therapistName || ""} />
-                <AvatarFallback>{therapistInitials}</AvatarFallback>
+                <AvatarImage src={therapist.profileImage || undefined} alt={therapistName || ""} />
+                <AvatarIconFallback iconClassName="size-6" />
               </Avatar>
             ) : (
               <div className="h-16 w-16 rounded-full bg-muted" />
@@ -294,8 +288,8 @@ export function BookingConfirmation() {
                     </div>
                   ) : therapist ? (
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={therapist.profileImage || "/placeholder.svg"} alt={therapistName || ""} />
-                      <AvatarFallback>{therapistInitials}</AvatarFallback>
+                      <AvatarImage src={therapist.profileImage || undefined} alt={therapistName || ""} />
+                      <AvatarIconFallback />
                     </Avatar>
                   ) : (
                     <div className="h-12 w-12 rounded-full bg-muted" />

@@ -11,7 +11,9 @@ interface InfoCardProps {
 
 export function InfoCard({ icon, title, children, className }: InfoCardProps) {
   return (
-    <Card className={`rounded-[24px] border-border/70 bg-background p-6 shadow-none transition-colors duration-200 hover:border-primary/18 ${className || ''}`}>
+    <Card
+      className={`surface-inset rounded-[24px] p-6 shadow-none transition-colors duration-200 hover:border-primary/18 ${className || ''}`}
+    >
       <div className="flex items-start gap-4">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary">
           {icon}

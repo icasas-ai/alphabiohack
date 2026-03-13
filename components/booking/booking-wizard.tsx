@@ -10,12 +10,14 @@ import { StepTwo } from "./steps/step-two";
 import { StepZero } from "./steps/step-zero";
 import { StickyWizardShell } from "@/components/ui/sticky-wizard-shell";
 import { SurfaceCard } from "@/components/ui/surface-card";
+import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useBookingWizard } from "@/contexts";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
+import { RotateCcw } from "lucide-react";
 
 const steps = [StepZero, StepOne, StepTwo, StepThree, StepFour];
 
@@ -26,10 +28,11 @@ export function BookingWizard() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { data, canProceedToStep } = useBookingWizard();
+  const { data, canProceedToStep, reset } = useBookingWizard();
   const prefersReducedMotion = useReducedMotion();
   const consumedRedirectStep = useRef(false);
   const maxStepIndex = steps.length - 1;
+  const isBookingFinalized = Boolean(data.createdBooking);
 
   const scrollToPageTop = useCallback(() => {
     window.scrollTo({
@@ -38,7 +41,7 @@ export function BookingWizard() {
     });
   }, [prefersReducedMotion]);
 
-  const goToStep = (nextStep: number, { scrollFirst = false } = {}) => {
+  const goToStep = useCallback((nextStep: number, { scrollFirst = false } = {}) => {
     const boundedNextStep = Math.max(0, Math.min(maxStepIndex, nextStep));
 
     setStepDirection(boundedNextStep >= step ? 1 : -1);
@@ -49,7 +52,44 @@ export function BookingWizard() {
         scrollToPageTop();
       });
     }
-  };
+  }, [maxStepIndex, scrollToPageTop, step]);
+
+  const canSelectStep = useCallback((targetStep: number) => {
+    if (targetStep < 0 || targetStep > maxStepIndex) {
+      return false;
+    }
+
+    if (isBookingFinalized) {
+      return targetStep === step;
+    }
+
+    if (targetStep <= step) {
+      return true;
+    }
+
+    for (let index = 0; index < targetStep; index += 1) {
+      if (!canProceedToStep(index)) {
+        return false;
+      }
+    }
+
+    return true;
+  }, [canProceedToStep, isBookingFinalized, maxStepIndex, step]);
+
+  const handleStepSelect = useCallback((nextStep: number) => {
+    if (!canSelectStep(nextStep) || nextStep === step) {
+      return;
+    }
+
+    void goToStep(nextStep, { scrollFirst: true });
+  }, [canSelectStep, goToStep, step]);
+
+  const handleStartOver = useCallback(() => {
+    consumedRedirectStep.current = true;
+    reset();
+    router.replace(pathname);
+    void goToStep(0, { scrollFirst: true });
+  }, [goToStep, pathname, reset, router]);
 
   useEffect(() => {
     if (consumedRedirectStep.current) {
@@ -85,27 +125,38 @@ export function BookingWizard() {
   const StepComponent = steps[step];
   const summaryLevel = step === 1 ? 1 : step === 2 ? 2 : null;
   const showSideContext = step <= 2;
+  const showStartOverAction = step > 0;
   const stepItems = steps.map((_, index) => {
     const status: "complete" | "current" | "upcoming" =
       index < step ? "complete" : index === step ? "current" : "upcoming";
 
+    const stepName =
+      index === 3
+        ? t('basicInformation').replace(/\s+/, "\n")
+        : [
+            t('appointmentType'),
+            t('service'),
+            t('dateTime'),
+            t('basicInformation'),
+            t('confirmationStep')
+          ][index];
+
     return {
       id: index,
-      name: [
-        t('appointmentType'),
-        t('service'),
-        t('dateTime'),
-        t('basicInformation'),
-        t('confirmationStep')
-      ][index],
-      status
+      name: stepName,
+      status,
+      disabled: index === step || !canSelectStep(index),
     };
   });
 
   return (
     <StickyWizardShell
       header={({ compact }) => (
-        <BookingStepper steps={stepItems} compact={compact} />
+        <BookingStepper
+          steps={stepItems}
+          compact={compact}
+          onStepSelect={handleStepSelect}
+        />
       )}
       sidebar={
         showSideContext
@@ -122,6 +173,21 @@ export function BookingWizard() {
         <div className="xl:hidden">
           <DoctorInfo />
           {summaryLevel ? <CurrentSelectionSummary level={summaryLevel} compact /> : null}
+        </div>
+      ) : null}
+
+      {showStartOverAction ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleStartOver}
+            className="rounded-full px-3 text-xs sm:text-sm"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t("startOver")}
+          </Button>
         </div>
       ) : null}
 

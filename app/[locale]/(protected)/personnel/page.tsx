@@ -7,7 +7,7 @@ import { RoleRestricted } from "@/components/auth/role-restricted";
 
 export default function Page() {
   return (
-    <RoleRestricted allowedRoles={[UserRole.Therapist, UserRole.Admin]}>
+    <RoleRestricted allowedRoles={[UserRole.Admin]}>
       <PersonnelPage />
     </RoleRestricted>
   );

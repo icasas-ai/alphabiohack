@@ -1,18 +1,14 @@
-import { NextResponse } from "next/server";
-
+import { jsonError, jsonSuccess } from "@/lib/api/route-helpers";
 import { getCurrentUser } from "@/lib/auth/session";
 
 export async function GET() {
   const { authUser, prismaUser } = await getCurrentUser();
 
   if (!authUser || !prismaUser) {
-    return NextResponse.json(
-      { user: null, prismaUser: null },
-      { status: 401 },
-    );
+    return jsonError("Unauthorized", 401);
   }
 
-  return NextResponse.json({
+  return jsonSuccess({
     user: authUser,
     prismaUser,
   });

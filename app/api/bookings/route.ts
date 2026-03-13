@@ -1,6 +1,7 @@
 import {
   createBooking,
   getAllBookings,
+  getBookingsByCompany,
   getBookingsByDate,
   getBookingsByDateRange,
   getBookingsByEmail,
@@ -13,6 +14,7 @@ import {
   getBookingsByTherapistAndDate,
   getBookingsByType,
   getPendingBookings,
+  getPrimaryCompanyIdForUser,
   getRecentBookings,
   isAvailabilitySlotBookable,
   resolveManagedTherapistIdForUser,
@@ -28,7 +30,7 @@ import {
   sendTherapistInviteEmail,
 } from "@/services/email.service";
 
-import { BookingType } from "@/lib/prisma-client";
+import { BookingType, UserRole } from "@/lib/prisma-client";
 import { getCurrentUser } from "@/lib/auth/session";
 import { canOperateAppointments } from "@/lib/auth/authorization";
 import { getServerLanguage } from "@/services/i18n.service";
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     let bookings;
 
-    if (scope === "self" || scope === "managed") {
+    if (scope === "self" || scope === "managed" || scope === "company") {
       const { prismaUser } = await getCurrentUser();
       if (!prismaUser) {
         return NextResponse.json(
@@ -90,6 +92,34 @@ export async function GET(request: NextRequest) {
           prismaUser.id,
           prismaUser.email,
         );
+        return NextResponse.json(successResponse(bookings));
+      }
+
+      if (scope === "company") {
+        const canViewCompanyBookings =
+          prismaUser.role.includes(UserRole.Admin) ||
+          prismaUser.role.includes(UserRole.Therapist) ||
+          (
+            prismaUser.role.includes(UserRole.FrontDesk) &&
+            !prismaUser.managedByTherapistId
+          );
+
+        if (!canViewCompanyBookings) {
+          return NextResponse.json(
+            { success: false, error: "Forbidden" },
+            { status: 403 },
+          );
+        }
+
+        const companyId = await getPrimaryCompanyIdForUser(prismaUser.id);
+        if (!companyId) {
+          return NextResponse.json(
+            { success: false, error: "No company is configured for this user" },
+            { status: 409 },
+          );
+        }
+
+        bookings = await getBookingsByCompany(companyId, therapistId);
         return NextResponse.json(successResponse(bookings));
       }
 

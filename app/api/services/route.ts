@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   createMultipleServices,
   createService,
@@ -15,6 +15,12 @@ import {
   searchServicesByDescription,
   serviceExists,
 } from "@/services";
+import {
+  jsonError,
+  jsonSuccess,
+  requireAuthorizedUser,
+} from "@/lib/api/route-helpers";
+import { canManageCatalog } from "@/lib/auth/authorization";
 import { getCurrentUser } from "@/lib/auth/session";
 
 // GET /api/services - Obtener servicios
@@ -68,26 +74,24 @@ export async function GET(request: NextRequest) {
       services = await getAllServices(companyId || undefined);
     }
 
-    return NextResponse.json({ success: true, data: services });
+    return jsonSuccess(services);
   } catch (error) {
     console.error("Error getting services:", error);
-    return NextResponse.json(
-      { success: false, error: "Error getting services" },
-      { status: 500 }
-    );
+    return jsonError("Error getting services", 500);
   }
 }
 
 // POST /api/services - Crear servicio
 export async function POST(request: NextRequest) {
   try {
-    const { prismaUser } = await getCurrentUser();
-    const companyId = await getPrimaryCompanyIdForUser(prismaUser?.id || "");
+    const currentUser = await requireAuthorizedUser(canManageCatalog);
+    if ("response" in currentUser) {
+      return currentUser.response;
+    }
+
+    const companyId = await getPrimaryCompanyIdForUser(currentUser.prismaUser.id);
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, error: "No company context found for this user." },
-        { status: 409 }
-      );
+      return jsonError("No company context found for this user.", 409);
     }
 
     const body = await request.json();
@@ -99,37 +103,25 @@ export async function POST(request: NextRequest) {
       !body.duration ||
       !body.specialtyId
     ) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 }
-      );
+      return jsonError("Missing required fields", 400);
     }
 
     // Si es un array, crear múltiples servicios
     if (Array.isArray(body)) {
       const services = await createMultipleServices(body, companyId);
-      return NextResponse.json(
-        { success: true, data: services },
-        { status: 201 }
-      );
+      return jsonSuccess(services, { status: 201 });
     }
 
     // Verificar si el servicio ya existe
     const exists = await serviceExists(body.description, body.specialtyId, companyId);
     if (exists) {
-      return NextResponse.json(
-        { success: false, error: "Service already exists for this specialty" },
-        { status: 409 }
-      );
+      return jsonError("Service already exists for this specialty", 409);
     }
 
     const service = await createService(body, companyId);
-    return NextResponse.json({ success: true, data: service }, { status: 201 });
+    return jsonSuccess(service, { status: 201 });
   } catch (error) {
     console.error("Error creating service:", error);
-    return NextResponse.json(
-      { success: false, error: "Error creating service" },
-      { status: 500 }
-    );
+    return jsonError("Error creating service", 500);
   }
 }

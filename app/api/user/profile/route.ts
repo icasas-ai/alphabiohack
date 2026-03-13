@@ -1,4 +1,9 @@
-import { getCurrentUser } from "@/lib/auth/session";
+import { appUserSelect } from "@/lib/auth/app-user";
+import {
+  jsonError,
+  jsonSuccess,
+  requireAuthenticatedUser,
+} from "@/lib/api/route-helpers";
 import { prisma } from "@/lib/prisma";
 import {
   isValidPhoneInput,
@@ -7,49 +12,27 @@ import {
   normalizeUrlInput,
   normalizeWhitespace,
 } from "@/lib/validation/form-fields";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 export async function GET() {
   try {
-    const { prismaUser } = await getCurrentUser();
-    if (!prismaUser) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    const currentUser = await requireAuthenticatedUser();
+    if ("response" in currentUser) {
+      return currentUser.response;
     }
 
-    const userProfile = await prisma.user.findUnique({
-      where: { id: prismaUser.id },
-    });
-
-    console.log("GET /api/user/profile: User data:", userProfile);
-
-    if (!userProfile) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(userProfile);
+    return jsonSuccess(currentUser.prismaUser);
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError("Internal server error", 500);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const { prismaUser } = await getCurrentUser();
-    if (!prismaUser) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+    const currentUser = await requireAuthenticatedUser();
+    if ("response" in currentUser) {
+      return currentUser.response;
     }
 
     const body = await request.json();
@@ -82,23 +65,17 @@ export async function PUT(request: NextRequest) {
     };
 
     if (normalizedPhone && !isValidPhoneInput(normalizedPhone)) {
-      return NextResponse.json(
-        { error: "Please enter a valid phone number." },
-        { status: 400 }
-      );
+      return jsonError("Please enter a valid phone number.", 400);
     }
 
     for (const [key, value] of Object.entries(normalizedUrls)) {
       if (value && !isValidUrlInput(value)) {
-        return NextResponse.json(
-          { error: `Please enter a valid URL for ${key}.` },
-          { status: 400 }
-        );
+        return jsonError(`Please enter a valid URL for ${key}.`, 400);
       }
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: prismaUser.id },
+      where: { id: currentUser.prismaUser.id },
       data: {
         firstname: normalizeWhitespace(firstname) || undefined,
         lastname: normalizeWhitespace(lastname) || undefined,
@@ -115,14 +92,12 @@ export async function PUT(request: NextRequest) {
         youtube: normalizedUrls.youtube || null,
         website: normalizedUrls.website || null,
       },
+      select: appUserSelect,
     });
 
-    return NextResponse.json(updatedUser);
+    return jsonSuccess(updatedUser);
   } catch (error) {
     console.error("Error updating user profile:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError("Internal server error", 500);
   }
 }

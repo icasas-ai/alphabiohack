@@ -28,6 +28,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +47,12 @@ import {
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
+const STAFF_ROLE_FRONT_DESK = "FrontDesk";
+const STAFF_ROLE_THERAPIST = "Therapist";
+const ALL_THERAPISTS_VALUE = "__all_therapists__";
+
+type StaffRoleValue = typeof STAFF_ROLE_FRONT_DESK | typeof STAFF_ROLE_THERAPIST;
+
 type PersonnelRow = {
   id: string;
   firstname: string;
@@ -49,6 +62,22 @@ type PersonnelRow = {
   mustChangePassword: boolean;
   createdAt: string;
   updatedAt: string;
+  staffRole: StaffRoleValue;
+  managedByTherapistId: string | null;
+  managedByTherapistName: string | null;
+};
+
+type TherapistOption = {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+};
+
+type PersonnelCapabilities = {
+  canManageCompanyTeam: boolean;
+  canManageTherapists: boolean;
+  managedTherapistId: string | null;
 };
 
 type PersonnelFormState = {
@@ -56,19 +85,43 @@ type PersonnelFormState = {
   lastname: string;
   email: string;
   telefono: string;
+  staffRole: StaffRoleValue;
+  managedByTherapistId: string;
 };
 
-const EMPTY_FORM: PersonnelFormState = {
-  firstname: "",
-  lastname: "",
-  email: "",
-  telefono: "",
+const DEFAULT_CAPABILITIES: PersonnelCapabilities = {
+  canManageCompanyTeam: false,
+  canManageTherapists: false,
+  managedTherapistId: null,
 };
+
+function getDefaultManagedTherapistId(
+  capabilities: PersonnelCapabilities,
+  therapists: TherapistOption[],
+) {
+  return capabilities.managedTherapistId ?? therapists[0]?.id ?? "";
+}
+
+function createEmptyForm(
+  capabilities: PersonnelCapabilities,
+  therapists: TherapistOption[],
+): PersonnelFormState {
+  return {
+    firstname: "",
+    lastname: "",
+    email: "",
+    telefono: "",
+    staffRole: STAFF_ROLE_FRONT_DESK,
+    managedByTherapistId: getDefaultManagedTherapistId(capabilities, therapists),
+  };
+}
 
 export function PersonnelPage() {
   const t = useTranslations("Personnel");
   const tCommon = useTranslations("Common");
   const [personnel, setPersonnel] = useState<PersonnelRow[]>([]);
+  const [therapists, setTherapists] = useState<TherapistOption[]>([]);
+  const [capabilities, setCapabilities] = useState<PersonnelCapabilities>(DEFAULT_CAPABILITIES);
   const [loading, setLoading] = useState(true);
   const [savingForm, setSavingForm] = useState(false);
   const [deletingPersonnelId, setDeletingPersonnelId] = useState<string | null>(null);
@@ -76,8 +129,20 @@ export function PersonnelPage() {
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
   const [selectedPersonnelId, setSelectedPersonnelId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PersonnelRow | null>(null);
-  const [form, setForm] = useState<PersonnelFormState>(EMPTY_FORM);
+  const [form, setForm] = useState<PersonnelFormState>(() =>
+    createEmptyForm(DEFAULT_CAPABILITIES, []),
+  );
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  const getRoleLabel = useCallback(
+    (role: StaffRoleValue) =>
+      role === STAFF_ROLE_THERAPIST ? t("roles.therapist") : t("roles.frontDesk"),
+    [t],
+  );
+
+  const getTherapistLabel = useCallback((therapist: TherapistOption) => {
+    return `${therapist.firstname} ${therapist.lastname}`.trim() || therapist.email;
+  }, []);
 
   const loadPersonnel = useCallback(async () => {
     try {
@@ -89,7 +154,13 @@ export function PersonnelPage() {
         throw new Error(data.error || t("loadError"));
       }
 
-      setPersonnel(data.personnel || []);
+      const nextPersonnel = data.personnel || [];
+      const nextTherapists = data.therapists || [];
+      const nextCapabilities = data.capabilities || DEFAULT_CAPABILITIES;
+
+      setPersonnel(nextPersonnel);
+      setTherapists(nextTherapists);
+      setCapabilities(nextCapabilities);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("loadError"));
     } finally {
@@ -104,7 +175,7 @@ export function PersonnelPage() {
   const openCreateDialog = () => {
     setDialogMode("create");
     setSelectedPersonnelId(null);
-    setForm(EMPTY_FORM);
+    setForm(createEmptyForm(capabilities, therapists));
     setHasAttemptedSubmit(false);
     setDialogOpen(true);
   };
@@ -117,9 +188,25 @@ export function PersonnelPage() {
       lastname: item.lastname,
       email: item.email,
       telefono: item.telefono ?? "",
+      staffRole: item.staffRole,
+      managedByTherapistId:
+        item.staffRole === STAFF_ROLE_FRONT_DESK
+          ? item.managedByTherapistId ?? ALL_THERAPISTS_VALUE
+          : "",
     });
     setHasAttemptedSubmit(false);
     setDialogOpen(true);
+  };
+
+  const handleRoleChange = (nextRole: StaffRoleValue) => {
+    setForm((current) => ({
+      ...current,
+      staffRole: nextRole,
+      managedByTherapistId:
+        nextRole === STAFF_ROLE_FRONT_DESK
+          ? current.managedByTherapistId || getDefaultManagedTherapistId(capabilities, therapists)
+          : "",
+    }));
   };
 
   const handleSubmit = async () => {
@@ -131,6 +218,13 @@ export function PersonnelPage() {
         lastname: normalizeWhitespace(form.lastname),
         email: normalizeEmailInput(form.email),
         telefono: normalizePhoneInput(form.telefono),
+        staffRole: form.staffRole,
+        managedByTherapistId:
+          form.staffRole === STAFF_ROLE_FRONT_DESK
+            ? form.managedByTherapistId === ALL_THERAPISTS_VALUE
+              ? null
+              : normalizeWhitespace(form.managedByTherapistId)
+            : null,
       };
 
       if (!payload.firstname || !payload.lastname || !isValidEmailInput(payload.email)) {
@@ -139,6 +233,14 @@ export function PersonnelPage() {
 
       if (payload.telefono && !isValidPhoneInput(payload.telefono)) {
         throw new Error(t("saveError"));
+      }
+
+      if (
+        payload.staffRole === STAFF_ROLE_FRONT_DESK &&
+        !payload.managedByTherapistId &&
+        form.managedByTherapistId !== ALL_THERAPISTS_VALUE
+      ) {
+        throw new Error(t("assignmentRequired"));
       }
 
       const response = await fetch(
@@ -160,7 +262,7 @@ export function PersonnelPage() {
       setHasAttemptedSubmit(false);
       toast.success(dialogMode === "create" ? t("created") : t("updated"));
       setDialogOpen(false);
-      setForm(EMPTY_FORM);
+      setForm(createEmptyForm(capabilities, therapists));
       setSelectedPersonnelId(null);
       await loadPersonnel();
     } catch (error) {
@@ -211,6 +313,10 @@ export function PersonnelPage() {
 
   const personnelCount = personnel.length;
   const resetCount = personnel.filter((item) => item.mustChangePassword).length;
+  const defaultTherapistId = getDefaultManagedTherapistId(capabilities, therapists);
+  const selectedTherapist =
+    therapists.find((therapist) => therapist.id === form.managedByTherapistId) ?? null;
+  const canEditRole = dialogMode === "create" && capabilities.canManageTherapists;
   const formErrors = {
     firstname: hasAttemptedSubmit && !normalizeWhitespace(form.firstname),
     lastname: hasAttemptedSubmit && !normalizeWhitespace(form.lastname),
@@ -221,6 +327,10 @@ export function PersonnelPage() {
       hasAttemptedSubmit &&
       Boolean(normalizePhoneInput(form.telefono)) &&
       !isValidPhoneInput(normalizePhoneInput(form.telefono)),
+    managedByTherapist:
+      hasAttemptedSubmit &&
+      form.staffRole === STAFF_ROLE_FRONT_DESK &&
+      !normalizeWhitespace(form.managedByTherapistId),
   };
 
   return (
@@ -299,6 +409,8 @@ export function PersonnelPage() {
                 <thead className="bg-muted/40">
                   <tr className="text-left text-muted-foreground">
                     <th className="px-4 py-3 font-medium">{t("columns.name")}</th>
+                    <th className="px-4 py-3 font-medium">{t("columns.role")}</th>
+                    <th className="px-4 py-3 font-medium">{t("columns.assignedTherapist")}</th>
                     <th className="px-4 py-3 font-medium">{t("columns.email")}</th>
                     <th className="px-4 py-3 font-medium">{t("columns.phone")}</th>
                     <th className="px-4 py-3 font-medium">{t("columns.status")}</th>
@@ -310,6 +422,18 @@ export function PersonnelPage() {
                     <tr key={item.id} className="border-t">
                       <td className="px-4 py-3 font-medium">
                         {item.firstname} {item.lastname}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={item.staffRole === STAFF_ROLE_THERAPIST ? "info" : "outline"}>
+                          {getRoleLabel(item.staffRole)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.staffRole === STAFF_ROLE_FRONT_DESK
+                          ? item.managedByTherapistId
+                            ? item.managedByTherapistName || t("unassigned")
+                            : t("allTherapists")
+                          : "—"}
                       </td>
                       <td className="px-4 py-3">{item.email}</td>
                       <td className="px-4 py-3">{item.telefono || "—"}</td>
@@ -378,6 +502,26 @@ export function PersonnelPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="staff-role">{t("fields.role")}</Label>
+              {canEditRole ? (
+                <Select value={form.staffRole} onValueChange={(value) => handleRoleChange(value as StaffRoleValue)}>
+                  <SelectTrigger
+                    id="staff-role"
+                    className={cn("w-full", false && "border-red-500 ring-1 ring-red-500/20")}
+                    disabled={savingForm}
+                  >
+                    <SelectValue placeholder={t("fields.rolePlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={STAFF_ROLE_FRONT_DESK}>{t("roles.frontDesk")}</SelectItem>
+                    <SelectItem value={STAFF_ROLE_THERAPIST}>{t("roles.therapist")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input id="staff-role" value={getRoleLabel(form.staffRole)} disabled />
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="firstname">{t("fields.firstname")}</Label>
               <Input
@@ -439,11 +583,69 @@ export function PersonnelPage() {
                 autoComplete="tel"
                 defaultCountry="US"
                 aria-invalid={formErrors.telefono}
-                className={cn(formErrors.telefono && "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20")}
+                className={cn(
+                  formErrors.telefono &&
+                    "[&_input]:border-red-500 [&_input]:ring-1 [&_input]:ring-red-500/20",
+                )}
                 disabled={savingForm}
               />
             </div>
+            {form.staffRole === STAFF_ROLE_FRONT_DESK ? (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="assigned-therapist">{t("fields.assignedTherapist")}</Label>
+                <Select
+                  value={form.managedByTherapistId || defaultTherapistId}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, managedByTherapistId: value }))
+                  }
+                  disabled={!capabilities.canManageCompanyTeam || savingForm || therapists.length === 0}
+                >
+                  <SelectTrigger
+                    id="assigned-therapist"
+                    className={cn(
+                      "w-full",
+                      formErrors.managedByTherapist && "border-red-500 ring-1 ring-red-500/20",
+                    )}
+                    aria-invalid={formErrors.managedByTherapist}
+                  >
+                    <SelectValue placeholder={t("fields.assignedTherapistPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {capabilities.canManageCompanyTeam ? (
+                      <SelectItem value={ALL_THERAPISTS_VALUE}>
+                        {t("allTherapists")}
+                      </SelectItem>
+                    ) : null}
+                    {therapists.map((therapist) => (
+                      <SelectItem key={therapist.id} value={therapist.id}>
+                        {getTherapistLabel(therapist)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  {capabilities.canManageCompanyTeam
+                    ? form.managedByTherapistId === ALL_THERAPISTS_VALUE
+                      ? t("assignmentAllTherapistsHelp")
+                      : t("assignmentHelp")
+                    : selectedTherapist
+                      ? t("assignmentLocked", {
+                          therapist: getTherapistLabel(selectedTherapist),
+                        })
+                      : t("assignmentRequired")}
+                </p>
+              </div>
+            ) : null}
           </div>
+          {form.staffRole === STAFF_ROLE_FRONT_DESK && therapists.length === 0 ? (
+            <Alert variant="warning">
+              <UserCog className="h-4 w-4" />
+              <div className="space-y-1">
+                <p className="font-medium">{t("assignmentUnavailableTitle")}</p>
+                <AlertDescription>{t("assignmentUnavailableDescription")}</AlertDescription>
+              </div>
+            </Alert>
+          ) : null}
           {dialogMode === "create" ? (
             <Alert variant="info">
               <Mail className="h-4 w-4" />
@@ -457,9 +659,16 @@ export function PersonnelPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={savingForm}>
               {tCommon("cancel")}
             </Button>
-            <Button onClick={handleSubmit} disabled={savingForm}>
+            <Button
+              onClick={handleSubmit}
+              disabled={savingForm || (form.staffRole === STAFF_ROLE_FRONT_DESK && therapists.length === 0)}
+            >
               {savingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {savingForm ? t("saving") : dialogMode === "create" ? t("createAction") : t("saveAction")}
+              {savingForm
+                ? t("saving")
+                : dialogMode === "create"
+                  ? t("createAction")
+                  : t("saveAction")}
             </Button>
           </DialogFooter>
         </DialogContent>

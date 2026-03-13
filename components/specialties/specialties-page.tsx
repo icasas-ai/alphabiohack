@@ -20,6 +20,7 @@ import type { Service } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { specialtiesApi } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useSpecialties } from '@/contexts/specialties-context';
 import { useTranslations } from 'next-intl';
@@ -82,6 +83,7 @@ export function SpecialtiesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
   const autoCreateInFlightRef = useRef(false);
+  const serviceEditorCardRef = useRef<HTMLDivElement | null>(null);
 
   const [formStates, setFormStates] = useState<FormStates>({
     specialtyForm: { open: false, mode: 'create' },
@@ -94,6 +96,8 @@ export function SpecialtiesPage() {
   const [serviceDraftErrors, setServiceDraftErrors] = useState<ServiceDraftErrors>({});
   const [isSavingService, setIsSavingService] = useState(false);
   const [isDeletingService, setIsDeletingService] = useState(false);
+  const [serviceEditorHighlightTick, setServiceEditorHighlightTick] = useState(0);
+  const [isServiceEditorHighlighted, setIsServiceEditorHighlighted] = useState(false);
 
   useEffect(() => {
     if (state.loading) return;
@@ -274,19 +278,40 @@ export function SpecialtiesPage() {
     setServiceDraftErrors({});
   }, []);
 
-  const startCreatingService = useCallback(() => {
+  const resetServiceEditorToCreate = useCallback(() => {
     setServiceEditorMode('create');
     setActiveServiceId(null);
     setServiceDraft(EMPTY_SERVICE_DRAFT);
     setServiceDraftErrors({});
   }, []);
 
+  const startCreatingService = useCallback(() => {
+    resetServiceEditorToCreate();
+    setServiceEditorHighlightTick((prev) => prev + 1);
+  }, [resetServiceEditorToCreate]);
+
+  useEffect(() => {
+    if (serviceEditorHighlightTick === 0 || !selectedSpecialty) return;
+
+    setIsServiceEditorHighlighted(true);
+    serviceEditorCardRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      setIsServiceEditorHighlighted(false);
+    }, 1800);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedSpecialty, serviceEditorHighlightTick]);
+
   useEffect(() => {
     if (!currentSpecialty) return;
 
     if (currentSpecialty.services.length === 0) {
       if (serviceEditorMode !== 'create' || activeServiceId !== null) {
-        startCreatingService();
+        resetServiceEditorToCreate();
       }
       return;
     }
@@ -303,7 +328,7 @@ export function SpecialtiesPage() {
     if (!currentSpecialty.services.some((service) => service.id === activeServiceId)) {
       selectServiceForEdit(currentSpecialty.services[0]);
     }
-  }, [activeServiceId, currentSpecialty, selectServiceForEdit, serviceEditorMode, startCreatingService]);
+  }, [activeServiceId, currentSpecialty, resetServiceEditorToCreate, selectServiceForEdit, serviceEditorMode]);
 
   const validateServiceDraft = (): ServiceFormData | null => {
     const nextErrors: ServiceDraftErrors = {};
@@ -370,7 +395,7 @@ export function SpecialtiesPage() {
           specialtyId: currentSpecialty.id,
         };
         await createService(currentSpecialty.id, payload);
-        startCreatingService();
+        resetServiceEditorToCreate();
       }
     } catch {
       // Context handles toast/error.
@@ -387,7 +412,7 @@ export function SpecialtiesPage() {
       return;
     }
 
-    startCreatingService();
+    resetServiceEditorToCreate();
   };
 
   if (selectedSpecialty && currentSpecialty) {
@@ -500,7 +525,13 @@ export function SpecialtiesPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card
+            ref={serviceEditorCardRef}
+            className={cn(
+              isServiceEditorHighlighted &&
+                'service-editor-pulse border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+            )}
+          >
             <CardContent className="p-6">
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-foreground">

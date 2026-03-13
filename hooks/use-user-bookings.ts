@@ -12,11 +12,17 @@ export function useUserBookings() {
   const [bookings, setBookings] = useState<UserBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const canManageAppointments =
-    prismaUser?.role?.includes(UserRole.Therapist) ||
-    prismaUser?.role?.includes(UserRole.Admin) ||
-    prismaUser?.role?.includes(UserRole.FrontDesk) ||
-    false;
+  const isTherapist = prismaUser?.role?.includes(UserRole.Therapist) ?? false;
+  const isAdmin = prismaUser?.role?.includes(UserRole.Admin) ?? false;
+  const isFrontDesk = prismaUser?.role?.includes(UserRole.FrontDesk) ?? false;
+  const frontDeskManagesAllTherapists = isFrontDesk && !prismaUser?.managedByTherapistId;
+  const canManageAppointments = isTherapist || isAdmin || isFrontDesk;
+  const canViewCompanyBookings = isTherapist || isAdmin || frontDeskManagesAllTherapists;
+  const managedTherapistId = isTherapist
+    ? prismaUser?.id ?? null
+    : isFrontDesk
+      ? prismaUser?.managedByTherapistId ?? null
+      : null;
 
   const fetchBookings = useCallback(async () => {
     if (!isAuthenticated || !prismaUser) {
@@ -26,7 +32,11 @@ export function useUserBookings() {
 
     try {
       setLoading(true);
-      const scope = canManageAppointments ? "managed" : "self";
+      const scope = canViewCompanyBookings
+        ? "company"
+        : canManageAppointments
+          ? "managed"
+          : "self";
       const response = await fetch(
         `${API_ENDPOINTS.BOOKINGS.BASE}?scope=${scope}`,
         {
@@ -48,7 +58,7 @@ export function useUserBookings() {
     } finally {
       setLoading(false);
     }
-  }, [canManageAppointments, isAuthenticated, prismaUser]);
+  }, [canManageAppointments, canViewCompanyBookings, isAuthenticated, prismaUser]);
 
   useEffect(() => {
     fetchBookings();
@@ -67,6 +77,13 @@ export function useUserBookings() {
     loading,
     error,
     canManageAppointments,
+    canViewCompanyBookings,
+    currentUserId: prismaUser?.id ?? null,
+    managedTherapistId,
+    frontDeskManagesAllTherapists,
+    isAdmin,
+    isTherapist,
+    isFrontDesk,
     refetch: fetchBookings,
     updateBookingInState,
   };

@@ -3,6 +3,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { appUserSelect } from "@/lib/auth/app-user";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 
@@ -92,6 +93,7 @@ export async function getAppSessionUser() {
 
   return prisma.user.findUnique({
     where: { id: payload.userId },
+    select: appUserSelect,
   });
 }
 

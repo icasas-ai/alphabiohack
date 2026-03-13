@@ -207,6 +207,18 @@ export const getBookingsByTherapist = async (therapistId: string) => {
   });
 };
 
+export const getBookingsByCompany = async (
+  companyId: string,
+  therapistId?: string | null,
+) => {
+  return listBookingsWithLocalTime({
+    where: {
+      companyId,
+      ...(therapistId ? { therapistId } : {}),
+    },
+  });
+};
+
 
 // Obtener especialidades y servicios disponibles
 export const getSpecialtiesAndServices = async () => {

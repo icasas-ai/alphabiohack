@@ -48,7 +48,15 @@ export type LandingPageSimpleSection = {
   description: LandingPageLocalizedText
 }
 
+export type LandingPageThemePalette = {
+  primary: string
+  accent: string
+}
+
+export type LandingPageThemeConfig = LandingPageThemePalette
+
 export type LandingPageConfig = {
+  theme: LandingPageThemeConfig
   hero: LandingPageHeroSection
   support: LandingPageSupportSection
   journey: LandingPageJourneySection
@@ -122,8 +130,20 @@ function createDefaultCardContent(): LandingPageCardContent {
   }
 }
 
+function createDefaultThemePalette(): LandingPageThemePalette {
+  return {
+    primary: "#1272b8",
+    accent: "#79d4ff",
+  }
+}
+
+function createDefaultThemeConfig(): LandingPageThemeConfig {
+  return createDefaultThemePalette()
+}
+
 function createDefaultLandingPageConfig(): LandingPageConfig {
   return {
+    theme: createDefaultThemeConfig(),
     hero: {
       visible: true,
       badge: createEmptyLocalizedText(),
@@ -180,6 +200,15 @@ function normalizeString(value: unknown) {
 
 function normalizeBoolean(value: unknown, fallback = true) {
   return typeof value === "boolean" ? value : fallback
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  if (typeof value !== "string") {
+    return fallback
+  }
+
+  const normalized = value.trim().toLowerCase()
+  return /^#[0-9a-f]{6}$/.test(normalized) ? normalized : fallback
 }
 
 export function normalizeLandingPageLocale(value: unknown): LandingPageLocale {
@@ -263,8 +292,26 @@ export function normalizeLandingPageConfig(value: unknown): LandingPageConfig {
   const blog = raw.blog && typeof raw.blog === "object" ? raw.blog : {}
   const specialties =
     raw.specialties && typeof raw.specialties === "object" ? raw.specialties : {}
+  const theme = raw.theme && typeof raw.theme === "object" ? raw.theme : {}
+  const directTheme = theme as Partial<LandingPageThemePalette>
+  const legacyPublicTheme =
+    (theme as { public?: unknown }).public &&
+    typeof (theme as { public?: unknown }).public === "object"
+      ? ((theme as { public?: unknown }).public as Partial<LandingPageThemePalette>)
+      : {}
+  const defaultTheme = createDefaultThemeConfig()
 
   return {
+    theme: {
+      primary: normalizeHexColor(
+        directTheme.primary ?? legacyPublicTheme.primary,
+        defaultTheme.primary,
+      ),
+      accent: normalizeHexColor(
+        directTheme.accent ?? legacyPublicTheme.accent,
+        defaultTheme.accent,
+      ),
+    },
     hero: {
       visible: normalizeBoolean((hero as { visible?: unknown }).visible),
       badge: normalizeLocalizedText((hero as { badge?: unknown }).badge),

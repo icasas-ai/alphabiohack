@@ -6,6 +6,8 @@ import {
   updateLocation,
 } from "@/services";
 import { errorResponse, successResponse } from "@/services/api-errors.service";
+import { canManageLocations } from "@/lib/auth/authorization";
+import { getCurrentUser } from "@/lib/auth/session";
 import { normalizeWhitespace } from "@/lib/validation/form-fields";
 
 interface LocationResponseData {
@@ -34,6 +36,14 @@ export async function GET(
 
     // Si se solicitan las citas
     if (includeBookings === "true") {
+      const { prismaUser } = await getCurrentUser();
+      if (!canManageLocations(prismaUser)) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+
       const bookings = await getLocationBookings(id);
       responseData = {
         ...responseData,
@@ -55,6 +65,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { prismaUser } = await getCurrentUser();
+    if (!canManageLocations(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const normalizedTitle =
@@ -111,6 +129,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { prismaUser } = await getCurrentUser();
+    if (!canManageLocations(prismaUser)) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
     // Verificar que la ubicación existe

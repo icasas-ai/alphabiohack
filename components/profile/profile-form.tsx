@@ -6,6 +6,7 @@ import { useUser } from "@/contexts/user-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { SaveReminderCallout } from "@/components/ui/save-reminder-callout";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { Loader2, Upload } from "lucide-react";
@@ -244,6 +245,7 @@ export function ProfileForm() {
     !isValidPhoneInput(normalizePhoneInput(formData.telefono));
   const invalidFirstname = hasAttemptedSubmit && !normalizeWhitespace(formData.firstname);
   const invalidLastname = hasAttemptedSubmit && !normalizeWhitespace(formData.lastname);
+  const hasPendingAvatarChange = formData.avatar !== (prismaUser.avatar || "");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -329,6 +331,9 @@ export function ProfileForm() {
             />
           </div>
         )}
+        {hasPendingAvatarChange ? (
+          <SaveReminderCallout>{t("imagePendingSave")}</SaveReminderCallout>
+        ) : null}
       </div>
 
       <div className="space-y-2">

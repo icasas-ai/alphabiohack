@@ -36,7 +36,7 @@ export function UrgentHelp({
 
   return (
     <div className={`${className || ''}`}>
-      <div className="h-full overflow-hidden rounded-[24px] border border-border/70 bg-accent/10 p-7 text-card-foreground">
+      <div className="surface-brand-tint h-full overflow-hidden rounded-[24px] p-7 text-card-foreground">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-2xl">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-primary/72">
@@ -60,7 +60,7 @@ export function UrgentHelp({
             </Button>
             <Button
               variant="outline"
-              className="h-11 rounded-full border-primary/18 bg-background/70 px-5 text-foreground hover:bg-background"
+              className="surface-chip h-11 rounded-full px-5 text-foreground hover:bg-[linear-gradient(135deg,oklch(var(--background)/0.98)_0%,oklch(var(--accent)/0.14)_100%)]"
               onClick={handleEmailClick}
             >
               <Mail className="h-4 w-4" />

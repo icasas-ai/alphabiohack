@@ -2,7 +2,7 @@
 
 import {
   Avatar,
-  AvatarFallback,
+  AvatarIconFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
 import {
@@ -74,7 +74,6 @@ interface NavUserPresentationalProps {
 // Componente presentacional optimizado con useMemo
 function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPresentationalProps & { onNavigate: (url: string) => void }) {
   const fullName = useMemo(() => `${user.firstname} ${user.lastname}`, [user.firstname, user.lastname]);
-  const initials = useMemo(() => `${user.firstname?.charAt(0) ?? ""}${user.lastname?.charAt(0) ?? ""}`, [user.firstname, user.lastname]);
   const avatarAlt = useMemo(() => fullName, [fullName]);
 
   return (
@@ -85,8 +84,8 @@ function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPr
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
           <Avatar className="h-8 w-8 rounded-lg">
-            <AvatarImage src={user.avatar ?? ""} alt={avatarAlt} />
-            <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+            <AvatarImage src={user.avatar || undefined} alt={avatarAlt} />
+            <AvatarIconFallback className="rounded-lg" />
           </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium">{fullName}</span>
@@ -104,8 +103,8 @@ function NavUserPresentational({ user, config, isMobile, onNavigate }: NavUserPr
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
             <Avatar className="h-8 w-8 rounded-lg">
-              <AvatarImage src={user.avatar ?? ""} alt={avatarAlt} />
-              <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+              <AvatarImage src={user.avatar || undefined} alt={avatarAlt} />
+              <AvatarIconFallback className="rounded-lg" />
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{fullName}</span>

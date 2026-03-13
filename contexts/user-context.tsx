@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { User as PrismaUser } from "@/lib/prisma-browser";
+import type { AppUser } from "@/lib/auth/app-user";
 import { readJsonResponse } from "@/lib/utils/read-json-response";
 
 type AuthUser = {
@@ -14,7 +14,7 @@ export type User = AuthUser;
 
 interface UserContextType {
   user: AuthUser | null;
-  prismaUser: PrismaUser | null;
+  prismaUser: AppUser | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
@@ -26,7 +26,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [prismaUser, setPrismaUser] = useState<PrismaUser | null>(null);
+  const [prismaUser, setPrismaUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +44,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await readJsonResponse<{
-        user?: AuthUser | null;
-        prismaUser?: PrismaUser | null;
+        success?: boolean;
+        data?: {
+          user?: AuthUser | null;
+          prismaUser?: AppUser | null;
+        };
       }>(response);
-      setUser(data?.user ?? null);
-      setPrismaUser(data?.prismaUser ?? null);
+      setUser(data?.data?.user ?? null);
+      setPrismaUser(data?.data?.prismaUser ?? null);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -67,10 +70,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     
     try {
-      const response = await fetch("/api/user");
+      const response = await fetch("/api/auth/app/me", {
+        credentials: "include",
+      });
       if (response.ok) {
-        const data = await readJsonResponse<{ prismaUser?: PrismaUser | null }>(response);
-        setPrismaUser(data?.prismaUser ?? null);
+        const data = await readJsonResponse<{
+          success?: boolean;
+          data?: {
+            prismaUser?: AppUser | null;
+          };
+        }>(response);
+        setPrismaUser(data?.data?.prismaUser ?? null);
       }
     } catch (error) {
       console.error("UserContext: Error refreshing prisma user:", error);

@@ -111,7 +111,6 @@ const CountrySelect = ({
   return (
     <Popover
       open={isOpen}
-      modal
       onOpenChange={(open) => {
         setIsOpen(open);
         if (open) {

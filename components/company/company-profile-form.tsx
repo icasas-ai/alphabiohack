@@ -34,11 +34,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SaveReminderCallout } from "@/components/ui/save-reminder-callout";
 import { SurfaceCard } from "@/components/ui/surface-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppToast } from "@/hooks/use-app-toast";
 import {
+  DEFAULT_LANDING_PAGE_CONFIG,
   normalizeLandingPageConfig,
   normalizeLandingPageLocale,
   type LandingPageConfig,
@@ -146,6 +148,18 @@ function getCompanyProfileSnapshot(profile: CompanyProfile) {
     youtube: profile.youtube,
     website: profile.website,
   });
+}
+
+function getSavedBrandImages(snapshot: string) {
+  const parsed = JSON.parse(snapshot) as {
+    logo?: string;
+    headerLogo?: string;
+  };
+
+  return {
+    logo: parsed.logo ?? "",
+    headerLogo: parsed.headerLogo ?? "",
+  };
 }
 
 function padTwoDigits(value: number) {
@@ -291,6 +305,117 @@ function HoursInputRow({
   );
 }
 
+function ThemePaletteEditor({
+  title,
+  description,
+  primaryColor,
+  accentColor,
+  disabled,
+  resetLabel,
+  canReset,
+  onPrimaryChange,
+  onAccentChange,
+  onReset,
+  previewLabel,
+  primaryLabel,
+  accentLabel,
+}: {
+  title: string;
+  description: string;
+  primaryColor: string;
+  accentColor: string;
+  disabled: boolean;
+  resetLabel: string;
+  canReset: boolean;
+  onPrimaryChange: (nextColor: string) => void;
+  onAccentChange: (nextColor: string) => void;
+  onReset: () => void;
+  previewLabel: string;
+  primaryLabel: string;
+  accentLabel: string;
+}) {
+  return (
+    <div className="rounded-[24px] border border-border/70 bg-background/70 p-5">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold">{title}</h3>
+              <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onReset}
+              disabled={disabled || !canReset}
+              className="rounded-full"
+            >
+              {resetLabel}
+            </Button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{primaryLabel}</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(event) => onPrimaryChange(event.target.value)}
+                  disabled={disabled}
+                  className="h-11 w-16 rounded-xl p-1"
+                />
+                <span className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  {primaryColor}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{accentLabel}</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="color"
+                  value={accentColor}
+                  onChange={(event) => onAccentChange(event.target.value)}
+                  disabled={disabled}
+                  className="h-11 w-16 rounded-xl p-1"
+                />
+                <span className="rounded-full border border-border/70 bg-background px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  {accentColor}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+            {previewLabel}
+          </p>
+          <div
+            className="overflow-hidden rounded-[22px] border border-border/70"
+            style={{
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`,
+            }}
+          >
+            <div className="bg-[linear-gradient(180deg,rgba(255,255,255,0.20)_0%,rgba(15,23,42,0.12)_100%)] p-5">
+              <div className="rounded-[18px] border border-white/25 bg-white/12 p-4 text-white backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/78">
+                  {title}
+                </p>
+                <p className="mt-2 text-sm text-white/86">{description}</p>
+                <div className="mt-4 flex gap-2">
+                  <span className="h-3.5 w-10 rounded-full bg-white/90" />
+                  <span className="h-3.5 w-16 rounded-full bg-white/55" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CompanyProfileForm() {
   const locale = normalizeLandingPageLocale(useLocale());
   const t = useTranslations("CompanyProfile");
@@ -319,7 +444,7 @@ export function CompanyProfileForm() {
           throw new Error(data.error || t("loadError"));
         }
 
-        const normalizedProfile = normalizeCompanyProfile(data);
+        const normalizedProfile = normalizeCompanyProfile(data.data ?? data);
         setFormData(normalizedProfile);
         setSavedSnapshot(getCompanyProfileSnapshot(normalizedProfile));
       } catch (error) {
@@ -495,7 +620,7 @@ export function CompanyProfileForm() {
 
       const nextProfile = normalizeCompanyProfile({
         ...formData,
-        ...data,
+        ...(data.data ?? data),
         canEdit: formData.canEdit,
       });
       setFormData(nextProfile);
@@ -536,6 +661,13 @@ export function CompanyProfileForm() {
   };
   const invalidName = hasAttemptedSubmit && !normalizeWhitespace(formData.name);
   const hasPendingChanges = getCompanyProfileSnapshot(formData) !== savedSnapshot;
+  const savedBrandImages = getSavedBrandImages(savedSnapshot);
+  const hasPendingBrandImageChanges =
+    formData.logo !== savedBrandImages.logo ||
+    formData.headerLogo !== savedBrandImages.headerLogo;
+  const canResetThemeColors =
+    formData.landingPageConfig.theme.primary !== DEFAULT_LANDING_PAGE_CONFIG.theme.primary ||
+    formData.landingPageConfig.theme.accent !== DEFAULT_LANDING_PAGE_CONFIG.theme.accent;
   const sections = [
     {
       value: "brand" as const,
@@ -761,6 +893,60 @@ export function CompanyProfileForm() {
                 </div>
                 <p className="text-xs text-muted-foreground">{t("headerLogoHint")}</p>
               </div>
+
+              {hasPendingBrandImageChanges ? (
+                <SaveReminderCallout>{t("imagePendingSave")}</SaveReminderCallout>
+              ) : null}
+
+              <section className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-semibold">{t("themeSectionTitle")}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t("themeSectionDescription")}
+                  </p>
+                </div>
+
+                <div className="grid gap-4">
+                  <ThemePaletteEditor
+                    title={t("sharedThemeTitle")}
+                    description={t("sharedThemeDescription")}
+                    primaryColor={formData.landingPageConfig.theme.primary}
+                    accentColor={formData.landingPageConfig.theme.accent}
+                    disabled={!formData.canEdit || saving}
+                    resetLabel={t("themeReset")}
+                    canReset={canResetThemeColors}
+                    onPrimaryChange={(nextColor) =>
+                      handleFieldChange("landingPageConfig", {
+                        ...formData.landingPageConfig,
+                        theme: {
+                          ...formData.landingPageConfig.theme,
+                          primary: nextColor,
+                        },
+                      })
+                    }
+                    onAccentChange={(nextColor) =>
+                      handleFieldChange("landingPageConfig", {
+                        ...formData.landingPageConfig,
+                        theme: {
+                          ...formData.landingPageConfig.theme,
+                          accent: nextColor,
+                        },
+                      })
+                    }
+                    onReset={() =>
+                      handleFieldChange("landingPageConfig", {
+                        ...formData.landingPageConfig,
+                        theme: {
+                          ...DEFAULT_LANDING_PAGE_CONFIG.theme,
+                        },
+                      })
+                    }
+                    previewLabel={t("themePreview")}
+                    primaryLabel={t("themePrimary")}
+                    accentLabel={t("themeAccent")}
+                  />
+                </div>
+              </section>
             </section>
           </SurfaceCard>
         </TabsContent>
@@ -788,7 +974,7 @@ export function CompanyProfileForm() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="defaultTimezone">{t("defaultTimezone")}</Label>
-                  <Popover open={timeZoneOpen} onOpenChange={setTimeZoneOpen} modal>
+                  <Popover open={timeZoneOpen} onOpenChange={setTimeZoneOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         id="defaultTimezone"

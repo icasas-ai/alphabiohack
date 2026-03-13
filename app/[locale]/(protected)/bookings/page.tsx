@@ -9,6 +9,13 @@ import { CreateBookingDialog } from "@/components/bookings/create-booking-dialog
 import { EditBookingDialog } from "@/components/bookings/edit-booking-dialog";
 import type { CalendarEvent } from "@/lib/utils/calendar";
 import { Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { convertBookingsToEvents } from "@/lib/utils/calendar";
 import { useSearchParams } from "next/navigation";
@@ -24,6 +31,13 @@ export default function BookingsPage() {
     loading,
     error,
     canManageAppointments,
+    canViewCompanyBookings,
+    currentUserId,
+    frontDeskManagesAllTherapists,
+    managedTherapistId,
+    isAdmin,
+    isFrontDesk,
+    isTherapist,
     refetch,
     updateBookingInState,
   } = useUserBookings();
@@ -34,10 +48,38 @@ export default function BookingsPage() {
   const [editingBooking, setEditingBooking] = useState<BookingRow | null>(null);
   const [createBookingOpen, setCreateBookingOpen] = useState(false);
   const [createBookingDate, setCreateBookingDate] = useState<Date | null>(null);
+  const [therapistFilter, setTherapistFilter] = useState("all");
 
   React.useEffect(() => {
     setCurrentView((prev) => (prev === requestedView ? prev : requestedView));
   }, [requestedView]);
+
+  const therapistOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          bookings
+            .filter((booking) => booking.therapist?.id)
+            .map((booking) => [
+              booking.therapist!.id,
+              {
+                id: booking.therapist!.id,
+                label: `${booking.therapist!.firstname} ${booking.therapist!.lastname}`,
+              },
+            ]),
+        ).values(),
+      ).sort((left, right) => left.label.localeCompare(right.label)),
+    [bookings],
+  );
+
+  React.useEffect(() => {
+    if (
+      therapistFilter !== "all" &&
+      !therapistOptions.some((option) => option.id === therapistFilter)
+    ) {
+      setTherapistFilter("all");
+    }
+  }, [therapistFilter, therapistOptions]);
 
   const eventStatusToBookingStatus = (status?: CalendarEvent["status"]) => {
     switch (status) {
@@ -59,9 +101,17 @@ export default function BookingsPage() {
     }
   };
 
+  const filteredBookings = useMemo(() => {
+    if (therapistFilter === "all") {
+      return bookings;
+    }
+
+    return bookings.filter((booking) => booking.therapist?.id === therapistFilter);
+  }, [bookings, therapistFilter]);
+
   const calendarEvents = useMemo(() => {
-    return convertBookingsToEvents(bookings);
-  }, [bookings]);
+    return convertBookingsToEvents(filteredBookings);
+  }, [filteredBookings]);
 
   const bookingById = useMemo(() => {
     const map = new Map<string, BookingRow>();
@@ -70,6 +120,46 @@ export default function BookingsPage() {
     });
     return map;
   }, [bookings]);
+
+  const canManageBooking = React.useCallback(
+    (booking: BookingRow) => {
+      const bookingTherapistId = booking.therapist?.id ?? null;
+
+      if (isAdmin) {
+        return true;
+      }
+
+      if (!bookingTherapistId) {
+        return false;
+      }
+
+      if (isTherapist) {
+        return bookingTherapistId === currentUserId;
+      }
+
+      if (isFrontDesk) {
+        return frontDeskManagesAllTherapists || bookingTherapistId === managedTherapistId;
+      }
+
+      return false;
+    },
+    [
+      currentUserId,
+      frontDeskManagesAllTherapists,
+      isAdmin,
+      isFrontDesk,
+      isTherapist,
+      managedTherapistId,
+    ],
+  );
+
+  const canManageEvent = React.useCallback(
+    (event: CalendarEvent) => {
+      const booking = bookingById.get(event.id);
+      return booking ? canManageBooking(booking) : false;
+    },
+    [bookingById, canManageBooking],
+  );
 
   const handleStatusChange = async (bookingId: string, status: string) => {
     try {
@@ -104,18 +194,22 @@ export default function BookingsPage() {
   const handleEventClick = () => {};
 
   const handleEditBooking = (booking: BookingRow) => {
+    if (!canManageBooking(booking)) {
+      return;
+    }
+
     setEditingBooking(booking);
   };
 
   const handleEventEdit = (event: CalendarEvent) => {
     const booking = bookingById.get(event.id);
-    if (booking) {
+    if (booking && canManageBooking(booking)) {
       setEditingBooking(booking);
     }
   };
 
   const handleEventCancel = async (event: CalendarEvent) => {
-    if (!canManageAppointments || event.status === "cancelled") return;
+    if (!canManageAppointments || !canManageEvent(event) || event.status === "cancelled") return;
     const confirmed = window.confirm(
       t("confirmStatusChangeDescription", {
         current: t(`statusOptions.${eventStatusToBookingStatus(event.status)}`),
@@ -130,6 +224,7 @@ export default function BookingsPage() {
     event: CalendarEvent,
     status: string
   ) => {
+    if (!canManageEvent(event)) return;
     const current = eventStatusToBookingStatus(event.status);
     const confirmed = window.confirm(
       t("confirmStatusChangeDescription", {
@@ -202,22 +297,42 @@ export default function BookingsPage() {
           />
         </div>
       </div>
+
+      {canViewCompanyBookings ? (
+        <div className="flex justify-end">
+          <Select value={therapistFilter} onValueChange={setTherapistFilter}>
+            <SelectTrigger className="w-full sm:w-[280px]">
+              <SelectValue placeholder={t("filterByTherapist")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("allTherapists")}</SelectItem>
+              {therapistOptions.map((therapist) => (
+                <SelectItem key={therapist.id} value={therapist.id}>
+                  {therapist.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       
       {currentView === 'list' ? (
         <BookingsDataTable
-          data={bookings}
+          data={filteredBookings}
           canManageStatus={canManageAppointments}
+          canManageBooking={canManageBooking}
           updatingBookingId={updatingBookingId}
           onStatusChange={handleStatusChange}
-          onEditBooking={handleEditBooking}
+          onEditBooking={canManageAppointments ? handleEditBooking : undefined}
         />
       ) : (
         <CalendarView
           events={calendarEvents}
           onEventClick={handleEventClick}
-          onEventEdit={handleEventEdit}
-          onEventCancel={handleEventCancel}
-          onEventStatusChange={handleEventStatusChange}
+          onEventEdit={canManageAppointments ? handleEventEdit : undefined}
+          onEventCancel={canManageAppointments ? handleEventCancel : undefined}
+          onEventStatusChange={canManageAppointments ? handleEventStatusChange : undefined}
+          canManageEvent={canManageEvent}
           updatingStatus={Boolean(updatingBookingId)}
           onAddEvent={handleAddEvent}
         />

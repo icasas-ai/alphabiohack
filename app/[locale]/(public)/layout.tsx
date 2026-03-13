@@ -1,6 +1,8 @@
+import { ThemeStyleBridge } from "@/components/company/theme-style-bridge";
 import { PageTransition } from "@/components/common/page-transition"
 import { MedicalHeader } from "@/components/layout/header"
 import { MedicalFooter } from "@/components/layout/footer"
+import { getCompanyThemeStyle } from "@/lib/company/company-theme";
 import { getSiteUrl } from "@/lib/config/site-url";
 import { isPublicSiteUnavailableError } from "@/services/company.service";
 import { getPublicCompanyProfile } from "@/services/public-profile.service";
@@ -35,9 +37,14 @@ export default async function PublicLayout({
         telefono: company.publicPhone,
       }
     : null;
+  const publicThemeStyle = getCompanyThemeStyle(company?.landingPageConfig, "public");
 
   return (
-    <div className="app-page-gradient min-h-screen flex flex-col bg-background text-foreground">
+    <div
+      className="app-page-gradient min-h-screen flex flex-col bg-background text-foreground"
+      style={publicThemeStyle}
+    >
+      <ThemeStyleBridge style={publicThemeStyle} />
       <MedicalHeader initialPublicContact={headerContact} />
       <main className="flex-1">
         <PageTransition className="flex min-h-full flex-col">

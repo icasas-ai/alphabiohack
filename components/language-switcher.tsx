@@ -92,16 +92,16 @@ export function LanguageDropdown() {
         <span>{currentLanguage.name}</span>
       </Button>
       
-      <div className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
-        <div className="py-1">
+      <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right">
+        <div className="rounded-md border border-border/70 bg-popover py-1 text-popover-foreground shadow-[0_18px_50px_-28px_oklch(var(--primary)/0.24)]">
           {languages.map((language) => (
             <button
               key={language.code}
               onClick={() => handleLanguageChange(language.code)}
               className={`${
                 locale === language.code
-                  ? 'bg-blue-100 text-blue-900'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-primary/12 text-primary'
+                  : 'text-foreground hover:bg-primary/8'
               } flex items-center w-full px-4 py-2 text-sm`}
             >
               <span className="mr-3">{language.flag}</span>

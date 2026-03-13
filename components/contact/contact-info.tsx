@@ -33,6 +33,10 @@ interface ContactData {
   website?: string | null;
 }
 
+interface ContactDataResponse {
+  data?: ContactData;
+}
+
 interface ContactInfoProps {
   readonly className?: string;
   readonly initialData?: ContactData | null;
@@ -57,8 +61,8 @@ export function ContactInfo({
       try {
         const response = await fetch("/api/public/contact");
         if (response.ok) {
-          const data = await readJsonResponse<ContactData>(response);
-          setPublicData(data);
+          const data = await readJsonResponse<ContactDataResponse>(response);
+          setPublicData(data?.data ?? null);
         }
       } catch (error) {
         console.error("Error fetching public contact data:", error);

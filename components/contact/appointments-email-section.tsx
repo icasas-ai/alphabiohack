@@ -14,12 +14,16 @@ export async function ContactAppointmentsSection({
   companyPhone,
 }: Readonly<ContactAppointmentsSectionProps>) {
   const t = await getTranslations("Contact.appointments");
-  const insetCardClass = "rounded-[24px] border border-border/70 bg-background/82 p-5";
+  const insetCardClass = "surface-inset rounded-[24px] p-5";
 
   return (
-    <section id="contact-appointments-lookup" className="border-b border-border/50 py-14 lg:py-16">
+    <section
+      id="contact-appointments-lookup"
+      className="relative overflow-hidden border-b border-border/50 py-14 lg:py-16"
+    >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,oklch(var(--primary)/0.1),transparent_34%),radial-gradient(circle_at_85%_18%,oklch(var(--accent)/0.12),transparent_32%)]" />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="surface-panel rounded-[24px] p-8 lg:p-10">
+        <div className="surface-panel relative rounded-[24px] p-8 lg:p-10">
           <div className="grid gap-10 lg:grid-cols-2 lg:items-stretch">
             <div className="flex h-full flex-col">
               <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-primary/72">

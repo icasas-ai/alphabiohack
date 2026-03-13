@@ -28,20 +28,20 @@ export function BusinessHours({
   const sundayHours = propsSundayHours || sunday || "Closed";
 
   return (
-    <div className={`overflow-hidden rounded-[24px] border border-border/70 bg-background p-6 ${className || ''}`}>
+    <div className={`surface-panel overflow-hidden rounded-[24px] p-6 ${className || ''}`}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <h3 className="font-semibold text-foreground">{t('businessHours')}</h3>
       </div>
       <div className="space-y-3 text-sm text-muted-foreground">
-        <div className="flex items-center justify-between gap-4 rounded-[24px] border border-border/60 bg-accent/10 px-4 py-3">
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
           <span className="font-medium text-foreground">{t('weekdays')}</span>
           <span>{weekdaysHours}</span>
         </div>
-        <div className="flex items-center justify-between gap-4 rounded-[24px] border border-border/60 bg-accent/10 px-4 py-3">
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
           <span className="font-medium text-foreground">{t('saturday')}</span>
           <span>{saturdayHours}</span>
         </div>
-        <div className="flex items-center justify-between gap-4 rounded-[24px] border border-border/60 bg-accent/10 px-4 py-3">
+        <div className="surface-inset flex items-center justify-between gap-4 rounded-[24px] px-4 py-3">
           <span className="font-medium text-foreground">{t('sunday')}</span>
           <span>{sundayHours}</span>
         </div>

@@ -96,6 +96,7 @@ export type BookingRow = {
 interface BookingsDataTableProps {
   data: BookingRow[];
   canManageStatus?: boolean;
+  canManageBooking?: (booking: BookingRow) => boolean;
   updatingBookingId?: string | null;
   onStatusChange?: (bookingId: string, status: BookingStatusValue) => Promise<void>;
   onEditBooking?: (booking: BookingRow) => void;
@@ -110,7 +111,7 @@ function getStatusTone(status: string) {
     case "NeedsAttention":
       return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40";
     case "InProgress":
-      return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40";
+      return "border-primary/20 bg-primary/10 text-primary dark:border-primary/30 dark:bg-primary/14 dark:text-primary";
     case "Completed":
       return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40";
     case "Cancelled":
@@ -131,7 +132,7 @@ function getStatusDot(status: string) {
     case "NeedsAttention":
       return "bg-rose-500";
     case "InProgress":
-      return "bg-blue-500";
+      return "bg-primary";
     case "Completed":
       return "bg-emerald-500";
     case "Cancelled":
@@ -146,6 +147,7 @@ function getStatusDot(status: string) {
 export function BookingsDataTable({
   data,
   canManageStatus = false,
+  canManageBooking,
   updatingBookingId,
   onStatusChange,
   onEditBooking,
@@ -180,6 +182,10 @@ export function BookingsDataTable({
         `${booking.firstname} ${booking.lastname}`.toLowerCase().includes(query) ||
         booking.email.toLowerCase().includes(query) ||
         booking.phone.toLowerCase().includes(query) ||
+        `${booking.therapist?.firstname ?? ""} ${booking.therapist?.lastname ?? ""}`
+          .trim()
+          .toLowerCase()
+          .includes(query) ||
         (booking.service?.description ?? "").toLowerCase().includes(query) ||
         (booking.specialty?.name ?? "").toLowerCase().includes(query);
 
@@ -253,6 +259,27 @@ export function BookingsDataTable({
         ),
       },
       {
+        id: "therapist",
+        header: t("therapist"),
+        cell: ({ row }) => {
+          const therapist = row.original.therapist;
+          if (!therapist) {
+            return <div>-</div>;
+          }
+
+          return (
+            <div className="min-w-0">
+              <div className="truncate font-medium">
+                {therapist.firstname} {therapist.lastname}
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {therapist.email}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
         accessorKey: "location",
         header: t("location"),
         cell: ({ row }) => <div>{row.original.location?.title || "-"}</div>,
@@ -320,6 +347,10 @@ export function BookingsDataTable({
         enableHiding: false,
         cell: ({ row }) => {
           const booking = row.original;
+          const canManageThisBooking = canManageBooking
+            ? canManageBooking(booking)
+            : canManageStatus;
+          const canUpdateStatus = canManageStatus && canManageThisBooking;
           const status = booking.status as BookingStatusValue;
           const transitions = BOOKING_STATUS_TRANSITIONS[status] ?? [];
           const isUpdating = updatingBookingId === booking.id;
@@ -347,12 +378,12 @@ export function BookingsDataTable({
                   <Copy className="mr-2 h-4 w-4" />
                   {t("copyId")}
                 </DropdownMenuItem>
-                {onEditBooking ? (
+                {onEditBooking && canManageThisBooking ? (
                   <DropdownMenuItem onClick={() => onEditBooking(booking)}>
                     {t("editBooking")}
                   </DropdownMenuItem>
                 ) : null}
-                {canManageStatus && (
+                {canUpdateStatus && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>{t("updateStatus")}</DropdownMenuLabel>
@@ -388,7 +419,7 @@ export function BookingsDataTable({
         },
       },
     ],
-    [canManageStatus, onEditBooking, t, updatingBookingId]
+    [canManageBooking, canManageStatus, onEditBooking, t, updatingBookingId]
   );
 
   const table = useReactTable({
@@ -507,27 +538,37 @@ export function BookingsDataTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={onEditBooking ? "cursor-pointer hover:bg-muted/40" : undefined}
-                  onClick={() => onEditBooking?.(row.original)}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      onClick={
-                        cell.column.id === "actions"
-                          ? (event) => event.stopPropagation()
-                          : undefined
+              table.getRowModel().rows.map((row) => {
+                  const canEditBooking = onEditBooking
+                    ? (canManageBooking ? canManageBooking(row.original) : canManageStatus)
+                    : false;
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={canEditBooking ? "cursor-pointer hover:bg-muted/40" : undefined}
+                    onClick={() => {
+                      if (canEditBooking) {
+                        onEditBooking?.(row.original);
                       }
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        onClick={
+                          cell.column.id === "actions"
+                            ? (event) => event.stopPropagation()
+                            : undefined
+                        }
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">

@@ -1,13 +1,13 @@
 "use client"
 
 import { AsyncWrapper } from "@/components/ui/async-wrapper"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarIconFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useBookingWizard } from "@/contexts"
 import { useTherapists } from "@/hooks"
-import { Stethoscope, User } from "lucide-react"
+import { Stethoscope } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isSingleTherapistModeEnabled } from "@/lib/config/features"
 import { useCallback } from "react"
@@ -89,15 +89,8 @@ export function TherapistSelector({ showValidation = false }: TherapistSelectorP
                     )}
                   >
                     <Avatar className="h-12 w-12 border">
-                      <AvatarImage src={therapist.profileImage} alt={fullName} />
-                      <AvatarFallback>
-                        {fullName
-                          .split(" ")
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .map((name) => name[0])
-                          .join("") || <User className="h-4 w-4" />}
-                      </AvatarFallback>
+                      <AvatarImage src={therapist.profileImage || undefined} alt={fullName} />
+                      <AvatarIconFallback />
                     </Avatar>
 
                     <div className="min-w-0 flex-1">

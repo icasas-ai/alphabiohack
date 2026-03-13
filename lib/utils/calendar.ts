@@ -25,6 +25,12 @@ export interface BookingData {
     cost: number;
     duration: number;
   };
+  therapist?: {
+    id: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+  };
   bookingNotes?: string;
   bookingLocalDate?: string;
   bookingLocalTime?: string;
@@ -53,6 +59,7 @@ export interface CalendarEvent {
   patientEmail?: string;
   patientPhone?: string;
   location?: string;
+  therapistName?: string;
   specialty?: string;
   service?: string;
   duration?: number;
@@ -115,6 +122,9 @@ export function convertBookingsToEvents(
       patientEmail: booking.email,
       patientPhone: booking.phone,
       location: booking.location.title,
+      therapistName: booking.therapist
+        ? `${booking.therapist.firstname} ${booking.therapist.lastname}`
+        : undefined,
       specialty: booking.specialty?.name,
       service: booking.service?.description,
       duration: booking.service?.duration,

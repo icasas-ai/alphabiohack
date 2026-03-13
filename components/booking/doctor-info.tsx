@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarIconFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { useBookingWizard } from "@/contexts"
 import { useTherapist } from "@/hooks"
@@ -48,13 +48,8 @@ export function DoctorInfo() {
     <Card className="surface-panel mb-6">
       <CardContent className="flex items-center gap-4 ">
         <Avatar className="h-16 w-16">
-          <AvatarImage src={doctor.image || "/placeholder.svg"} alt={doctor.name} />
-          <AvatarFallback>
-            {doctor.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")}
-          </AvatarFallback>
+          <AvatarImage src={doctor.image || undefined} alt={doctor.name} />
+          <AvatarIconFallback iconClassName="size-6" />
         </Avatar>
 
         <div className="flex-1">

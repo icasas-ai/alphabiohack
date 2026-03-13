@@ -18,8 +18,16 @@ export function canOperateAppointments(user: RoleUser | null | undefined) {
   );
 }
 
-export function canManagePersonnel(user: RoleUser | null | undefined) {
+export function canManageCatalog(user: RoleUser | null | undefined) {
   return hasRole(user, UserRole.Admin) || hasRole(user, UserRole.Therapist);
+}
+
+export function canManagePersonnel(user: RoleUser | null | undefined) {
+  return hasRole(user, UserRole.Admin);
+}
+
+export function canManageLocations(user: RoleUser | null | undefined) {
+  return hasRole(user, UserRole.Admin);
 }
 
 export function getManagedTherapistId(user: RoleUser | null | undefined) {
@@ -47,7 +55,8 @@ export function canManageBookingAsOperator(
   if (hasRole(user, UserRole.Admin)) return true;
   if (hasRole(user, UserRole.Therapist)) return user.id === therapistId;
   if (hasRole(user, UserRole.FrontDesk)) {
-    return getManagedTherapistId(user) === therapistId;
+    const managedTherapistId = getManagedTherapistId(user);
+    return managedTherapistId ? managedTherapistId === therapistId : true;
   }
   return false;
 }

@@ -11,6 +11,7 @@ import { useAvailabilityCalendar } from "@/hooks/use-availability-calendar";
 import { useLocations } from "@/hooks/use-locations";
 import { useServices } from "@/hooks/use-services";
 import { useSpecialties } from "@/hooks/use-specialties";
+import { useTherapists } from "@/hooks/use-therapists";
 import { useUser } from "@/contexts/user-context";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -69,10 +70,18 @@ export function CreateBookingDialog({
   const { prismaUser } = useUser();
   const { locations } = useLocations();
   const { specialties } = useSpecialties();
+  const isFrontDesk = prismaUser?.role.includes(UserRole.FrontDesk) ?? false;
+  const canChooseTherapist = isFrontDesk && !prismaUser?.managedByTherapistId;
+  const {
+    therapists,
+    loading: therapistsLoading,
+    error: therapistsError,
+  } = useTherapists({ enabled: canChooseTherapist });
 
   const [locationId, setLocationId] = useState("");
   const [specialtyId, setSpecialtyId] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [selectedTherapistId, setSelectedTherapistId] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [visibleMonth, setVisibleMonth] = useState<Date>(initialDate ?? new Date());
   const [selectedTime, setSelectedTime] = useState("");
@@ -89,11 +98,14 @@ export function CreateBookingDialog({
     if (prismaUser?.role.includes(UserRole.Therapist)) {
       return prismaUser.id;
     }
-    if (prismaUser?.role.includes(UserRole.FrontDesk)) {
-      return prismaUser.managedByTherapistId || null;
+    if (canChooseTherapist) {
+      return selectedTherapistId || null;
+    }
+    if (isFrontDesk) {
+      return prismaUser?.managedByTherapistId ?? null;
     }
     return null;
-  }, [prismaUser]);
+  }, [canChooseTherapist, isFrontDesk, prismaUser, selectedTherapistId]);
 
   const { services } = useServices(specialtyId || undefined);
   const selectedLocation = locations.find((location) => location.id === locationId);
@@ -120,6 +132,7 @@ export function CreateBookingDialog({
     setLocationId("");
     setSpecialtyId("");
     setServiceId("");
+    setSelectedTherapistId("");
     setSelectedDate(initialDate ?? undefined);
     setVisibleMonth(initialDate ?? new Date());
     setSelectedTime("");
@@ -131,6 +144,19 @@ export function CreateBookingDialog({
     setNotes("");
     setHasAttemptedSave(false);
   }, [initialDate, open]);
+
+  useEffect(() => {
+    if (!canChooseTherapist) {
+      setSelectedTherapistId("");
+      return;
+    }
+
+    if (selectedTherapistId && therapists.some((therapist) => therapist.id === selectedTherapistId)) {
+      return;
+    }
+
+    setSelectedTherapistId(therapists[0]?.id ?? "");
+  }, [canChooseTherapist, selectedTherapistId, therapists]);
 
   useEffect(() => {
     setServiceId("");
@@ -151,6 +177,7 @@ export function CreateBookingDialog({
 
   const validation = useMemo(() => {
     const missingTherapist = !therapistId;
+    const noTherapists = canChooseTherapist && !therapistsLoading && therapists.length === 0;
     const noLocations = locations.length === 0;
     const noSpecialties = specialties.length === 0;
     const noServicesForSpecialty = Boolean(specialtyId) && services.length === 0;
@@ -162,6 +189,7 @@ export function CreateBookingDialog({
 
     return {
       missingTherapist,
+      noTherapists,
       noLocations,
       noSpecialties,
       noServicesForSpecialty,
@@ -181,6 +209,9 @@ export function CreateBookingDialog({
     };
   }, [
     therapistId,
+    canChooseTherapist,
+    therapists.length,
+    therapistsLoading,
     locations.length,
     specialties.length,
     specialtyId,
@@ -325,8 +356,10 @@ export function CreateBookingDialog({
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {prismaUser?.role.includes(UserRole.FrontDesk)
-                    ? t("bookingRequirements.missingAssignedTherapist")
+                  {isFrontDesk
+                    ? canChooseTherapist
+                      ? t("bookingRequirements.selectTherapist")
+                      : t("bookingRequirements.missingAssignedTherapist")
                     : t("bookingRequirements.missingTherapistContext")}
                 </AlertDescription>
               </Alert>
@@ -383,6 +416,44 @@ export function CreateBookingDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {canChooseTherapist ? (
+                <div className="space-y-2">
+                  <Label htmlFor="create-therapist">{t("therapist")}</Label>
+                  <Select
+                    value={selectedTherapistId}
+                    onValueChange={setSelectedTherapistId}
+                    disabled={isSaving || therapistsLoading || therapists.length === 0}
+                  >
+                    <SelectTrigger
+                      id="create-therapist"
+                      aria-invalid={hasAttemptedSave && (validation.missingTherapist || validation.noTherapists)}
+                      className={cn(
+                        "w-full",
+                        hasAttemptedSave &&
+                          (validation.missingTherapist || validation.noTherapists) &&
+                          "border-red-500 ring-1 ring-red-500/20",
+                      )}
+                    >
+                      <SelectValue placeholder={t("selectTherapist")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {therapists.map((therapist) => (
+                        <SelectItem key={therapist.id} value={therapist.id}>
+                          {`${therapist.firstName} ${therapist.lastName}`.trim()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {therapistsError ? (
+                    <p className="text-sm text-red-500">{therapistsError}</p>
+                  ) : hasAttemptedSave && validation.noTherapists ? (
+                    <p className="text-sm text-red-500">{t("bookingRequirements.missingTherapists")}</p>
+                  ) : hasAttemptedSave && validation.missingTherapist ? (
+                    <p className="text-sm text-red-500">{t("bookingRequirements.selectTherapist")}</p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="create-specialty">{t("specialty")}</Label>

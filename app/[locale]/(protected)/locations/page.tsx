@@ -45,7 +45,7 @@ function LocationsContent() {
 
 export default function Page() {
   return (
-    <RoleRestricted allowedRoles={[UserRole.Therapist, UserRole.Admin]}>
+    <RoleRestricted allowedRoles={[UserRole.Admin]}>
       <LocationsContent />
     </RoleRestricted>
   );

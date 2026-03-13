@@ -52,7 +52,7 @@ export default async function ContactPage() {
 
   return (
     <div className="w-full">
-      <section className="border-b border-border/60 bg-[linear-gradient(180deg,oklch(var(--background))_0%,oklch(var(--accent)/0.07)_100%)]">
+      <section className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,oklch(var(--primary)/0.14),transparent_34%),radial-gradient(circle_at_85%_12%,oklch(var(--accent)/0.18),transparent_28%),linear-gradient(180deg,oklch(var(--background))_0%,oklch(var(--accent)/0.1)_100%)]">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
           <div className={twoCardGridClass}>
             <div className={surfacePanelClass}>
@@ -77,7 +77,7 @@ export default async function ContactPage() {
             </div>
 
             <Card className="surface-panel flex h-full flex-col overflow-hidden rounded-[24px] px-0 py-0">
-              <div className="border-b border-border/60 bg-accent/10 px-8 py-7">
+              <div className="border-b border-primary/12 bg-[linear-gradient(135deg,oklch(var(--primary)/0.14)_0%,oklch(var(--accent)/0.16)_100%)] px-8 py-7">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   {t("form.submit")}
                 </h2>

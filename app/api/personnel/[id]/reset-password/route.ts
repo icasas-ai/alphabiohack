@@ -1,15 +1,18 @@
 export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from "next/server";
-import { UserRole } from "@/lib/prisma-client";
 import { randomBytes } from "node:crypto";
 
+import { NextRequest, NextResponse } from "next/server";
+
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
-import { canManagePersonnel } from "@/lib/auth/authorization";
-import { getCurrentUser, hashPassword } from "@/lib/auth/session";
+import {
+  buildPersonnelWhere,
+  getManagerDisplayName,
+  getPersonnelManagementContext,
+} from "@/lib/personnel-management";
+import { hashPassword } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/services/email.service";
-import { resolveManagedTherapistIdForUser } from "@/services";
 
 function generateTemporaryPassword() {
   return randomBytes(12)
@@ -23,30 +26,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { prismaUser } = await getCurrentUser();
-    if (!prismaUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!canManagePersonnel(prismaUser)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
-    if (!therapistId) {
-      return NextResponse.json(
-        { error: "No therapist is configured for this account." },
-        { status: 409 },
-      );
+    const context = await getPersonnelManagementContext();
+    if (!context.companyId || !context.prismaUser) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
     }
 
     const { id } = await params;
     const personnel = await prisma.user.findFirst({
-      where: {
-        id,
-        managedByTherapistId: therapistId,
-        role: { has: UserRole.FrontDesk },
-      },
+      where: buildPersonnelWhere(context, id),
       select: {
         id: true,
         firstname: true,
@@ -55,7 +42,7 @@ export async function POST(
     });
 
     if (!personnel) {
-      return NextResponse.json({ error: "Personnel record not found." }, { status: 404 });
+      return NextResponse.json({ error: "Team member not found." }, { status: 404 });
     }
 
     const temporaryPassword = generateTemporaryPassword();
@@ -67,8 +54,6 @@ export async function POST(
       },
     });
 
-    const therapistName =
-      `${prismaUser.firstname} ${prismaUser.lastname}`.trim() || prismaUser.email;
     const loginUrl = new URL("/auth/login", request.url).toString();
 
     await sendEmail({
@@ -77,7 +62,7 @@ export async function POST(
       subject: "Your MyAlphaPulse temporary password",
       react: PersonnelInviteEmail({
         recipientName: personnel.firstname,
-        therapistName,
+        managerName: getManagerDisplayName(context.prismaUser),
         temporaryPassword,
         loginUrl,
         language: "en",

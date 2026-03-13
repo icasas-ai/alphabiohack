@@ -1,13 +1,25 @@
 import { NextResponse } from "next/server";
 import { UserRole } from "@/lib/prisma-client";
 
-import { getPublicCompany, getUsersByRole } from "@/services";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getPrimaryCompanyIdForUser, getPublicCompany, getUsersByRole } from "@/services";
 import { isPublicSiteUnavailableError } from "@/services/company.service";
 
 export async function GET() {
   try {
-    const company = await getPublicCompany();
-    const therapists = await getUsersByRole(UserRole.Therapist, company.id);
+    const { prismaUser } = await getCurrentUser();
+    const companyId = prismaUser
+      ? await getPrimaryCompanyIdForUser(prismaUser.id)
+      : (await getPublicCompany()).id;
+
+    if (!companyId) {
+      return NextResponse.json(
+        { success: false, error: "Company not found" },
+        { status: 404 },
+      );
+    }
+
+    const therapists = await getUsersByRole(UserRole.Therapist, companyId);
 
     return NextResponse.json({
       success: true,
@@ -15,7 +27,7 @@ export async function GET() {
         id: therapist.id,
         firstName: therapist.firstname,
         lastName: therapist.lastname,
-        profileImage: therapist.avatar || "/images/smiling-doctor.png",
+        profileImage: therapist.avatar || "",
         specialties: therapist.especialidad ? [therapist.especialidad] : [],
         bio: therapist.summary || "Professional",
         rating: 4.8,

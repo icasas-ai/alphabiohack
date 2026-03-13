@@ -2,9 +2,11 @@ import { PublicSiteUnavailableSplash } from "@/components/common/public-site-una
 import { BlogSection } from "@/components/sections/blog"
 import { HomeBodySection } from "@/components/sections/home-body"
 import { HeroSection } from "@/components/sections/hero"
+import { ThemeStyleBridge } from "@/components/company/theme-style-bridge"
 import { MedicalFooter } from "@/components/layout/footer"
 import { MedicalHeader } from "@/components/layout/header"
 import { SpecialtiesSection } from "@/components/sections/specialties"
+import { getCompanyThemeStyle } from "@/lib/company/company-theme"
 import {
   normalizeLandingPageLocale,
   resolveLandingPageConfigForLocale,
@@ -24,14 +26,60 @@ export default async function HomePage({
   const landingLocale = normalizeLandingPageLocale(locale)
   const { blog } = featureFlags.features
   const { services } = featureFlags.features
-  let publicCompany: Awaited<ReturnType<typeof getPublicCompanyProfile>>
-  let locations: Awaited<ReturnType<typeof getPublicCompanyLocations>>
 
   try {
-    [publicCompany, locations] = await Promise.all([
+    const [publicCompany, locations] = await Promise.all([
       getPublicCompanyProfile(),
       getPublicCompanyLocations(),
     ])
+    const publicThemeStyle = getCompanyThemeStyle(
+      publicCompany?.landingPageConfig,
+      "public",
+    )
+    const landingPageConfig = resolveLandingPageConfigForLocale(
+      publicCompany?.landingPageConfig,
+      landingLocale,
+    )
+
+    return (
+      <div className="app-page-gradient flex min-h-screen flex-col" style={publicThemeStyle}>
+        <ThemeStyleBridge style={publicThemeStyle} />
+        <MedicalHeader />
+        <main id="home-page-main" className="flex flex-1 flex-col">
+          {landingPageConfig.hero.visible ? (
+            <HeroSection
+              initialPublicData={
+                publicCompany
+                  ? {
+                      name: publicCompany.name,
+                      publicSpecialty: publicCompany.publicSpecialty,
+                      publicSummary: publicCompany.publicSummary,
+                      logo: publicCompany.logo,
+                    }
+                  : null
+              }
+              initialLocations={locations}
+              content={landingPageConfig.hero}
+            />
+          ) : null}
+          <HomeBodySection
+            locations={locations}
+            content={{
+              support: landingPageConfig.support,
+              journey: landingPageConfig.journey,
+              locations: landingPageConfig.locations,
+            }}
+          />
+          {blog && landingPageConfig.blog.visible ? (
+            <BlogSection content={landingPageConfig.blog} />
+          ) : null}
+          {services && landingPageConfig.specialties.visible ? (
+            <SpecialtiesSection content={landingPageConfig.specialties} />
+          ) : null}
+        </main>
+        <MedicalFooter />
+      </div>
+    )
   } catch (error) {
     if (isPublicSiteUnavailableError(error)) {
       return (
@@ -47,47 +95,4 @@ export default async function HomePage({
 
     throw error
   }
-  const landingPageConfig = resolveLandingPageConfigForLocale(
-    publicCompany?.landingPageConfig,
-    landingLocale,
-  )
-
-  return (
-    <div className="app-page-gradient flex min-h-screen flex-col">
-      <MedicalHeader />
-      <main id="home-page-main" className="flex flex-1 flex-col">
-        {landingPageConfig.hero.visible ? (
-          <HeroSection
-            initialPublicData={
-              publicCompany
-                ? {
-                    name: publicCompany.name,
-                    publicSpecialty: publicCompany.publicSpecialty,
-                    publicSummary: publicCompany.publicSummary,
-                    logo: publicCompany.logo,
-                  }
-                : null
-            }
-            initialLocations={locations}
-            content={landingPageConfig.hero}
-          />
-        ) : null}
-        <HomeBodySection
-          locations={locations}
-          content={{
-            support: landingPageConfig.support,
-            journey: landingPageConfig.journey,
-            locations: landingPageConfig.locations,
-          }}
-        />
-        {blog && landingPageConfig.blog.visible ? (
-          <BlogSection content={landingPageConfig.blog} />
-        ) : null}
-        {services && landingPageConfig.specialties.visible ? (
-          <SpecialtiesSection content={landingPageConfig.specialties} />
-        ) : null}
-      </main>
-      <MedicalFooter />
-    </div>
-  )
 }

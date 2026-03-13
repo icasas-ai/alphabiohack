@@ -1,12 +1,21 @@
 export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from "next/server";
-import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 import { randomBytes } from "node:crypto";
 
+import { NextRequest, NextResponse } from "next/server";
+
 import { PersonnelInviteEmail } from "@/emails/personnel-invite";
-import { getCurrentUser, hashPassword } from "@/lib/auth/session";
-import { canManagePersonnel } from "@/lib/auth/authorization";
+import {
+  buildPersonnelWhere,
+  getManagerDisplayName,
+  getMemberRoleKey,
+  getPersonnelManagementContext,
+  getStaffRoleFromMembershipRole,
+  isStaffRole,
+  listAssignableTherapistsForContext,
+} from "@/lib/personnel-management";
+import { hashPassword } from "@/lib/auth/session";
+import { CompanyMembershipRole, UserRole } from "@/lib/prisma-client";
 import { prisma } from "@/lib/prisma";
 import {
   isValidEmailInput,
@@ -16,7 +25,6 @@ import {
   normalizeWhitespace,
 } from "@/lib/validation/form-fields";
 import { sendEmail } from "@/services/email.service";
-import { getPrimaryCompanyIdForUser, resolveManagedTherapistIdForUser } from "@/services";
 
 function generateTemporaryPassword() {
   return randomBytes(12)
@@ -25,84 +33,132 @@ function generateTemporaryPassword() {
     .slice(0, 12);
 }
 
-async function getPersonnelContext() {
-  const { prismaUser } = await getCurrentUser();
-  if (!prismaUser) {
-    return { prismaUser: null, therapistId: null, error: "Unauthorized", status: 401 as const };
-  }
-
-  if (!canManagePersonnel(prismaUser)) {
-    return { prismaUser, therapistId: null, error: "Forbidden", status: 403 as const };
-  }
-
-  const therapistId = await resolveManagedTherapistIdForUser(prismaUser);
-  if (!therapistId) {
-    return {
-      prismaUser,
-      therapistId: null,
-      error: "No therapist is configured for this account.",
-      status: 409 as const,
-    };
-  }
-
-  return { prismaUser, therapistId, error: null, status: 200 as const };
-}
-
 export async function GET() {
-  const context = await getPersonnelContext();
-  if (!context.therapistId) {
+  const context = await getPersonnelManagementContext();
+  if (!context.companyId || !context.prismaUser) {
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
-  const personnel = await prisma.user.findMany({
-    where: {
-      managedByTherapistId: context.therapistId,
-      role: {
-        has: UserRole.FrontDesk,
+  const [rows, therapists] = await Promise.all([
+    prisma.user.findMany({
+      where: buildPersonnelWhere(context),
+      orderBy: [{ firstname: "asc" }, { lastname: "asc" }],
+      select: {
+        id: true,
+        firstname: true,
+        lastname: true,
+        email: true,
+        telefono: true,
+        mustChangePassword: true,
+        createdAt: true,
+        updatedAt: true,
+        managedByTherapistId: true,
+        managedByTherapist: {
+          select: {
+            id: true,
+            firstname: true,
+            lastname: true,
+          },
+        },
+        companyMemberships: {
+          where: {
+            companyId: context.companyId,
+            role: {
+              in: context.visibleMembershipRoles,
+            },
+          },
+          select: {
+            role: true,
+          },
+        },
       },
-    },
-    orderBy: [{ firstname: "asc" }, { lastname: "asc" }],
-    select: {
-      id: true,
-      firstname: true,
-      lastname: true,
-      email: true,
-      telefono: true,
-      role: true,
-      mustChangePassword: true,
-      createdAt: true,
-      updatedAt: true,
+    }),
+    listAssignableTherapistsForContext(context),
+  ]);
+
+  const personnel = rows
+    .map((row) => {
+      const membershipRole = row.companyMemberships[0]?.role ?? CompanyMembershipRole.FrontDesk;
+      const managedByTherapistName = row.managedByTherapist
+        ? `${row.managedByTherapist.firstname} ${row.managedByTherapist.lastname}`.trim()
+        : null;
+
+      return {
+        id: row.id,
+        firstname: row.firstname,
+        lastname: row.lastname,
+        email: row.email,
+        telefono: row.telefono,
+        mustChangePassword: row.mustChangePassword,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+        staffRole: getStaffRoleFromMembershipRole(membershipRole),
+        managedByTherapistId: row.managedByTherapistId,
+        managedByTherapistName,
+      };
+    })
+    .sort((left, right) => {
+      if (left.staffRole !== right.staffRole) {
+        return left.staffRole === UserRole.Therapist ? -1 : 1;
+      }
+
+      const firstNameCompare = left.firstname.localeCompare(right.firstname);
+      if (firstNameCompare !== 0) {
+        return firstNameCompare;
+      }
+
+      return left.lastname.localeCompare(right.lastname);
+    });
+
+  return NextResponse.json({
+    personnel,
+    therapists: therapists.map((therapist) => ({
+      id: therapist.id,
+      firstname: therapist.firstname,
+      lastname: therapist.lastname,
+      email: therapist.email,
+    })),
+    capabilities: {
+      canManageCompanyTeam: context.canManageCompanyTeam,
+      canManageTherapists: context.canManageTherapists,
+      managedTherapistId: context.managedTherapistId,
     },
   });
-
-  return NextResponse.json({ personnel });
 }
 
 export async function POST(request: NextRequest) {
-  const context = await getPersonnelContext();
-  if (!context.therapistId || !context.prismaUser) {
+  const context = await getPersonnelManagementContext();
+  if (!context.companyId || !context.prismaUser) {
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
   try {
-    const companyId = await getPrimaryCompanyIdForUser(context.prismaUser.id);
-    if (!companyId) {
-      return NextResponse.json(
-        { error: "No company is configured for this therapist." },
-        { status: 409 },
-      );
-    }
-
-    const { firstname, lastname, email, telefono } = await request.json();
+    const { firstname, lastname, email, telefono, staffRole, managedByTherapistId } =
+      await request.json();
     const normalizedFirstname = normalizeWhitespace(firstname);
     const normalizedLastname = normalizeWhitespace(lastname);
     const normalizedEmail = normalizeEmailInput(email);
     const normalizedPhone = normalizePhoneInput(telefono);
+    const normalizedManagedByTherapistId = normalizeWhitespace(managedByTherapistId);
 
     if (!normalizedFirstname || !normalizedLastname || !normalizedEmail) {
       return NextResponse.json(
         { error: "First name, last name, and email are required." },
         { status: 400 },
+      );
+    }
+
+    if (!isStaffRole(staffRole)) {
+      return NextResponse.json(
+        { error: "Select a valid team role." },
+        { status: 400 },
+      );
+    }
+
+    if (staffRole === UserRole.Therapist && !context.canManageTherapists) {
+      return NextResponse.json(
+        { error: "Only the company owner can add therapists from this screen." },
+        { status: 403 },
       );
     }
 
@@ -132,55 +188,73 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const temporaryPassword = generateTemporaryPassword();
-    const passwordHash = hashPassword(temporaryPassword);
+    let nextManagedByTherapistId: string | null = null;
+    if (staffRole === UserRole.FrontDesk) {
+      nextManagedByTherapistId = context.canManageCompanyTeam
+        ? normalizedManagedByTherapistId || null
+        : context.managedTherapistId;
 
-    let user;
-    try {
-      user = await prisma.user.create({
-        data: {
-          firstname: normalizedFirstname,
-          lastname: normalizedLastname,
-          email: normalizedEmail,
-          telefono: normalizedPhone || null,
-          role: [UserRole.FrontDesk],
-          passwordHash,
-          mustChangePassword: true,
-          managedByTherapistId: context.therapistId,
-          companyMemberships: {
-            create: {
-              companyId,
-              role: CompanyMembershipRole.FrontDesk,
-            },
-          },
-        },
-        select: {
-          id: true,
-          firstname: true,
-          lastname: true,
-          email: true,
-          telefono: true,
-          role: true,
-          mustChangePassword: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
-    } catch (dbError) {
-      throw dbError;
+      if (nextManagedByTherapistId) {
+        const assignableTherapists = await listAssignableTherapistsForContext(context);
+        const isValidTherapist = assignableTherapists.some(
+          (therapist) => therapist.id === nextManagedByTherapistId,
+        );
+
+        if (!isValidTherapist) {
+          return NextResponse.json(
+            { error: "Select a valid therapist for this front desk account." },
+            { status: 400 },
+          );
+        }
+      }
     }
 
-    const therapistName =
-      `${context.prismaUser.firstname} ${context.prismaUser.lastname}`.trim() || context.prismaUser.email;
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = hashPassword(temporaryPassword);
+    const membershipRole =
+      staffRole === UserRole.Therapist
+        ? CompanyMembershipRole.Therapist
+        : CompanyMembershipRole.FrontDesk;
+
+    const user = await prisma.user.create({
+      data: {
+        firstname: normalizedFirstname,
+        lastname: normalizedLastname,
+        email: normalizedEmail,
+        telefono: normalizedPhone || null,
+        role: [staffRole],
+        passwordHash,
+        mustChangePassword: true,
+        managedByTherapistId: nextManagedByTherapistId,
+        companyMemberships: {
+          create: {
+            companyId: context.companyId,
+            role: membershipRole,
+          },
+        },
+      },
+      select: {
+        id: true,
+        firstname: true,
+        lastname: true,
+        email: true,
+        telefono: true,
+        mustChangePassword: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     const loginUrl = new URL("/auth/login", request.url).toString();
 
     await sendEmail({
       context: "personnel.invite",
       to: normalizedEmail,
-      subject: `Your MyAlphaPulse staff access`,
+      subject: "Your MyAlphaPulse team access",
       react: PersonnelInviteEmail({
         recipientName: user.firstname,
-        therapistName,
+        managerName: getManagerDisplayName(context.prismaUser),
+        memberRole: getMemberRoleKey(staffRole),
         temporaryPassword,
         loginUrl,
         language: "en",
@@ -190,9 +264,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ personnel: user }, { status: 201 });
   } catch (error) {
     console.error("Error creating personnel:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

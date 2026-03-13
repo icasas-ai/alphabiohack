@@ -4,26 +4,41 @@ import { EmailButton, EmailCard, EmailLayout } from "@/emails/components/email-l
 
 interface PersonnelInviteEmailProps {
   recipientName: string;
-  therapistName: string;
+  managerName: string;
   temporaryPassword: string;
   loginUrl: string;
+  memberRole?: "therapist" | "frontDesk";
   language?: "en" | "es";
 }
 
 export function PersonnelInviteEmail({
   recipientName,
-  therapistName,
+  managerName,
   temporaryPassword,
   loginUrl,
+  memberRole,
   language = "en",
 }: Readonly<PersonnelInviteEmailProps>) {
   const isSpanish = language === "es";
+  const roleLabel = memberRole
+    ? isSpanish
+      ? memberRole === "therapist"
+        ? "terapeuta"
+        : "recepción"
+      : memberRole === "therapist"
+        ? "therapist"
+        : "front desk"
+    : null;
 
   const t = {
-    title: isSpanish ? "Acceso del personal" : "Staff access",
-    intro: isSpanish
-      ? `${therapistName} te agregó como miembro del personal para gestionar citas.`
-      : `${therapistName} added you as a staff member to manage appointments.`,
+    title: isSpanish ? "Acceso del equipo" : "Team access",
+    intro: roleLabel
+      ? isSpanish
+        ? `${managerName} te agregó al equipo como ${roleLabel}.`
+        : `${managerName} added you to the team as ${roleLabel}.`
+      : isSpanish
+        ? `${managerName} actualizó el acceso de tu cuenta del equipo.`
+        : `${managerName} updated access to your team account.`,
     greeting: isSpanish ? "Hola" : "Hello",
     tempPassword: isSpanish ? "Contraseña temporal" : "Temporary password",
     note: isSpanish

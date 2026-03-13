@@ -21,6 +21,10 @@ interface PublicContactData {
   telefono?: string | null
 }
 
+interface PublicContactResponse {
+  data?: PublicContactData;
+}
+
 interface MedicalHeaderProps {
   initialPublicContact?: PublicContactData | null;
   sticky?: boolean;
@@ -52,8 +56,8 @@ export function MedicalHeader({
           return
         }
 
-        const data = await readJsonResponse<PublicContactData>(response)
-        setPublicContact(data)
+        const data = await readJsonResponse<PublicContactResponse>(response)
+        setPublicContact(data?.data ?? null)
       } catch (error) {
         console.error("Error fetching public header contact data:", error)
       } finally {

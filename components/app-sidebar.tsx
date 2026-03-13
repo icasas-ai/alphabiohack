@@ -26,10 +26,11 @@ function useSidebarRoleMode(): SidebarRoleMode {
   const { prismaUser } = useUser();
   const roles = prismaUser?.role ?? [];
 
-  if (
-    roles.includes(UserRole.Admin) ||
-    roles.includes(UserRole.Therapist)
-  ) {
+  if (roles.includes(UserRole.Admin)) {
+    return "admin";
+  }
+
+  if (roles.includes(UserRole.Therapist)) {
     return "therapist";
   }
 

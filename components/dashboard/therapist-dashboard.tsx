@@ -152,7 +152,7 @@ export function TherapistDashboard({
       return 'border-red-200 bg-red-50/80 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300';
     }
     if (normalized === 'inprogress' || normalized === 'in_progress' || normalized === 'in progress') {
-      return 'border-blue-200 bg-blue-50/80 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      return 'border-primary/20 bg-primary/10 text-primary dark:border-primary/30 dark:bg-primary/14 dark:text-primary';
     }
 
     return 'border-border bg-muted/40 text-foreground';
@@ -248,7 +248,7 @@ export function TherapistDashboard({
           color = "border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300";
           icon = <Clock className="w-3.5 h-3.5" />;
         } else if (normalized === 'inprogress' || normalized === 'in_progress' || normalized === 'in progress') {
-          color = "border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300";
+          color = "border-primary/20 text-primary dark:border-primary/30 dark:text-primary";
           icon = <Loader2 className="w-3.5 h-3.5 animate-spin" />;
         }
         return (

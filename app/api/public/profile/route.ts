@@ -23,7 +23,7 @@ export async function GET() {
         phone: profile.telefono || "",
         specialties: profile.especialidad ? [profile.especialidad] : ["Alphabiotics"],
         bio: profile.summary || profile.informacionPublica || "Experienced professional.",
-        profileImage: profile.avatar || "/images/smiling-doctor.png",
+        profileImage: profile.avatar || "",
         qualifications: ["Licensed professional"],
         languages: ["English", "Spanish"],
         experience: "5+ years",

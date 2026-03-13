@@ -76,11 +76,11 @@ export function AddToCalendarButton({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          className={`inline-flex items-center gap-2 rounded-md px-3 py-2 shadow-sm ring-1 ring-slate-200 hover:shadow-md ${className}`}
+          className={`inline-flex items-center gap-2 rounded-md border border-border/70 bg-card/90 px-3 py-2 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-primary/22 hover:bg-primary/6 hover:shadow-md ${className}`}
           aria-label={t("addToGoogleCalendar", { default: "Add to calendar" })}
           variant="outline"
         >
-          <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-gradient-to-br from-blue-500 to-blue-700 text-white">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-gradient-accent-diagonal text-primary-foreground shadow-[0_10px_24px_-16px_oklch(var(--primary)/0.72)]">
             <CalendarPlus size={16} />
           </span>
           <span className="text-sm font-medium">{t("addToGoogleCalendar", { default: "Add to calendar" })}</span>

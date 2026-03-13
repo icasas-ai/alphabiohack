@@ -28,7 +28,7 @@ function getStatusTone(status?: string) {
     case 'needsattention':
       return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-900/40';
     case 'inprogress':
-      return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-900/40';
+      return 'border-primary/20 bg-primary/10 text-primary dark:border-primary/30 dark:bg-primary/14 dark:text-primary';
     case 'completed':
       return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-900/40';
     case 'noshow':

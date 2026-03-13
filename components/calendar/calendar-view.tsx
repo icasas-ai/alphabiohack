@@ -23,6 +23,7 @@ interface CalendarViewProps {
   onEventEdit?: (event: CalendarEvent) => void;
   onEventCancel?: (event: CalendarEvent) => void;
   onEventStatusChange?: (event: CalendarEvent, status: import('@/lib/utils/booking-status').BookingStatusValue) => Promise<void> | void;
+  canManageEvent?: (event: CalendarEvent) => boolean;
   updatingStatus?: boolean;
   onAddEvent?: (date: Date) => void;
   className?: string;
@@ -34,6 +35,7 @@ export function CalendarView({
   onEventEdit,
   onEventCancel,
   onEventStatusChange,
+  canManageEvent,
   updatingStatus = false,
   onAddEvent,
   className
@@ -100,6 +102,10 @@ export function CalendarView({
     setSelectedEvent(null);
   };
 
+  const canManageSelectedEvent = selectedEvent
+    ? (canManageEvent ? canManageEvent(selectedEvent) : Boolean(onEventEdit || onEventCancel || onEventStatusChange))
+    : false;
+
   return (
     <div className={cn("grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]", className)}>
       <div className="space-y-4">
@@ -140,9 +146,9 @@ export function CalendarView({
         event={selectedEvent}
         isOpen={isDialogOpen}
         onClose={handleCloseDialog}
-        onEdit={handleEventEdit}
-        onCancel={handleEventCancel}
-        onStatusChange={onEventStatusChange}
+        onEdit={canManageSelectedEvent ? handleEventEdit : undefined}
+        onCancel={canManageSelectedEvent ? handleEventCancel : undefined}
+        onStatusChange={canManageSelectedEvent ? onEventStatusChange : undefined}
         updatingStatus={updatingStatus}
       />
     </div>

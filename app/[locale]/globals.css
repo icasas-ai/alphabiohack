@@ -155,8 +155,8 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at top right, oklch(var(--primary) / 0.08), transparent 30%),
-      radial-gradient(circle at bottom left, oklch(var(--accent) / 0.10), transparent 28%),
+      radial-gradient(circle at top right, oklch(var(--primary) / 0.12), transparent 30%),
+      radial-gradient(circle at bottom left, oklch(var(--accent) / 0.14), transparent 28%),
       linear-gradient(to bottom, oklch(var(--background)), oklch(var(--secondary) / 0.72), oklch(var(--background)));
     background-attachment: fixed;
   }
@@ -182,6 +182,25 @@
       opacity: 1;
       transform: translateY(0);
       filter: blur(0);
+    }
+  }
+
+  @keyframes app-attention-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 18px 50px -28px oklch(var(--primary) / 0.18),
+        0 0 0 0 oklch(var(--primary) / 0),
+        inset 0 1px 0 0 oklch(var(--accent) / 0.08);
+      transform: translateY(0);
+    }
+
+    50% {
+      box-shadow:
+        0 22px 56px -28px oklch(var(--primary) / 0.26),
+        0 0 0 10px oklch(var(--primary) / 0.08),
+        inset 0 1px 0 0 oklch(var(--accent) / 0.14);
+      transform: translateY(-2px);
     }
   }
 
@@ -216,18 +235,63 @@
     transform: translateY(-3px);
   }
 
+  .service-editor-pulse {
+    animation: app-attention-pulse 650ms var(--motion-ease-standard) 3;
+  }
+
   .surface-panel {
-    @apply rounded-2xl border bg-card/88 shadow-[0_18px_50px_-28px_rgba(32,42,67,0.28)] backdrop-blur-sm;
+    @apply rounded-2xl backdrop-blur-sm;
+    border: 1px solid oklch(var(--primary) / 0.12);
+    background-image:
+      radial-gradient(
+        circle at top left,
+        oklch(var(--primary) / 0.06),
+        transparent 34%
+      ),
+      linear-gradient(
+        180deg,
+        oklch(var(--card) / 0.98) 0%,
+        oklch(var(--accent) / 0.08) 100%
+      );
+    box-shadow:
+      0 18px 50px -28px oklch(var(--primary) / 0.18),
+      inset 0 1px 0 0 oklch(var(--accent) / 0.12);
+  }
+
+  .surface-inset {
+    border: 1px solid oklch(var(--primary) / 0.1);
+    background-image: linear-gradient(
+      180deg,
+      oklch(var(--background) / 0.94) 0%,
+      oklch(var(--accent) / 0.09) 100%
+    );
+    box-shadow:
+      0 14px 32px -28px oklch(var(--primary) / 0.2),
+      inset 0 1px 0 0 oklch(var(--primary) / 0.08);
+  }
+
+  .surface-chip {
+    border: 1px solid oklch(var(--primary) / 0.12);
+    background-image: linear-gradient(
+      135deg,
+      oklch(var(--background) / 0.96) 0%,
+      oklch(var(--accent) / 0.1) 100%
+    );
+    box-shadow:
+      0 12px 28px -24px oklch(var(--primary) / 0.18),
+      inset 0 1px 0 0 oklch(var(--accent) / 0.12);
   }
 
   .surface-brand-tint {
-    @apply border-primary/14;
+    border: 1px solid oklch(var(--primary) / 0.16);
     background-image: linear-gradient(
       160deg,
-      oklch(var(--primary) / 0.09) 0%,
-      oklch(var(--accent) / 0.06) 100%
+      oklch(var(--primary) / 0.14) 0%,
+      oklch(var(--accent) / 0.12) 100%
     );
-    box-shadow: 0 22px 60px -42px rgba(10, 44, 76, 0.28);
+    box-shadow:
+      0 22px 60px -42px oklch(var(--primary) / 0.24),
+      inset 0 1px 0 0 oklch(var(--accent) / 0.14);
   }
 
   .brand-showcase-panel {
@@ -243,6 +307,11 @@
         oklch(var(--primary) / 0.24),
         transparent 24%
       ),
+      linear-gradient(
+        180deg,
+        rgb(8 18 32 / 0.08) 0%,
+        rgb(8 18 32 / 0.22) 100%
+      ),
       radial-gradient(
         circle at bottom right,
         rgb(255 255 255 / 0.16),
@@ -250,12 +319,13 @@
       ),
       linear-gradient(
         155deg,
-        oklch(0.24 0.032 251) 0%,
-        oklch(0.31 0.055 248) 34%,
-        oklch(var(--primary) / 0.84) 68%,
-        oklch(var(--accent) / 0.86) 100%
+        oklch(var(--primary) / 0.94) 0%,
+        oklch(var(--primary) / 0.86) 46%,
+        oklch(var(--accent) / 0.9) 100%
       );
-    box-shadow: 0 32px 70px -34px rgba(10, 42, 71, 0.72);
+    box-shadow:
+      0 32px 70px -34px oklch(var(--primary) / 0.45),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.12);
   }
 
   .brand-showcase-glass {
@@ -265,7 +335,9 @@
       rgb(255 255 255 / 0.24) 0%,
       rgb(255 255 255 / 0.10) 100%
     );
-    box-shadow: 0 28px 70px -42px rgba(8, 28, 49, 0.62);
+    box-shadow:
+      0 28px 70px -42px oklch(var(--primary) / 0.34),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.12);
     backdrop-filter: blur(24px);
   }
 
@@ -276,11 +348,16 @@
       oklch(var(--primary)) 0%,
       oklch(var(--accent)) 100%
     );
-    box-shadow: 0 24px 40px -24px rgba(34, 49, 75, 0.9);
+    box-shadow:
+      0 24px 40px -24px oklch(var(--primary) / 0.52),
+      0 12px 28px -20px oklch(var(--accent) / 0.34);
   }
 
   .brand-button:hover {
     filter: saturate(1.04) brightness(0.98);
+    box-shadow:
+      0 28px 46px -24px oklch(var(--primary) / 0.6),
+      0 16px 34px -24px oklch(var(--accent) / 0.38);
   }
 
   .surface-highlight {
@@ -332,8 +409,8 @@
     pointer-events: none;
     z-index: -2;
     background:
-      radial-gradient(circle at top right, oklch(var(--primary) / 0.12), transparent 30%),
-      radial-gradient(circle at bottom left, oklch(var(--accent) / 0.08), transparent 28%),
+      radial-gradient(circle at top right, oklch(var(--primary) / 0.16), transparent 30%),
+      radial-gradient(circle at bottom left, oklch(var(--accent) / 0.12), transparent 28%),
       linear-gradient(to bottom, oklch(var(--background)), oklch(var(--muted) / 0.58), oklch(var(--background)));
   }
 
@@ -358,7 +435,7 @@
   .bg-gradient-accent {
     background: linear-gradient(
       to right,
-      oklch(0.31 0.055 248),
+      oklch(var(--primary) / 0.78),
       oklch(var(--primary)),
       oklch(var(--accent))
     );
@@ -368,7 +445,7 @@
   .bg-gradient-accent-horizontal {
     background: linear-gradient(
       to right,
-      oklch(0.31 0.055 248),
+      oklch(var(--primary) / 0.78),
       oklch(var(--primary)),
       oklch(var(--accent))
     );
@@ -377,7 +454,7 @@
   .bg-gradient-accent-vertical {
     background: linear-gradient(
       to bottom,
-      oklch(0.31 0.055 248),
+      oklch(var(--primary) / 0.78),
       oklch(var(--primary)),
       oklch(var(--accent))
     );
@@ -386,7 +463,7 @@
   .bg-gradient-accent-diagonal {
     background: linear-gradient(
       135deg,
-      oklch(0.31 0.055 248),
+      oklch(var(--primary) / 0.78),
       oklch(var(--primary)),
       oklch(var(--accent))
     );
@@ -407,6 +484,10 @@
   .motion-hover-lift:hover {
     transform: none !important;
     transition-duration: 0ms !important;
+  }
+
+  .service-editor-pulse {
+    animation: none !important;
   }
 }
 

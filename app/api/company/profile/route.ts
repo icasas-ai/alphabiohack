@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
+import {
+  jsonError,
+  jsonSuccess,
+  requireAuthenticatedUser,
+  requireAuthorizedUser,
+} from "@/lib/api/route-helpers";
 import { canOperateAppointments } from "@/lib/auth/authorization";
 import {
   normalizeLandingPageConfig,
   parseLandingPageConfig,
   serializeLandingPageConfig,
 } from "@/lib/company/landing-page-config";
-import { getCurrentUser } from "@/lib/auth/session";
 import { isSupportedCompanyTimezone } from "@/lib/constants/supported-timezones";
 import { prisma } from "@/lib/prisma";
 import {
@@ -46,14 +51,13 @@ const companyProfileSelect = {
 } as const;
 
 async function getCompanyContext() {
-  const { prismaUser } = await getCurrentUser();
-
-  if (!prismaUser) {
+  const currentUser = await requireAuthenticatedUser();
+  if ("response" in currentUser) {
     return { prismaUser: null, companyId: null };
   }
 
-  const companyId = await getPrimaryCompanyIdForUser(prismaUser.id);
-  return { prismaUser, companyId };
+  const companyId = await getPrimaryCompanyIdForUser(currentUser.prismaUser.id);
+  return { prismaUser: currentUser.prismaUser, companyId };
 }
 
 export async function GET() {
@@ -61,11 +65,11 @@ export async function GET() {
     const { prismaUser, companyId } = await getCompanyContext();
 
     if (!prismaUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonError("Unauthorized", 401);
     }
 
     if (!companyId) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return jsonError("Company not found", 404);
     }
 
     const company = await prisma.company.findUnique({
@@ -74,37 +78,30 @@ export async function GET() {
     });
 
     if (!company) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return jsonError("Company not found", 404);
     }
 
-    return NextResponse.json({
+    return jsonSuccess({
       ...company,
       landingPageConfig: parseLandingPageConfig(company.landingPageConfig),
       canEdit: canOperateAppointments(prismaUser),
     });
   } catch (error) {
     console.error("Error fetching company profile:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return jsonError("Internal server error", 500);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const { prismaUser, companyId } = await getCompanyContext();
-
-    if (!prismaUser) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const currentUser = await requireAuthorizedUser(canOperateAppointments);
+    if ("response" in currentUser) {
+      return currentUser.response;
     }
 
-    if (!canOperateAppointments(prismaUser)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+    const companyId = await getPrimaryCompanyIdForUser(currentUser.prismaUser.id);
     if (!companyId) {
-      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+      return jsonError("Company not found", 404);
     }
 
     const body = await request.json();
@@ -122,30 +119,30 @@ export async function PUT(request: NextRequest) {
     };
 
     if (!normalizedName) {
-      return NextResponse.json({ error: "Company name is required." }, { status: 400 });
+      return jsonError("Company name is required.", 400);
     }
 
     if (
       body.defaultTimezone &&
       !isSupportedCompanyTimezone(body.defaultTimezone.trim())
     ) {
-      return NextResponse.json(
-        { error: "Unsupported timezone. Please select a supported US or Canada timezone." },
-        { status: 400 },
+      return jsonError(
+        "Unsupported timezone. Please select a supported US or Canada timezone.",
+        400,
       );
     }
 
     if (normalizedPublicEmail && !isValidEmailInput(normalizedPublicEmail)) {
-      return NextResponse.json({ error: "Please enter a valid public email address." }, { status: 400 });
+      return jsonError("Please enter a valid public email address.", 400);
     }
 
     if (normalizedPublicPhone && !isValidPhoneInput(normalizedPublicPhone)) {
-      return NextResponse.json({ error: "Please enter a valid public phone number." }, { status: 400 });
+      return jsonError("Please enter a valid public phone number.", 400);
     }
 
     for (const [key, value] of Object.entries(normalizedUrls)) {
       if (value && !isValidUrlInput(value)) {
-        return NextResponse.json({ error: `Please enter a valid URL for ${key}.` }, { status: 400 });
+        return jsonError(`Please enter a valid URL for ${key}.`, 400);
       }
     }
 
@@ -178,15 +175,12 @@ export async function PUT(request: NextRequest) {
       select: companyProfileSelect,
     });
 
-    return NextResponse.json({
+    return jsonSuccess({
       ...updatedCompany,
       landingPageConfig: parseLandingPageConfig(updatedCompany.landingPageConfig),
     });
   } catch (error) {
     console.error("Error updating company profile:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return jsonError("Internal server error", 500);
   }
 }

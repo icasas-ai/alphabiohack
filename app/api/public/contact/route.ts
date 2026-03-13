@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { jsonError, jsonSuccess } from "@/lib/api/route-helpers";
 import { getPublicCompanyProfile } from "@/services/public-profile.service";
 import { isPublicSiteUnavailableError } from "@/services/company.service";
 
@@ -7,13 +7,10 @@ export async function GET() {
     const company = await getPublicCompanyProfile();
 
     if (!company) {
-      return NextResponse.json(
-        { error: "No business information found" },
-        { status: 404 }
-      );
+      return jsonError("No business information found", 404);
     }
 
-    return NextResponse.json({
+    return jsonSuccess({
       name: company.name,
       logo: company.logo,
       headerLogo: company.headerLogo,
@@ -34,16 +31,10 @@ export async function GET() {
     });
   } catch (error) {
     if (isPublicSiteUnavailableError(error)) {
-      return NextResponse.json(
-        { error: "Public site unavailable" },
-        { status: 503 }
-      );
+      return jsonError("Public site unavailable", 503);
     }
 
     console.error("Error fetching contact info:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return jsonError("Internal server error", 500);
   }
 }

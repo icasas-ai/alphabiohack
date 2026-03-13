@@ -1,9 +1,9 @@
 import {
+  Building2,
   BookOpen,
   Cog,
   LayoutDashboard,
   LucideIcon,
-  User,
   Monitor,
 } from "lucide-react";
 
@@ -23,7 +23,7 @@ export interface SidebarConfig {
   navSecondary: SidebarNavItem[];
 }
 
-export type SidebarRoleMode = "therapist" | "frontDesk" | "patient";
+export type SidebarRoleMode = "admin" | "therapist" | "frontDesk" | "patient";
 
 export const getSidebarConfig = (
   t: (key: string) => string,
@@ -31,7 +31,50 @@ export const getSidebarConfig = (
 ): SidebarConfig => {
   const baseNavMain: SidebarNavItem[] = [];
 
-  // Navegación para Therapist (que también es Admin)
+  const adminNavMain: SidebarNavItem[] = [
+    ...baseNavMain,
+    {
+      title: t("myDashboard"),
+      url: "/dashboard",
+      icon: LayoutDashboard,
+      isActive: true,
+      items: [
+        {
+          title: t("dashboard"),
+          url: "/dashboard",
+        },
+        {
+          title: t("myAppointments"),
+          url: "/bookings",
+        },
+      ],
+    },
+    {
+      title: t("management"),
+      url: "/specialties",
+      icon: Cog,
+      isActive: true,
+      items: [
+        {
+          title: t("specialties"),
+          url: "/specialties",
+        },
+        {
+          title: t("availability"),
+          url: "/availability",
+        },
+        {
+          title: t("locations"),
+          url: "/locations",
+        },
+        {
+          title: t("personnel"),
+          url: "/personnel",
+        },
+      ],
+    },
+  ];
+
   const therapistNavMain: SidebarNavItem[] = [
     ...baseNavMain,
     {
@@ -61,16 +104,8 @@ export const getSidebarConfig = (
           url: "/specialties",
         },
         {
-          title: t("locations"),
-          url: "/locations",
-        },
-        {
           title: t("availability"),
           url: "/availability",
-        },
-        {
-          title: t("personnel"),
-          url: "/personnel",
         },
       ],
     },
@@ -109,8 +144,10 @@ export const getSidebarConfig = (
 
   return {
     navMain:
-      roleMode === "therapist"
-        ? therapistNavMain
+      roleMode === "admin"
+        ? adminNavMain
+        : roleMode === "therapist"
+          ? therapistNavMain
         : roleMode === "frontDesk"
           ? frontDeskNavMain
           : regularUserNavMain,
@@ -118,7 +155,7 @@ export const getSidebarConfig = (
       {
         title: t("company"),
         url: "/company",
-        icon: User,
+        icon: Building2,
       },
       {
         title: t("publicView"),

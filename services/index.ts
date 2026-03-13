@@ -80,6 +80,7 @@ export {
   getBookingsByDate,
   getBookingsByDateRange,
   getBookingsByEmail,
+  getBookingsByCompany,
   getBookingsByLocation,
   getBookingsByName,
   getBookingsByPatient,

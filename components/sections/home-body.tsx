@@ -29,7 +29,7 @@ export async function HomeBodySection({
       ? "grid gap-8 lg:grid-cols-2 lg:items-stretch"
       : "grid gap-8"
   const surfacePanelClass = "surface-panel flex h-full flex-col rounded-[24px] p-8 lg:p-10"
-  const insetCardClass = "rounded-[24px] border border-border/70 bg-background/82 p-5"
+  const insetCardClass = "surface-inset rounded-[24px] p-5"
   const accentPanelClass =
     "surface-brand-tint flex h-full flex-col rounded-[24px] p-8 lg:p-10"
 
@@ -187,7 +187,7 @@ export async function HomeBodySection({
                     </div>
 
                     {locations.length ? (
-                      <span className="rounded-full border border-border/70 bg-background/86 px-4 py-2 text-sm font-medium text-foreground/82">
+                      <span className="surface-chip rounded-full px-4 py-2 text-sm font-medium text-foreground/82">
                         {t("guideLocations", {count: locations.length})}
                       </span>
                     ) : null}
